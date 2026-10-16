@@ -1,0 +1,22 @@
+# Netlify: the playable site is the static folder web/ - there is no build step.
+# (The N64 ROM build happens in GitHub Actions, see .github/workflows/remix.yml.)
+[build]
+  base = "web"
+  publish = "."
+  command = "echo 'Static site - nothing to build'"
+
+[[headers]]
+  for = "/emulatorjs/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/patches/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

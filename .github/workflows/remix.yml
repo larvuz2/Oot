@@ -1,0 +1,143 @@
+name: Remix build
+
+# Compiles this repo's (modified) source into an N64 ROM and publishes it to the
+# web player as a BPS patch in web/patches/. Netlify then redeploys the site.
+#
+# Needs a base ROM to extract assets from. Provide a direct download link to
+# your own dump as the repository secret BASEROM_URL (see REMIX.md). Without it
+# this workflow does nothing and stays green.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "web/**"
+      - "**/*.md"
+      - "docs/**"
+      - ".github/workflows/web-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remix-build
+  cancel-in-progress: true
+
+env:
+  FLIPS_COMMIT: ff216a75df0987047a67d7923567dc4482ce07ac
+
+jobs:
+  build:
+    name: Build remix ROM and publish patch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check for a base ROM
+        id: gate
+        env:
+          BASEROM_URL: ${{ secrets.BASEROM_URL }}
+        run: |
+          if [ -z "$BASEROM_URL" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Remix build skipped::Set the BASEROM_URL repository secret to build ROMs (see REMIX.md)."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q build-essential binutils-mips-linux-gnu curl python3 python3-pip python3-venv libxml2-dev
+
+      - name: Download base ROM
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          BASEROM_URL: ${{ secrets.BASEROM_URL }}
+          BASEROM_AUTH_HEADER: ${{ secrets.BASEROM_AUTH_HEADER }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rom"
+          if [ -n "$BASEROM_AUTH_HEADER" ]; then
+            curl -fsSL --retry 3 -H "$BASEROM_AUTH_HEADER" -o "$RUNNER_TEMP/rom/download" "$BASEROM_URL"
+          else
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/rom/download" "$BASEROM_URL"
+          fi
+          # Accept a .zip containing the ROM as well as a bare ROM file.
+          python3 - "$RUNNER_TEMP/rom/download" "$RUNNER_TEMP/rom/baserom.bin" <<'EOF'
+          import sys, zipfile, shutil
+          src, dst = sys.argv[1], sys.argv[2]
+          if zipfile.is_zipfile(src):
+              with zipfile.ZipFile(src) as z:
+                  info = max(z.infolist(), key=lambda i: i.file_size)
+                  with z.open(info) as f, open(dst, "wb") as out:
+                      shutil.copyfileobj(f, out)
+          else:
+              shutil.move(src, dst)
+          EOF
+          ls -l "$RUNNER_TEMP/rom/baserom.bin"
+
+      - name: Identify ROM
+        if: steps.gate.outputs.enabled == 'true'
+        id: rom
+        run: python3 tools/web/identify_rom.py "$RUNNER_TEMP/rom/baserom.bin" --github-output
+
+      - name: Place base ROM
+        if: steps.gate.outputs.enabled == 'true'
+        run: cp "$RUNNER_TEMP/rom/baserom.bin" "baseroms/${{ steps.rom.outputs.version }}/baserom.z64"
+
+      - name: Setup (extract assets)
+        if: steps.gate.outputs.enabled == 'true'
+        run: make -j"$(nproc)" setup VERSION=${{ steps.rom.outputs.version }}
+
+      - name: Build ROM
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          make -j"$(nproc)" VERSION=${{ steps.rom.outputs.version }} REGION=${{ steps.rom.outputs.region }} COMPARE=0 ${{ vars.REMIX_MAKE_FLAGS }}
+          md5sum build/${{ steps.rom.outputs.version }}/oot-${{ steps.rom.outputs.version }}.z64
+
+      - name: Build Floating IPS
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          git clone -q https://github.com/Alcaro/Flips "$RUNNER_TEMP/flips"
+          git -C "$RUNNER_TEMP/flips" checkout -q "$FLIPS_COMMIT"
+          make -C "$RUNNER_TEMP/flips" TARGET=cli CFLAGS=-O2
+
+      - name: Create patch
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          python3 tools/web/make_patch.py \
+            --version ${{ steps.rom.outputs.version }} \
+            --region ${{ steps.rom.outputs.region }} \
+            --target build/${{ steps.rom.outputs.version }}/oot-${{ steps.rom.outputs.version }}.z64 \
+            --flips "$RUNNER_TEMP/flips/flips" \
+            --title "${{ vars.REMIX_TITLE || 'Remix' }}"
+
+      - name: Upload patch artifact
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: remix-patch-${{ steps.rom.outputs.version }}-${{ steps.rom.outputs.region }}
+          path: web/patches/
+
+      - name: Commit patch to the site
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/patches
+          if git diff --cached --quiet; then
+            echo "Patch unchanged."
+            exit 0
+          fi
+          git commit -m "Publish remix build for ${{ steps.rom.outputs.label }} (${GITHUB_SHA::7})"
+          for i in 1 2 3 4; do
+            git pull --rebase -q origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

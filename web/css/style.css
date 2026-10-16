@@ -1,0 +1,180 @@
+:root {
+    --bg: #0d1a14;
+    --bg-2: #12241b;
+    --card: #172c22;
+    --card-edge: #24412f;
+    --text: #e9efe6;
+    --muted: #a3b5a6;
+    --gold: #e2b84a;
+    --gold-2: #f3d27a;
+    --danger: #ff8a7a;
+    --radius: 14px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    --display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+    min-height: 100vh;
+    background:
+        radial-gradient(1200px 600px at 50% -200px, #1f3a2b 0%, transparent 70%),
+        var(--bg);
+    color: var(--text);
+    font: 16px/1.55 var(--font);
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--gold-2); }
+code, kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+
+.masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 16px 12px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark { width: 52px; height: 52px; color: var(--gold); flex: none; }
+h1 { font: 600 clamp(1.5rem, 4vw, 2.3rem)/1.1 var(--display); margin: 0; letter-spacing: .01em; }
+h1 span { color: var(--gold); font-style: italic; }
+.tagline { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 32px; }
+
+.card {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--card-edge);
+    border-radius: var(--radius);
+    padding: 22px;
+}
+.card h2 { font: 600 1.5rem/1.2 var(--display); margin: 0 0 8px; }
+.card h3 { font: 600 1.15rem/1.2 var(--display); margin: 0 0 10px; color: var(--gold-2); }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.eyebrow { margin: 0 0 4px; color: var(--gold); text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; font-weight: 600; }
+
+#launcher { margin-bottom: 20px; }
+.pane { display: none; }
+body[data-state="empty"] .pane-empty,
+body[data-state="busy"] .pane-busy,
+body[data-state="error"] .pane-error,
+body[data-state="ready"] .pane-ready { display: block; }
+body[data-state="playing"] #launcher { display: none; }
+
+.drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    padding: 34px 16px;
+    border: 2px dashed #3b6149;
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, .15);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop:focus-visible, .drop.over { border-color: var(--gold); background: rgba(226, 184, 74, .06); outline: none; }
+.drop-icon { font-size: 2.2rem; color: var(--gold); line-height: 1; }
+.drop-title { font-weight: 600; font-size: 1.05rem; }
+.drop-sub { color: var(--muted); font-size: .9rem; }
+
+.pane-busy { text-align: center; padding: 24px 0; }
+.spinner {
+    width: 40px; height: 40px; margin: 0 auto 14px;
+    border: 3px solid rgba(255, 255, 255, .12);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.pane-error h2 { color: var(--danger); }
+#error-msg { overflow-wrap: anywhere; }
+
+button {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 10px 18px;
+    border: 1px solid var(--card-edge);
+    background: #203a2c;
+    color: var(--text);
+    cursor: pointer;
+}
+button:hover { border-color: var(--gold); }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button.primary { background: var(--gold); border-color: var(--gold); color: #1a1405; font-size: 1.05rem; padding: 12px 26px; }
+button.primary:hover { background: var(--gold-2); }
+button.ghost { background: transparent; }
+#back { display: none; }
+body[data-state="playing"] #back { display: inline-block; }
+
+.modes { display: grid; gap: 10px; margin: 16px 0; }
+.mode {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 14px;
+    border: 1px solid var(--card-edge);
+    border-radius: 10px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, .15);
+}
+.mode:has(input:checked) { border-color: var(--gold); background: rgba(226, 184, 74, .08); }
+.mode input { margin-top: 4px; accent-color: var(--gold); }
+.mode strong { display: block; }
+.mode span { color: var(--muted); font-size: .9rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+#stage { display: none; margin-bottom: 20px; }
+body[data-state="playing"] #stage { display: block; }
+#game {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: calc(100vh - 120px);
+    margin: 0 auto;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid p { margin: 0 0 10px; }
+
+.keys { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.keys th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 8px 4px 0; white-space: nowrap; }
+.keys td { padding: 4px 0; }
+kbd {
+    display: inline-block;
+    min-width: 1.8em;
+    margin: 0 2px 2px 0;
+    padding: 1px 6px;
+    border: 1px solid #3b6149;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: #0f1f17;
+    text-align: center;
+}
+
+.steps { margin: 0; padding-left: 20px; }
+.steps li { margin-bottom: 8px; }
+
+.versions { list-style: none; margin: 0; padding: 0; font-size: .92rem; columns: 1; }
+.versions li { padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, .05); display: flex; justify-content: space-between; gap: 8px; }
+.versions .tag { color: #1a1405; background: var(--gold); border-radius: 999px; padding: 0 8px; font-size: .75rem; font-weight: 700; align-self: center; white-space: nowrap; }
+
+footer { max-width: 1100px; margin: 0 auto; padding: 8px 16px 40px; color: var(--muted); font-size: .85rem; }
+footer p { margin: 0 0 6px; }
+
+@media (max-width: 600px) {
+    .masthead { padding-top: 18px; }
+    .brand-mark { width: 40px; height: 40px; }
+    .card { padding: 18px; }
+    #game { max-height: none; }
+}
