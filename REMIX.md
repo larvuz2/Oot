@@ -30,6 +30,14 @@ If a remix build has been published for that version you can choose **Remix** or
 **Original game**. Each keeps its own save file. Controls are listed on the page and can be
 remapped from the emulator's menu; gamepads and touch controls work.
 
+### If the game freezes
+
+Two N64 emulator cores ship with the site: **Standard** (Mupen64Plus-Next, the default) and
+**Compatibility** (ParaLLEl N64). Both are EmulatorJS 4.2.3 WebAssembly builds, and each has
+crash bugs on some games. The page watches the emulator: if it crashes or stops producing
+frames, a panel offers **Try the other emulator** (remembered from then on), **Restart game**,
+and **Copy details for a bug report**. You can also pick the core on the start screen.
+
 ## Deploy on Netlify
 
 1. In Netlify: **Add new site → Import an existing project → GitHub → `larvuz2/Oot`**.

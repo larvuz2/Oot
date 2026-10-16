@@ -110,6 +110,16 @@ function renderReady() {
             return label;
         }),
     );
+    const select = $("core");
+    select.replaceChildren(
+        ...Object.entries(CORES).map(([value, label]) => {
+            const o = document.createElement("option");
+            o.value = value;
+            o.textContent = label;
+            return o;
+        }),
+    );
+    select.value = preferredCore() in CORES ? preferredCore() : DEFAULT_CORE;
     setState("ready");
     $("play").focus();
 }
@@ -166,14 +176,136 @@ const KEYS = {
     23: ["up arrow", "RIGHT_STICK_Y:-1"], // C-up
 };
 
-function startEmulator(bytes, gameName) {
+// Two N64 cores ship with the site. Each has known WebAssembly crash bugs on
+// some games, so the player can switch, and a crash offers the other one.
+const CORES = {
+    mupen64plus_next: "Standard (Mupen64Plus-Next)",
+    parallel_n64: "Compatibility (ParaLLEl N64)",
+};
+const DEFAULT_CORE = "mupen64plus_next";
+const params = new URLSearchParams(location.search);
+function preferredCore() {
+    const q = params.get("core");
+    if (q) return q;
+    try {
+        const c = localStorage.getItem("oot.core");
+        if (c in CORES) return c;
+    } catch {
+        /* storage blocked */
+    }
+    return DEFAULT_CORE;
+}
+function setPreferredCore(c) {
+    try {
+        localStorage.setItem("oot.core", c);
+    } catch {
+        /* storage blocked */
+    }
+}
+
+// Browsers may start audio suspended; resume it on any interaction so the
+// emulator's sound output never waits on a context that can't play.
+const audioContexts = new Set();
+for (const name of ["AudioContext", "webkitAudioContext"]) {
+    const Base = window[name];
+    if (typeof Base !== "function") continue;
+    try {
+        window[name] = class extends Base {
+            constructor(...args) {
+                super(...args);
+                audioContexts.add(this);
+            }
+        };
+    } catch {
+        /* leave the native constructor alone */
+    }
+}
+function resumeAudio() {
+    for (const ctx of audioContexts) if (ctx.state === "suspended") ctx.resume().catch(() => {});
+}
+for (const t of ["pointerdown", "keydown", "touchend"]) window.addEventListener(t, resumeAudio, true);
+
+let session = null; // { core, mode, version, error, frames }
+
+function showCrash(reason) {
+    if (!session || session.crashed) return;
+    session.crashed = true;
+    session.error = reason;
+    const other = Object.keys(CORES).find((c) => c !== session.core);
+    $("crash-msg").textContent = reason;
+    $("crash-switch").textContent = `Try the other emulator: ${CORES[other]}`;
+    $("crash-switch").onclick = () => restart(other);
+    $("crash").hidden = false;
+}
+
+function restart(core) {
+    setPreferredCore(core);
+    const u = new URL(location.href);
+    u.search = "";
+    u.searchParams.set("autostart", session.mode);
+    location.href = u.href;
+}
+
+function diagnostics() {
+    const e = window.EJS_emulator;
+    let frames = "?";
+    try {
+        frames = e.gameManager.functions.getFrameNum();
+    } catch {
+        /* core gone */
+    }
+    return [
+        `Problem: ${session?.error || "none"}`,
+        `Emulator core: ${session?.core}`,
+        `Build: ${session?.mode} · ${session?.version}`,
+        `Frames run: ${frames}`,
+        `Audio: ${[...audioContexts].map((c) => c.state).join(", ") || "none"}`,
+        `Browser: ${navigator.userAgent}`,
+        `Page: ${location.href}`,
+    ].join("\n");
+}
+
+const CRASH_RE = /RuntimeError|table index|out of bounds|unreachable|memory access|call stack|Aborted|abort\(/i;
+window.addEventListener("error", (e) => {
+    const msg = e.message || String(e.error || "");
+    if (session && CRASH_RE.test(msg)) showCrash(`The emulator crashed (${msg.replace(/^Uncaught\s*/, "")}).`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+    const msg = String(e.reason?.message || e.reason || "");
+    if (session && CRASH_RE.test(msg)) showCrash(`The emulator crashed (${msg}).`);
+});
+
+// Detect a frozen main loop: the frame counter stops while the game isn't paused.
+function watchFrames() {
+    let last = -1;
+    let stuckFor = 0;
+    setInterval(() => {
+        const e = window.EJS_emulator;
+        if (!session || session.crashed || !e || !e.started) return;
+        if (document.hidden || e.paused) {
+            stuckFor = 0;
+            return;
+        }
+        let n;
+        try {
+            n = e.gameManager.functions.getFrameNum();
+        } catch {
+            return showCrash("The emulator stopped running.");
+        }
+        stuckFor = n === last ? stuckFor + 1 : 0;
+        last = n;
+        if (stuckFor >= 6) showCrash("The game stopped advancing (no new frames for 6 seconds).");
+    }, 1000);
+}
+
+function startEmulator(bytes, gameName, meta = {}) {
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
     const p0 = {};
     for (const [id, [value, value2]] of Object.entries(KEYS)) p0[id] = { value, value2 };
 
     Object.assign(window, {
         EJS_player: "#game",
-        EJS_core: "n64",
+        EJS_core: meta.core || preferredCore(),
         EJS_pathtodata: new URL("emulatorjs/data/", document.baseURI).pathname,
         EJS_gameUrl: url,
         EJS_gameName: gameName,
@@ -187,6 +319,8 @@ function startEmulator(bytes, gameName) {
             "save-state-location": "browser",
         },
     });
+    session = { core: meta.core || preferredCore(), mode: meta.mode || "test", version: meta.version || "test ROM" };
+    watchFrames();
     setState("playing");
     const s = document.createElement("script");
     s.src = "emulatorjs/data/loader.js";
@@ -194,8 +328,10 @@ function startEmulator(bytes, gameName) {
     $("game").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function play() {
-    const mode = document.querySelector('input[name="mode"]:checked')?.value || "original";
+async function play(forcedMode) {
+    const mode = (typeof forcedMode === "string" && forcedMode) || document.querySelector('input[name="mode"]:checked')?.value || "original";
+    const core = $("core").value;
+    setPreferredCore(core);
     try {
         let bytes = rom.original;
         if (mode === "remix") {
@@ -208,7 +344,7 @@ async function play() {
             const source = rom.decompressed.slice();
             bytes = await call({ cmd: "patch", source: source.buffer, patch: patchBytes, targetMd5: patch.targetMd5 }, [source.buffer, patchBytes]);
         }
-        startEmulator(bytes, `oot-${rom.version.version}-${rom.version.region}-${mode}`);
+        startEmulator(bytes, `oot-${rom.version.version}-${rom.version.region}-${mode}`, { core, mode, version: rom.version.label });
     } catch (err) {
         fail(err);
     }
@@ -252,7 +388,18 @@ $("forget").addEventListener("click", async () => {
     $("file").value = "";
     setState("empty");
 });
-$("play").addEventListener("click", play);
+$("play").addEventListener("click", () => play());
+$("crash-restart").addEventListener("click", () => restart(session.core));
+$("crash-copy").addEventListener("click", async () => {
+    const text = diagnostics();
+    try {
+        await navigator.clipboard.writeText(text);
+        $("crash-copy").textContent = "Copied!";
+    } catch {
+        $("crash-details").textContent = text;
+        $("crash-details").hidden = false;
+    }
+});
 $("back").addEventListener("click", () => location.reload());
 
 (async function init() {
@@ -266,7 +413,7 @@ $("back").addEventListener("click", () => location.reload());
         try {
             const res = await fetch(direct);
             if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${direct}`);
-            startEmulator(new Uint8Array(await res.arrayBuffer()), "test-rom");
+            startEmulator(new Uint8Array(await res.arrayBuffer()), "test-rom", { core: preferredCore(), mode: "test" });
         } catch (err) {
             fail(err);
         }
@@ -277,6 +424,12 @@ $("back").addEventListener("click", () => location.reload());
     if (saved) {
         try {
             await ingest(new Uint8Array(await saved.bytes.arrayBuffer()), saved.name, false);
+            const auto = params.get("autostart");
+            if (auto) {
+                history.replaceState(null, "", location.pathname);
+                const hasRemix = manifest.patches.some((p) => p.sourceMd5 === rom.version.decompressedMd5);
+                await play(auto === "remix" && !hasRemix ? "original" : auto);
+            }
             return;
         } catch (err) {
             console.warn("Stored ROM unusable, asking again", err);

@@ -64,6 +64,10 @@
                 <h2 id="rom-label"></h2>
                 <p id="rom-detail" class="muted"></p>
                 <div id="modes" class="modes" role="radiogroup" aria-label="Build to play"></div>
+                <label class="field">Emulator
+                    <select id="core"></select>
+                </label>
+                <p class="muted small">If the game freezes, switch emulator here (the site will also offer it automatically).</p>
                 <div class="actions">
                     <button id="play" class="primary" type="button">&#9654; Play</button>
                     <button id="forget" class="ghost" type="button">Use a different ROM</button>
@@ -73,6 +77,18 @@
 
         <section id="stage" aria-label="Game">
             <div id="game"></div>
+            <div id="crash" class="crash" role="alertdialog" aria-labelledby="crash-title" hidden>
+                <div class="crash-box">
+                    <h2 id="crash-title">The game froze</h2>
+                    <p id="crash-msg"></p>
+                    <div class="actions">
+                        <button id="crash-switch" class="primary" type="button"></button>
+                        <button id="crash-restart" type="button">Restart game</button>
+                        <button id="crash-copy" class="ghost" type="button">Copy details for a bug report</button>
+                    </div>
+                    <pre id="crash-details" hidden></pre>
+                </div>
+            </div>
         </section>
 
         <section class="grid">
