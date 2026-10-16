@@ -140,10 +140,22 @@ def write_fixture(ext: Path):
     Image.fromarray(rng.integers(0, 256, (16, 16), dtype=np.uint8), "L").save(d / "spot00_room_0Tex_001600.i4.png")
 
     def ci(path, pal, trns=None):
-        img = Image.fromarray(rng.integers(0, len(pal), (16, 16), dtype=np.uint8), "P")
-        img.putpalette([c for rgb in pal for c in rgb])
-        kw = {"transparency": bytes(trns)} if trns is not None else {}
-        img.save(d / path, bits=8, **kw)  # the extractor writes 8-bit indexed PNGs
+        # 8-bit indexed PNG, like the extractor writes (Pillow may pick 4-bit for small palettes).
+        import struct
+        import zlib
+
+        idx = rng.integers(0, len(pal), (16, 16), dtype=np.uint8)
+        raw = b"".join(b"\x00" + row.tobytes() for row in idx)
+
+        def chunk(t, b):
+            return struct.pack(">I", len(b)) + t + b + struct.pack(">I", zlib.crc32(t + b) & 0xFFFFFFFF)
+
+        png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 16, 8, 3, 0, 0, 0))
+        png += chunk(b"PLTE", bytes(c for rgb in pal for c in rgb))
+        if trns is not None:
+            png += chunk(b"tRNS", bytes(trns))
+        png += chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+        (d / path).write_bytes(png)
 
     pal = [(int(20 + 12 * i), int(90 + 8 * i), int(30 + 5 * i)) for i in range(16)]
     ci("spot00_room_0Tex_001700.ci4.png", pal, [0] + [255] * 15)
