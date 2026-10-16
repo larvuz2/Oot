@@ -9,6 +9,7 @@
 #include "quake.h"
 #include "rand.h"
 #include "regs.h"
+#include "remix_menu.h"
 #include "rumble.h"
 #include "segmented_address.h"
 #include "sfx.h"
@@ -2627,7 +2628,12 @@ void Actor_Draw(PlayState* play, Actor* actor) {
         }
     }
 
-    actor->draw(actor, play);
+    if ((actor->id == ACTOR_PLAYER) && RemixCostume_IsActive()) {
+        // Web Remix "play as custom character" (see z_remix_menu.c)
+        RemixCostume_DrawPlayer(play, actor);
+    } else {
+        actor->draw(actor, play);
+    }
 
     if (actor->colorFilterTimer != 0) {
         if (actor->colorFilterParams & COLORFILTER_BUFFLAG_XLU) {

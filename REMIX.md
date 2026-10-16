@@ -47,7 +47,8 @@ while it is open. Move with the D-pad or stick, **A** selects, **B** goes back, 
 |---|---|
 | **Warp anywhere (Map Select)** | Opens the developers' Map Select screen, which ships unused in every version of the game. Pick any area and press **A**. **B** switches child/adult, **Z**/**R** change the time of day / cutscene. Your current save and items carry over. |
 | **Fully equipped: ON/OFF** | ON gives every item, sword, shield, tunic, boots and upgrade, all medallions, songs and stones, 20 hearts with double defense, double magic and 500 rupees. OFF puts back exactly what you had. (If you save while it is ON, the full kit is saved.) |
-| **Spawn characters/objects** | Places an actor in front of Link. **FAVORITES** lists ~60 well-known enemies, bosses, characters and props by name (plus the custom 3D model); **ALL ACTORS** lists all 428 actors by their decomp name. Left/right picks (hold **R** to jump 10); **Params** sets the actor's parameter value (hold **R** for ×0x10, **Z** for ×0x100). The 3D data the actor needs is loaded on the fly. |
+| **Spawn characters/objects** | Places an actor in front of Link. **FAVORITES** lists ~60 well-known enemies, bosses, characters and props by name (plus the custom 3D model); **ALL ACTORS** lists all 428 actors by their decomp name. Left/right picks (hold **R** to jump 10); **SPAWN!** places it, **PLAY AS!** makes you that character (see below); **Params** sets the actor's parameter value (hold **R** for ×0x10, **Z** for ×0x100). The 3D data the actor needs is loaded on the fly. |
+| **Play as custom model: ON/OFF** | You become the custom 3D model (your Character Studio character): it replaces Link's look and plays its idle or walk animation as you move. Link's moves, sword hitboxes and items all still work, just invisibly. |
 
 Things to know about spawning:
 - Spawned actors disappear when you change rooms, because rooms swap their 3D data out.
@@ -56,26 +57,64 @@ Things to know about spawning:
 - Bosses and story characters expect their own arena or cutscene and may misbehave or crash.
   Make a save state first (the emulator's save button) if you want to experiment.
 
-### Custom 3D models
+### Playing as any character
 
-"Custom 3D Model" (first in FAVORITES) spawns the actor `En_Remix_Model`, which draws the display
-list `gRemixModelDL` from the new object `object_remix_model`. The repo ships a small spinning
-crystal there. To use your own model:
+**Spawn → pick a character → PLAY AS!** turns you into any of the 428 actors in the game. The character
+is spawned as a "puppet" that follows Link's position and facing every frame and keeps playing its own
+animations from the game's code. You still move with Link's controls and abilities (run, jump, roll,
+sword), and Link is drawn invisibly. The puppet's hitboxes and its talk/target prompts are switched off,
+so it can't hurt you or start conversations with you. It comes back automatically after room changes.
+Open the menu and choose **Stop playing as …** to go back to Link.
 
-1. In Blender, install [fast64](https://github.com/Fast-64/fast64) and set the game to *Ocarina of Time*.
-2. Build or import your model, then export it as a **Display List** (C) with the name `gRemixModel`.
-   Keep it small: each object has to fit in the area's spare object memory (a few hundred KB at most).
-3. Replace `assets/objects/object_remix_model/object_remix_model.c` (and the `.h`) with the export.
-   Use `#include "ultra64.h"` and `#include "gfx.h"` at the top of the `.c`. Textures can be committed
-   as PNGs next to it, named like `myTex.rgba16.png`, and included as `myTex.rgba16.inc.c`, the same
-   way the other committed objects in `assets/objects/` do it.
-4. Make sure the display list is called `gRemixModelDL` (or change the name in
-   `src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.c`). The actor draws it at scale 0.03,
-   spinning and bobbing; the spawn menu's **Params** value is a size in percent (0 = 100%).
-5. Push. The Remix build workflow compiles it and the site picks up the new patch.
+Limits: the character's own AI still picks its animations (an enemy may play attack animations because
+"Link" is right on top of it), and its special moves (e.g. Epona's gallop) aren't mapped to your
+buttons. Bosses and story characters may misbehave outside their own scenes.
+
+## Character Studio: make your own character
+
+`studio.html` on the site (linked from the top of the player) turns a few words into a character
+you can play as:
+
+1. **Describe it** ("a zombie", "a robot chef"). An LLM (Gemini 2.5 Flash via fal's OpenRouter endpoint)
+   rewrites it into a detailed prompt: T-pose, full body, front view, N64 Ocarina of Time style, family-friendly.
+   It also picks a character type that decides the walk animation. **GPT Image 2.5** then draws four concepts.
+2. **Pick one → Build 3D character.** **Meshy 7.1** turns the picture into a textured 3D model (~3 min),
+   then **Meshy rigging** adds a humanoid skeleton plus an idle animation and a walk that suits the type
+   (lurching zombie, mummy stagger, sneaky walk, proud strut…) (~1 min). You get a spinnable, animated preview.
+3. **Add to game.** Commits `assets/remix_character/character.json` (links to the animated models). The
+   Remix build runs `tools/remix/glb_to_oot.py`, which turns the character into N64 graphics: about
+   450 vertex-coloured triangles with baked lighting, posed at 3 idle and 8 walk frames (~140 KB). Then it
+   builds the ROM and publishes the patch. In the game, use **Play as custom model** or **Spawn → Custom 3D Model**
+   (the spawned one walks after Link).
+
+The repo ships with a zombie made this way, so the custom model works before you make your own.
+
+### Setting up the Studio on Netlify
+
+In Netlify: **Site configuration → Environment variables → Add a variable**, then redeploy:
+
+| Variable | Needed | What it is |
+|---|---|---|
+| `FAL_KEY` | yes | Your [fal.ai](https://fal.ai/dashboard/keys) API key. It stays on the server and is never sent to browsers. |
+| `STUDIO_PASSWORD` | yes | Any password. The Studio asks for it once per browser, so visitors can't spend your fal credits. |
+| `GITHUB_TOKEN` | optional | A [fine-grained token](https://github.com/settings/personal-access-tokens/new) for `larvuz2/Oot` with **Contents: Read and write**. Lets **Add to game** commit by itself; without it the Studio downloads `character.json` for you to upload to `assets/remix_character/` on GitHub. |
+
+Without `FAL_KEY` on Netlify the Studio still works if you paste your own fal key into it (kept only in
+that browser). One character costs roughly a dollar or two in fal credits (4 images + 3D + rigging).
+
+### Custom 3D models by hand
+
+You can also make the model yourself. `object_remix_model` holds one display list per animation frame
+(`gRemixModelFrameDLs`, idle frames first) and `gRemixModelInfo` (frame counts and height). The easiest
+route is any animated, skinned GLB: export an idle and a walk clip and run
+
+```bash
+pip install numpy pillow fast-simplification
+python3 tools/remix/glb_to_oot.py --idle idle.glb --walk walk.glb --name "My Hero"
+```
 
 To add more spawnable things, add an actor at the end of `include/tables/actor_table.h` (and an object
-at the end of `include/tables/object_table.h`), list the new segments in `spec/remix.inc`, and run
+at the end of `include/tables/object_table.h`), list the new segments in `spec/remix_overlays.inc` / `spec/remix_objects.inc`, and run
 `python3 tools/remix/gen_actor_db.py` to refresh the menu's list (`FAVORITES` in that script controls
 the named shortlist).
 
@@ -160,7 +199,10 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `netlify.toml` | Netlify config |
 | `src/code/z_remix_menu.c`, `include/remix_menu.h` | In-game Remix menu (hooked into `src/code/z_play.c`) |
 | `src/code/z_remix_actor_db.inc`, `tools/remix/gen_actor_db.py` | Spawnable actor list: object each actor needs + display names |
-| `src/overlays/actors/ovl_En_Remix_Model/`, `assets/objects/object_remix_model/`, `spec/remix.inc` | Custom 3D model actor and object |
+| `src/overlays/actors/ovl_En_Remix_Model/`, `assets/objects/object_remix_model/`, `spec/remix_*.inc` | Custom 3D model actor and object (frame-animated) |
+| `src/code/z_actor.c` (3 lines) | Lets "play as" draw instead of Link |
+| `web/studio.html`, `web/js/studio*.js`, `web/netlify/functions/studio.mjs` | Character Studio and its fal/GitHub backend |
+| `tools/remix/glb_to_oot.py`, `assets/remix_character/` | Animated GLB → N64 frames converter, and the current Studio character |
 
 ## Updating from upstream
 

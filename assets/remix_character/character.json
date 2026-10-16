@@ -1,0 +1,11 @@
+{
+  "name": "Zombie Villager",
+  "archetype": "zombie",
+  "prompt": "A low-poly 3D model reference sheet of a male zombie, in the style of Nintendo 64 Zelda: Ocarina of Time. He stands in a strict T-pose, front view, centered, full body visible. His skin is a sickly pale green with visible tears and exposed bone on his forearms and shins. He wears tattered, dark brown trousers and a ripped, light blue tunic. His eyes are sunken and black. The overall aesthetic features simple, bold shapes and flat colours. Pure-white background, no shadows, no text.",
+  "image": "https://v3b.fal.media/files/b/0aaea0f7/xtnUbV7wQJApajagdrHRV_gXgzODLB.png",
+  "modelGlb": "https://v3b.fal.media/files/b/0aaea113/wtiT7_xI005wgCMek-MTi_model.glb",
+  "riggedGlb": "https://v3b.fal.media/files/b/0aaea120/9PhF1rhpvo0DtRlh-I5jN_rigged_character.glb",
+  "idleGlb": "https://v3b.fal.media/files/b/0aaea123/2VixyiB9MWHZ4FSYoZG4m_animation.glb",
+  "walkGlb": "https://v3b.fal.media/files/b/0aaea124/pGNOKYvcqChQTmxFTPVdU_animation.glb",
+  "createdAt": "2026-10-16T16:06:00Z"
+}
