@@ -30,7 +30,7 @@ typedef struct ObjectContext {
 
 typedef enum ObjectId {
     #include "tables/object_table.h"
-    /* 0x0192 */ OBJECT_ID_MAX
+    /* 0x0193 */ OBJECT_ID_MAX
 } ObjectId;
 
 #undef DEFINE_OBJECT

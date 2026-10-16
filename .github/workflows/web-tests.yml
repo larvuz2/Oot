@@ -8,6 +8,9 @@ on:
       - "tools/decompress_baserom.py"
       - "tools/dmadata.py"
       - "baseroms/**"
+      - "tools/remix/**"
+      - "include/tables/**"
+      - "src/**"
       - ".github/workflows/web-tests.yml"
   pull_request:
     paths:
@@ -16,6 +19,9 @@ on:
       - "tools/decompress_baserom.py"
       - "tools/dmadata.py"
       - "baseroms/**"
+      - "tools/remix/**"
+      - "include/tables/**"
+      - "src/**"
       - ".github/workflows/web-tests.yml"
 
 env:
@@ -45,6 +51,11 @@ jobs:
         run: |
           python3 tools/web/gen_versions.py
           git diff --exit-code web/js/versions.js
+
+      - name: Remix actor list is up to date
+        run: |
+          python3 tools/remix/gen_actor_db.py
+          git diff --exit-code src/code/z_remix_actor_db.inc
 
       - name: Run tests
         run: |

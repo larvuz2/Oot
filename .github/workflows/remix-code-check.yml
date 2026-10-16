@@ -1,0 +1,54 @@
+name: Remix code check
+
+# Compiles the Web Remix C code (menu, custom actor/object and the files they
+# touch) with the real IDO compiler for several game versions. Needs no ROM,
+# so it catches compile errors even before BASEROM_URL is set up.
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "assets/objects/object_remix_model/**"
+      - "spec/**"
+      - "tools/remix/**"
+      - ".github/workflows/remix-code-check.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "assets/objects/object_remix_model/**"
+      - "spec/**"
+      - "tools/remix/**"
+      - ".github/workflows/remix-code-check.yml"
+
+jobs:
+  compile:
+    name: Compile remix code (${{ matrix.version }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [ntsc-1.0, ntsc-1.2, pal-1.1, gc-us, gc-eu-mq-dbg]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q build-essential binutils-mips-linux-gnu python3 python3-venv libxml2-dev
+
+      - name: Build tools
+        run: |
+          make -C tools -j"$(nproc)"
+          make venv
+
+      - name: Compile
+        run: |
+          make -j"$(nproc)" VERSION=${{ matrix.version }} \
+            build/${{ matrix.version }}/src/code/z_remix_menu.o \
+            build/${{ matrix.version }}/src/code/z_play.o \
+            build/${{ matrix.version }}/src/code/z_actor_dlftbls.o \
+            build/${{ matrix.version }}/src/code/object_table.o \
+            build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
+            build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
