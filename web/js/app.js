@@ -1,5 +1,6 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
+import { archiveType, extractRom } from "./archive.js";
 
 const $ = (id) => document.getElementById(id);
 const setState = (s) => (document.body.dataset.state = s);
@@ -126,8 +127,17 @@ async function ingest(bytes, name, remember) {
 async function onFile(file) {
     if (!file) return;
     try {
-        if (file.size > 128 * 1048576) throw new Error(`That file is ${fmtMB(file.size)}; N64 ROMs are at most 64 MB.`);
-        await ingest(new Uint8Array(await file.arrayBuffer()), file.name, true);
+        if (file.size > 256 * 1048576) throw new Error(`That file is ${fmtMB(file.size)}; N64 ROMs are at most 64 MB.`);
+        busy("Reading file…");
+        let bytes = new Uint8Array(await file.arrayBuffer());
+        let name = file.name;
+        const type = archiveType(bytes);
+        if (type) {
+            busy(`Unpacking ${type} archive…`);
+            ({ name, bytes } = await extractRom(bytes, type, (pct) => busy(`Unpacking ${type} archive… ${pct}%`)));
+        }
+        if (bytes.length > 128 * 1048576) throw new Error(`${name} is ${fmtMB(bytes.length)}; N64 ROMs are at most 64 MB.`);
+        await ingest(bytes, name, true);
     } catch (err) {
         fail(err);
     }
