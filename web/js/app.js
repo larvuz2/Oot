@@ -174,6 +174,10 @@ const KEYS = {
     21: ["left arrow", "RIGHT_STICK_X:-1"], // C-left
     22: ["down arrow", "RIGHT_STICK_Y:+1"], // C-down
     23: ["up arrow", "RIGHT_STICK_Y:-1"], // C-up
+    // Emulator hotkeys (EmulatorJS slots): quick save/load state, hold to fast-forward.
+    24: ["1"],
+    25: ["2"],
+    27: ["space"],
 };
 
 // Two N64 cores ship with the site. Each has known WebAssembly crash bugs on
