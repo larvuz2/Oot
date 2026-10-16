@@ -1,5 +1,8 @@
 # The Legend of Zelda: Ocarina of Time
 
+> **Web Remix:** this fork adds a browser player and a build-to-web pipeline on top of the decomp.
+> See **[REMIX.md](REMIX.md)** for playing, deploying to Netlify and shipping your own changes.
+
 [![Build Status][gha-badge]][gha] [![Decompilation Progress][progress-badge]][progress] [![Contributors][contributors-badge]][contributors] [![Discord Channel][discord-badge]][discord]
 
 [gha]: https://github.com/zeldaret/oot/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush

@@ -1,0 +1,52 @@
+name: Web player tests
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "tools/web/**"
+      - "tools/decompress_baserom.py"
+      - "tools/dmadata.py"
+      - "baseroms/**"
+      - ".github/workflows/web-tests.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "tools/web/**"
+      - "tools/decompress_baserom.py"
+      - "tools/dmadata.py"
+      - "baseroms/**"
+      - ".github/workflows/web-tests.yml"
+
+env:
+  FLIPS_COMMIT: ff216a75df0987047a67d7923567dc4482ce07ac
+
+jobs:
+  test:
+    name: ROM pipeline unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Python packages
+        run: python3 -m pip install --break-system-packages "crunch64>=0.5.1,<1.0.0" "ipl3checksum>=1.2.0,<2.0.0" "pyyaml>=6.0.1,<7.0.0"
+
+      - name: Build Floating IPS
+        run: |
+          git clone -q https://github.com/Alcaro/Flips "$RUNNER_TEMP/flips"
+          git -C "$RUNNER_TEMP/flips" checkout -q "$FLIPS_COMMIT"
+          make -C "$RUNNER_TEMP/flips" TARGET=cli CFLAGS=-O2
+
+      - name: versions.js is up to date
+        run: |
+          python3 tools/web/gen_versions.py
+          git diff --exit-code web/js/versions.js
+
+      - name: Run tests
+        run: |
+          FLIPS="$RUNNER_TEMP/flips/flips" python3 web/tests/make_fixtures.py "$RUNNER_TEMP/fixtures"
+          node web/tests/run.mjs "$RUNNER_TEMP/fixtures"

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Ocarina Web Remix</title>
+    <meta name="description" content="A fan remix of The Legend of Zelda: Ocarina of Time, built from the zeldaret/oot decompilation and played in the browser with your own ROM.">
+    <meta name="theme-color" content="#0d1a14">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-state="empty">
+    <header class="masthead">
+        <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+                <ellipse cx="32" cy="34" rx="22" ry="18" fill="currentColor" opacity=".18"/>
+                <ellipse cx="32" cy="34" rx="22" ry="18" fill="none" stroke="currentColor" stroke-width="3"/>
+                <path d="M32 16 V6" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="24" cy="30" r="3" fill="currentColor"/>
+                <circle cx="40" cy="30" r="3" fill="currentColor"/>
+                <circle cx="32" cy="40" r="3" fill="currentColor"/>
+                <circle cx="22" cy="40" r="2.2" fill="currentColor"/>
+                <circle cx="42" cy="40" r="2.2" fill="currentColor"/>
+            </svg>
+            <div>
+                <h1>Ocarina of Time <span>Web Remix</span></h1>
+                <p class="tagline">Rebuilt from the community decompilation &middot; runs entirely in your browser</p>
+            </div>
+        </div>
+        <button id="back" class="ghost" type="button">&larr; Menu</button>
+    </header>
+
+    <main>
+        <section id="launcher" class="card" aria-live="polite">
+            <!-- empty: ask for a ROM -->
+            <div class="pane pane-empty">
+                <h2>Load your cartridge</h2>
+                <p>Pick your own dump of <em>Ocarina of Time</em> (<code>.z64</code>, <code>.n64</code> or <code>.v64</code>).
+                   It is checked, decompressed and patched <strong>on your device</strong> and is never uploaded.</p>
+                <label id="drop" class="drop" tabindex="0">
+                    <input id="file" type="file" accept=".z64,.n64,.v64,.rom,.bin" hidden>
+                    <span class="drop-icon" aria-hidden="true">&#9835;</span>
+                    <span class="drop-title">Drop ROM here or click to browse</span>
+                    <span class="drop-sub">Any version the decomp supports &mdash; see the list below</span>
+                </label>
+            </div>
+
+            <!-- busy -->
+            <div class="pane pane-busy">
+                <div class="spinner" aria-hidden="true"></div>
+                <p id="busy-msg">Working…</p>
+            </div>
+
+            <!-- error -->
+            <div class="pane pane-error">
+                <h2>That didn't work</h2>
+                <p id="error-msg"></p>
+                <button id="retry" type="button">Try another file</button>
+            </div>
+
+            <!-- ready -->
+            <div class="pane pane-ready">
+                <p class="eyebrow">ROM verified</p>
+                <h2 id="rom-label"></h2>
+                <p id="rom-detail" class="muted"></p>
+                <div id="modes" class="modes" role="radiogroup" aria-label="Build to play"></div>
+                <div class="actions">
+                    <button id="play" class="primary" type="button">&#9654; Play</button>
+                    <button id="forget" class="ghost" type="button">Use a different ROM</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="stage" aria-label="Game">
+            <div id="game"></div>
+        </section>
+
+        <section class="grid">
+            <article class="card">
+                <h3>Controls</h3>
+                <table class="keys">
+                    <tbody>
+                        <tr><th>Control Stick</th><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td></tr>
+                        <tr><th>A / B</th><td><kbd>X</kbd> / <kbd>C</kbd></td></tr>
+                        <tr><th>Z-Target</th><td><kbd>Z</kbd></td></tr>
+                        <tr><th>R (shield) / L</th><td><kbd>V</kbd> / <kbd>E</kbd></td></tr>
+                        <tr><th>C-Buttons</th><td><kbd>&uarr;</kbd><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></td></tr>
+                        <tr><th>Start</th><td><kbd>Enter</kbd></td></tr>
+                        <tr><th>D-Pad</th><td><kbd>T</kbd><kbd>F</kbd><kbd>G</kbd><kbd>H</kbd></td></tr>
+                    </tbody>
+                </table>
+                <p class="muted small">Gamepads work out of the box (Xbox layout: A&nbsp;=&nbsp;A, X&nbsp;=&nbsp;B, LT&nbsp;=&nbsp;Z, RB&nbsp;=&nbsp;R, right stick&nbsp;=&nbsp;C). Remap anything from the emulator's controller menu; touch controls appear on phones.</p>
+            </article>
+
+            <article class="card">
+                <h3>Saving</h3>
+                <p>In-game saves are kept in this browser and written every 30&nbsp;seconds and when you leave the page. Save states (the floppy icon in the emulator bar) are also kept in the browser.</p>
+                <p class="muted small">The original game and this remix keep separate save files.</p>
+            </article>
+
+            <article class="card">
+                <h3>How this works</h3>
+                <ol class="steps">
+                    <li>The game is compiled from C source in the <a href="https://github.com/zeldaret/oot">zeldaret/oot</a> decompilation (this repo is a remix of it).</li>
+                    <li>CI builds the modified source and publishes only a small <abbr title="Binary patch format">BPS</abbr> delta against the retail ROM.</li>
+                    <li>Your browser decompresses your cartridge dump exactly like the decomp's tooling, applies the delta and boots it in an N64 emulator compiled to WebAssembly.</li>
+                </ol>
+            </article>
+
+            <article class="card">
+                <h3>Supported ROMs</h3>
+                <ul id="versions" class="versions"></ul>
+            </article>
+        </section>
+    </main>
+
+    <footer>
+        <p>Unofficial fan project, not affiliated with or endorsed by Nintendo. No game data is hosted here &mdash; bring a dump of a cartridge or disc you own.</p>
+        <p>Source code from the <a href="https://github.com/zeldaret/oot">zeldaret/oot</a> decompilation &middot; emulation by <a href="https://emulatorjs.org">EmulatorJS</a> (GPL-3.0) with the mupen64plus-next core.</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
