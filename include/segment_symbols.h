@@ -681,4 +681,8 @@ DECLARE_ROM_SEGMENT(testroom_room_2)
 DECLARE_ROM_SEGMENT(testroom_room_3)
 DECLARE_ROM_SEGMENT(testroom_room_4)
 
+// Web Remix biome copy of Hyrule Field (spec/remix_scenes.inc, tools/remix/make_biome.py)
+DECLARE_ROM_SEGMENT(tundra_scene)
+DECLARE_ROM_SEGMENT(tundra_room_0)
+
 #endif

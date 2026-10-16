@@ -52,3 +52,17 @@ jobs:
             build/${{ matrix.version }}/src/code/object_table.o \
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
+
+      - name: Biome copy (stand-in scene, no ROM) compiles
+        run: |
+          python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
+          python3 tools/remix/test_make_biome.py
+          python3 tools/remix/test_make_biome.py --fixture extracted/${{ matrix.version }}
+          python3 tools/remix/make_biome.py --version ${{ matrix.version }}
+          rm -f build/${{ matrix.version }}/src/code/z_remix_menu.o
+          make -j"$(nproc)" VERSION=${{ matrix.version }} \
+            build/${{ matrix.version }}/src/code/z_remix_menu.o \
+            build/${{ matrix.version }}/assets/scenes/remix/tundra/tundra_scene.o \
+            build/${{ matrix.version }}/assets/scenes/remix/tundra/tundra_room_0.o \
+            build/${{ matrix.version }}/spec
+          grep -q '"tundra_room_0"' build/${{ matrix.version }}/spec

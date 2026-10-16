@@ -1391,6 +1391,8 @@ endseg
 
 #include "scenes.inc"
 
+#include "remix_scenes.inc"
+
 beginseg
     name "bump_texture_static"
     compress

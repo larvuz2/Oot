@@ -1625,6 +1625,8 @@ void Play_SpawnScene(PlayState* this, s32 sceneId, s32 spawn) {
     scene->unk_13 = 0;
 #endif
 
+    scene = RemixBiome_OverrideScene(this, sceneId, scene);
+
     this->loadedScene = scene;
     this->sceneId = sceneId;
     this->sceneDrawConfig = scene->drawConfig;
