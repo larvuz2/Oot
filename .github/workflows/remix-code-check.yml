@@ -62,7 +62,14 @@ jobs:
           rm -f build/${{ matrix.version }}/src/code/z_remix_menu.o
           make -j"$(nproc)" VERSION=${{ matrix.version }} \
             build/${{ matrix.version }}/src/code/z_remix_menu.o \
+            build/${{ matrix.version }}/assets/scenes/overworld/spot00/spot00_scene.o \
+            build/${{ matrix.version }}/assets/scenes/overworld/spot00/spot00_room_0.o \
             build/${{ matrix.version }}/assets/scenes/remix/tundra/tundra_scene.o \
             build/${{ matrix.version }}/assets/scenes/remix/tundra/tundra_room_0.o \
             build/${{ matrix.version }}/spec
           grep -q '"tundra_room_0"' build/${{ matrix.version }}/spec
+          # The copy is linked next to the original: no symbol may be defined in both.
+          B=build/${{ matrix.version }}/assets/scenes
+          dup=$(comm -12 <(mips-linux-gnu-nm --defined-only -g $B/overworld/spot00/*.o | awk '{print $3}' | sort -u) \
+                         <(mips-linux-gnu-nm --defined-only -g $B/remix/tundra/*.o | awk '{print $3}' | sort -u))
+          if [ -n "$dup" ]; then echo "Symbols defined in both Hyrule Field and its copy:"; echo "$dup"; exit 1; fi

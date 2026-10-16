@@ -51,7 +51,9 @@ def write_fixture(ext: Path):
         "RomFile spot00_sceneRoomList_0000A0[] = {\n" + inc("spot00_sceneRoomList_0000A0") + "};\n\n"
         "EnvLightSettings spot00_scene_000000B0_EnvLightSettingsList[LENGTH_spot00_scene_000000B0_EnvLightSettingsList] = {\n"
         + inc("spot00_scene_000000B0_EnvLightSettingsList")
-        + "};\n",
+        + "};\n\n"
+        # The extractor defines padding without declaring it in the header.
+        "u8 spot00_scene_zeros_000110[12] = { 0 };\n",
     )
     w(
         "spot00_sceneCommands.inc.c",
@@ -205,6 +207,9 @@ def main():
         sc = (out / "tundra_scene.c").read_text()
         check("includes point at copy", '#include "tundra_room_0.h"' in sc and "remix/tundra/spot00_sceneCommands.inc.c" in sc and "overworld" not in sc)
         check("symbols renamed", "SceneCmd Tundra_spot00_sceneCommands[]" in sc and "extern Gfx Tundra_spot00_room_0DL_000100[]" in (out / "tundra_room_0.h").read_text())
+        check("undeclared padding renamed too", "u8 Tundra_spot00_scene_zeros_000110[12] = { 0 };" in sc)
+        defined = re.findall(r"^(?:static\s+)?[A-Za-z_][\w \t\*]*?\b([A-Za-z_]\w*)\s*(?:\[[^\]\n]*\]\s*)*=", sc + (out / "tundra_room_0.c").read_text(), re.M)
+        check("every definition in the copy has a new name", defined and all(n.startswith("Tundra_") for n in defined))
         check("room list points at copy", (out / "spot00_sceneRoomList_0000A0.inc.c").read_text().strip() == "ROM_FILE(tundra_room_0),")
         dl = (out / "spot00_room_0DL_000100.inc.c").read_text()
         check("DL refs renamed", "gsSPVertex(Tundra_spot00_room_0Vtx_000200, 3, 0)" in dl)
