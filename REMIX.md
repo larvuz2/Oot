@@ -22,7 +22,7 @@ ROM hacks have always been distributed.
 
 ## Play
 
-Open the site, drop in a ROM (`.z64`, `.n64` or `.v64`) of any version the decomp supports
+Open the site, drop in a ROM (`.z64`, `.n64` or `.v64`, or zipped as `.zip`/`.7z`/`.rar`) of any version the decomp supports
 (N64 NTSC 1.0/1.1/1.2 JP/US, PAL 1.0/1.1, the GameCube releases, the debug ROMs, iQue). The
 ROM is remembered in the browser, so next time it is one click.
 
