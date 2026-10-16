@@ -12,7 +12,7 @@ struct PlayState;
 
 typedef enum ActorID {
     #include "tables/actor_table.h"
-    /* 0x01D7 */ ACTOR_ID_MAX // originally "ACTOR_DLF_MAX"
+    /* 0x01D8 */ ACTOR_ID_MAX // originally "ACTOR_DLF_MAX"
 } ActorID;
 
 #undef DEFINE_ACTOR

@@ -44,6 +44,7 @@
 #include "printf.h"
 #include "quake.h"
 #include "regs.h"
+#include "remix_menu.h"
 #include "room.h"
 #include "rumble.h"
 #include "save.h"
@@ -624,6 +625,9 @@ void Play_Update(PlayState* this) {
     gSegments[5] = OS_K0_TO_PHYSICAL(this->objectCtx.slots[this->objectCtx.subKeepSlot].segment);
     gSegments[2] = OS_K0_TO_PHYSICAL(this->sceneSegment);
 
+    // Web Remix menu: runs before anything else reads controller 1 this frame.
+    RemixMenu_Update(this);
+
     if (FrameAdvance_Update(&this->frameAdvCtx, &input[1])) {
         if ((this->transitionMode == TRANS_MODE_OFF) && (this->transitionTrigger != TRANS_TRIGGER_OFF)) {
             this->transitionMode = TRANS_MODE_SETUP;
@@ -1169,6 +1173,8 @@ void Play_DrawOverlayElements(PlayState* this) {
     if (this->gameOverCtx.state != GAMEOVER_INACTIVE) {
         GameOver_FadeInLights(this);
     }
+
+    RemixMenu_Draw(this);
 }
 
 void Play_Draw(PlayState* this) {

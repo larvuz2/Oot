@@ -38,6 +38,47 @@ crash bugs on some games. The page watches the emulator: if it crashes or stops 
 frames, a panel offers **Try the other emulator** (remembered from then on), **Restart game**,
 and **Copy details for a bug report**. You can also pick the core on the start screen.
 
+## The Remix menu (in the remix build)
+
+Press **D-pad Up** during gameplay (keyboard: **T**) to open the Web Remix menu. The world freezes
+while it is open. Move with the D-pad or stick, **A** selects, **B** goes back, **Start** closes.
+
+| Option | What it does |
+|---|---|
+| **Warp anywhere (Map Select)** | Opens the developers' Map Select screen, which ships unused in every version of the game. Pick any area and press **A**. **B** switches child/adult, **Z**/**R** change the time of day / cutscene. Your current save and items carry over. |
+| **Fully equipped: ON/OFF** | ON gives every item, sword, shield, tunic, boots and upgrade, all medallions, songs and stones, 20 hearts with double defense, double magic and 500 rupees. OFF puts back exactly what you had. (If you save while it is ON, the full kit is saved.) |
+| **Spawn characters/objects** | Places an actor in front of Link. **FAVORITES** lists ~60 well-known enemies, bosses, characters and props by name (plus the custom 3D model); **ALL ACTORS** lists all 428 actors by their decomp name. Left/right picks (hold **R** to jump 10); **Params** sets the actor's parameter value (hold **R** for ×0x10, **Z** for ×0x100). The 3D data the actor needs is loaded on the fly. |
+
+Things to know about spawning:
+- Spawned actors disappear when you change rooms, because rooms swap their 3D data out.
+- Enemies won't spawn in a room you have already cleared, and some areas run out of object memory.
+- A few actors only work outdoors or only in dungeons (the menu says so).
+- Bosses and story characters expect their own arena or cutscene and may misbehave or crash.
+  Make a save state first (the emulator's save button) if you want to experiment.
+
+### Custom 3D models
+
+"Custom 3D Model" (first in FAVORITES) spawns the actor `En_Remix_Model`, which draws the display
+list `gRemixModelDL` from the new object `object_remix_model`. The repo ships a small spinning
+crystal there. To use your own model:
+
+1. In Blender, install [fast64](https://github.com/Fast-64/fast64) and set the game to *Ocarina of Time*.
+2. Build or import your model, then export it as a **Display List** (C) with the name `gRemixModel`.
+   Keep it small: each object has to fit in the area's spare object memory (a few hundred KB at most).
+3. Replace `assets/objects/object_remix_model/object_remix_model.c` (and the `.h`) with the export.
+   Use `#include "ultra64.h"` and `#include "gfx.h"` at the top of the `.c`. Textures can be committed
+   as PNGs next to it, named like `myTex.rgba16.png`, and included as `myTex.rgba16.inc.c`, the same
+   way the other committed objects in `assets/objects/` do it.
+4. Make sure the display list is called `gRemixModelDL` (or change the name in
+   `src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.c`). The actor draws it at scale 0.03,
+   spinning and bobbing; the spawn menu's **Params** value is a size in percent (0 = 100%).
+5. Push. The Remix build workflow compiles it and the site picks up the new patch.
+
+To add more spawnable things, add an actor at the end of `include/tables/actor_table.h` (and an object
+at the end of `include/tables/object_table.h`), list the new segments in `spec/remix.inc`, and run
+`python3 tools/remix/gen_actor_db.py` to refresh the menu's list (`FAVORITES` in that script controls
+the named shortlist).
+
 ## Deploy on Netlify
 
 1. In Netlify: **Add new site → Import an existing project → GitHub → `larvuz2/Oot`**.
@@ -117,6 +158,9 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `.github/workflows/remix.yml` | ROM build → patch → commit |
 | `.github/workflows/web-tests.yml` | Runs `web/tests` |
 | `netlify.toml` | Netlify config |
+| `src/code/z_remix_menu.c`, `include/remix_menu.h` | In-game Remix menu (hooked into `src/code/z_play.c`) |
+| `src/code/z_remix_actor_db.inc`, `tools/remix/gen_actor_db.py` | Spawnable actor list: object each actor needs + display names |
+| `src/overlays/actors/ovl_En_Remix_Model/`, `assets/objects/object_remix_model/`, `spec/remix.inc` | Custom 3D model actor and object |
 
 ## Updating from upstream
 

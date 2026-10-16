@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""Generate src/code/z_remix_actor_db.inc for the in-game Remix spawn menu.
+
+For every actor in include/tables/actor_table.h it records the object file the
+actor needs (taken from the actor's ActorProfile in its source file) and a
+display name (a friendly name for well-known characters, otherwise the
+decomp's actor name). Re-run after adding actors:
+
+    python3 tools/remix/gen_actor_db.py
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "src" / "code" / "z_remix_actor_db.inc"
+
+# Actors that crash or make no sense when spawned on their own.
+DENY = {
+    "ACTOR_PLAYER",  # a second Link
+    "ACTOR_EN_PART",  # body-part debris, needs another actor's object slot as a parameter
+}
+
+# Well-known characters, shown first in the menu's FAVORITES list.
+FAVORITES = [
+    ("ACTOR_EN_REMIX_MODEL", "Custom 3D Model"),
+    ("ACTOR_EN_TEST", "Stalfos"),
+    ("ACTOR_EN_ZF", "Lizalfos"),
+    ("ACTOR_EN_IK", "Iron Knuckle"),
+    ("ACTOR_EN_TORCH2", "Dark Link"),
+    ("ACTOR_EN_WF", "Wolfos"),
+    ("ACTOR_EN_RD", "ReDead"),
+    ("ACTOR_EN_MB", "Moblin"),
+    ("ACTOR_EN_PEEHAT", "Peahat"),
+    ("ACTOR_EN_TITE", "Tektite"),
+    ("ACTOR_EN_SKB", "Stalchild"),
+    ("ACTOR_EN_FIREFLY", "Keese"),
+    ("ACTOR_EN_DEKUBABA", "Deku Baba"),
+    ("ACTOR_EN_OKUTA", "Octorok"),
+    ("ACTOR_EN_WALLMAS", "Wallmaster"),
+    ("ACTOR_EN_FLOORMAS", "Floormaster"),
+    ("ACTOR_EN_VM", "Beamos"),
+    ("ACTOR_EN_AM", "Armos"),
+    ("ACTOR_EN_RR", "Like Like"),
+    ("ACTOR_EN_ANUBICE", "Anubis"),
+    ("ACTOR_EN_FZ", "Freezard"),
+    ("ACTOR_EN_PO_FIELD", "Poe (Hyrule Field)"),
+    ("ACTOR_EN_CROW", "Guay"),
+    ("ACTOR_EN_SKJ", "Skull Kid"),
+    ("ACTOR_EN_DODONGO", "Dodongo"),
+    ("ACTOR_EN_GOMA", "Gohma Larva"),
+    ("ACTOR_BOSS_GOMA", "Queen Gohma (boss)"),
+    ("ACTOR_BOSS_DODONGO", "King Dodongo (boss)"),
+    ("ACTOR_BOSS_VA", "Barinade (boss)"),
+    ("ACTOR_BOSS_GANONDROF", "Phantom Ganon (boss)"),
+    ("ACTOR_BOSS_FD", "Volvagia (boss)"),
+    ("ACTOR_BOSS_MO", "Morpha (boss)"),
+    ("ACTOR_BOSS_SST", "Bongo Bongo (boss)"),
+    ("ACTOR_BOSS_TW", "Twinrova (boss)"),
+    ("ACTOR_BOSS_GANON", "Ganondorf (boss)"),
+    ("ACTOR_BOSS_GANON2", "Ganon (boss)"),
+    ("ACTOR_EN_HORSE", "Epona"),
+    ("ACTOR_EN_NIW", "Cucco"),
+    ("ACTOR_EN_COW", "Cow"),
+    ("ACTOR_EN_DOG", "Dog"),
+    ("ACTOR_EN_OWL", "Kaepora Gaebora"),
+    ("ACTOR_EN_SA", "Saria"),
+    ("ACTOR_EN_RU1", "Princess Ruto"),
+    ("ACTOR_EN_KZ", "King Zora"),
+    ("ACTOR_EN_MA1", "Malon"),
+    ("ACTOR_EN_TA", "Talon"),
+    ("ACTOR_EN_MD", "Mido"),
+    ("ACTOR_EN_DU", "Darunia"),
+    ("ACTOR_EN_ZL4", "Young Zelda"),
+    ("ACTOR_EN_KAKASI", "Pierre the Scarecrow"),
+    ("ACTOR_EN_FR", "Frog"),
+    ("ACTOR_EN_GS", "Gossip Stone"),
+    ("ACTOR_EN_BOX", "Treasure Chest"),
+    ("ACTOR_EN_BOMBF", "Bomb Flower"),
+    ("ACTOR_EN_BOM", "Bomb"),
+    ("ACTOR_EN_ITEM00", "Collectible (rupee/heart)"),
+    ("ACTOR_OBJ_TSUBO", "Pot"),
+    ("ACTOR_EN_KUSA", "Grass"),
+]
+
+
+def profile_objects() -> dict[str, str]:
+    """Actor name -> OBJECT_* from every `<name>_Profile` ActorProfile definition in src/.
+
+    Keyed by the profile's name rather than its id field, since a few original
+    profiles leave the id as 0.
+    """
+    pat = re.compile(r"^ActorProfile\s+(\w+)_Profile\s*=\s*\{(.*?)^\};", re.S | re.M)
+    found: dict[str, str] = {}
+    for path in sorted((ROOT / "src").rglob("*.c")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for m in pat.finditer(text):
+            body = re.sub(r"/\*.*?\*/", "", m.group(2), flags=re.S)
+            body = re.sub(r"//.*", "", body)
+            body = re.sub(r"^\s*#.*$", "", body, flags=re.M)
+            fields = [f.strip() for f in body.split(",") if f.strip()]
+            if len(fields) < 4 or not fields[3].startswith("OBJECT_"):
+                sys.exit(f"error: can't parse ActorProfile in {path.relative_to(ROOT)}: {fields[:4]}")
+            found[m.group(1)] = fields[3]
+    return found
+
+
+def actor_table() -> list[tuple[str, str, str]]:
+    """(segment name, ACTOR_* enum, actor name) for every real actor in the table, in ID order."""
+    text = (ROOT / "include" / "tables" / "actor_table.h").read_text()
+    return re.findall(r'DEFINE_ACTOR(?:_INTERNAL)?\(\s*(\w+)\s*,\s*(ACTOR_\w+)\s*,\s*\w+\s*,\s*"([^"]*)"\s*\)', text)
+
+
+def main() -> None:
+    profiles = profile_objects()
+    table = actor_table()
+    missing = [seg for seg, _, _ in table if seg not in profiles]
+    if missing:
+        sys.exit(f"error: no ActorProfile found for {', '.join(missing)}")
+    objects = {enum: profiles[seg] for seg, enum, _ in table}
+    known = set(objects)
+    for enum, _ in FAVORITES:
+        if enum not in known:
+            sys.exit(f"error: favorite {enum} is not in the actor table")
+
+    lines = [
+        "// Generated by tools/remix/gen_actor_db.py - do not edit by hand.",
+        "// REMIX_ACTOR(actor id, object it needs, display name, is favorite)",
+    ]
+    for enum, name in FAVORITES:
+        lines.append(f'REMIX_ACTOR({enum}, {objects[enum]}, "{name}", 1)')
+    fav = {enum for enum, _ in FAVORITES}
+    for _, enum, name in table:
+        if enum in DENY or enum in fav:
+            continue
+        lines.append(f'REMIX_ACTOR({enum}, {objects[enum]}, "{name}", 0)')
+    OUT.write_text("\n".join(lines) + "\n")
+    print(f"Wrote {len(lines) - 2} actors ({len(FAVORITES)} favorites) to {OUT.relative_to(ROOT)}")
+
+
+if __name__ == "__main__":
+    main()
