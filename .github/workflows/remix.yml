@@ -102,11 +102,30 @@ jobs:
           python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10" "fast-simplification>=0.1.7"
           python3 tools/remix/glb_to_oot.py --character assets/remix_character/character.json --if-changed
 
-      - name: Build ROM
+      - name: Make biomes (Frozen Tundra)
         if: steps.gate.outputs.enabled == 'true'
         run: |
-          make -j"$(nproc)" VERSION=${{ steps.rom.outputs.version }} REGION=${{ steps.rom.outputs.region }} COMPARE=0 ${{ vars.REMIX_MAKE_FLAGS }}
-          md5sum build/${{ steps.rom.outputs.version }}/oot-${{ steps.rom.outputs.version }}.z64
+          python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
+          python3 tools/remix/make_biome.py --version ${{ steps.rom.outputs.version }} \
+            || echo "::warning title=Biome skipped::make_biome.py failed (see log); building without the Frozen Tundra."
+
+      - name: Build ROM
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          build() { make -j"$(nproc)" VERSION=$V REGION=${{ steps.rom.outputs.region }} COMPARE=0 ${{ vars.REMIX_MAKE_FLAGS }}; }
+          if ! build; then
+            if [ -d "extracted/$V/assets/scenes/remix" ]; then
+              # Never lose the whole remix over the biome: retry without it.
+              echo "::warning title=Biome dropped::The ROM did not build with the Frozen Tundra; building without it."
+              rm -rf "extracted/$V/assets/scenes/remix" "build/$V/assets/scenes/remix" "build/$V/src/code/z_remix_menu.o" "build/$V/spec"
+              build
+            else
+              exit 1
+            fi
+          fi
+          md5sum build/$V/oot-$V.z64
 
       - name: Build Floating IPS
         if: steps.gate.outputs.enabled == 'true'

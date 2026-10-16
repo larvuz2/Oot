@@ -9,6 +9,8 @@
  *   - Play as: either the Character Studio model (object_remix_model) drawn in place of Link, or any
  *     actor from the spawn list as a "puppet" glued to Link: you keep Link's controls and moves, the
  *     actor plays its own animations, and its hitboxes and talk/target flags are stripped so it is harmless.
+ *   - Biome: swaps Hyrule Field for a restyled copy (Frozen Tundra: snowy textures, icy fog, snowfall).
+ *     The copy is made at build time by tools/remix/make_biome.py; see RemixBiome_OverrideScene.
  * The world is frozen while the menu is open.
  */
 
@@ -19,6 +21,10 @@
 #include "alignment.h"
 #include "controller.h"
 #include "collision_check.h"
+#include "actor.h"
+#include "environment.h"
+#include "scene.h"
+#include "segment_symbols.h"
 #include "cutscene.h"
 #include "game.h"
 #include "game_over.h"
@@ -75,6 +81,7 @@ typedef enum RemixMainRow {
     REMIX_MAIN_EQUIP,
     REMIX_MAIN_SPAWN,
     REMIX_MAIN_COSTUME,
+    REMIX_MAIN_BIOME,
     REMIX_MAIN_CLOSE,
     REMIX_MAIN_MAX
 } RemixMainRow;
@@ -128,8 +135,20 @@ typedef struct RemixMenu {
     s32 puppetRetryTimer;
     s32 puppetFailures;
     f32 costumeAnimTime;
+    s32 biome;            // REMIX_BIOME_*
+    s32 biomeSnowPending; // the biome scene was just loaded: start the snowfall
     RemixEquipSnapshot snapshot;
 } RemixMenu;
+
+typedef enum RemixBiome {
+    REMIX_BIOME_NORMAL,
+    REMIX_BIOME_TUNDRA
+} RemixBiome;
+
+// Set by the Makefile when tools/remix/make_biome.py has made the tundra copy of Hyrule Field.
+#ifndef REMIX_HAS_TUNDRA
+#define REMIX_HAS_TUNDRA 0
+#endif
 
 typedef enum RemixPlayAs {
     REMIX_PLAY_AS_NONE,
@@ -637,6 +656,69 @@ void RemixMenu_AfterActorUpdate(PlayState* play) {
 
 // ---- input ----
 
+// ---- biomes ----
+
+/**
+ * Called by Play_SpawnScene. While a biome is on, Hyrule Field loads the restyled copy of its scene file
+ * instead of the original. Everything else (scene id, exits, music, minimap, actors) stays Hyrule Field's,
+ * since the copy has the same rooms, collision and spawns: only textures, vertex colors and lighting differ.
+ */
+SceneTableEntry* RemixBiome_OverrideScene(PlayState* play, s32 sceneId, SceneTableEntry* scene) {
+#if REMIX_HAS_TUNDRA
+    static SceneTableEntry sTundraScene;
+
+    (void)play;
+    if ((sRemix.biome == REMIX_BIOME_TUNDRA) && (sceneId == SCENE_HYRULE_FIELD)) {
+        sTundraScene = *scene;
+        sTundraScene.sceneFile.vromStart = (uintptr_t)_tundra_sceneSegmentRomStart;
+        sTundraScene.sceneFile.vromEnd = (uintptr_t)_tundra_sceneSegmentRomEnd;
+        sRemix.biomeSnowPending = true;
+        return &sTundraScene;
+    }
+#else
+    (void)play;
+    (void)sceneId;
+#endif
+    sRemix.biomeSnowPending = false;
+    return scene;
+}
+
+// Snowfall: the game's own (otherwise unused) snow effect, drawn by Object_Kankyo with params 3.
+static void RemixBiome_StartSnow(PlayState* play) {
+    if (!sRemix.biomeSnowPending || (GET_PLAYER(play) == NULL)) {
+        return;
+    }
+    sRemix.biomeSnowPending = false;
+    // Flakes melt when they fall below the actor's height, so put it far below the world.
+    Actor_Spawn(&play->actorCtx, play, ACTOR_OBJECT_KANKYO, 0.0f, -10000.0f, 0.0f, 0, 0, 0, 3);
+    play->envCtx.precipitation[PRECIP_SNOW_MAX] = 64;
+}
+
+static void RemixBiome_Toggle(PlayState* play) {
+#if REMIX_HAS_TUNDRA
+    sRemix.biome = (sRemix.biome == REMIX_BIOME_TUNDRA) ? REMIX_BIOME_NORMAL : REMIX_BIOME_TUNDRA;
+    SFX_PLAY_CENTERED(NA_SE_SY_DECIDE);
+
+    if ((sRemix.biome == REMIX_BIOME_NORMAL) && (play->sceneId != SCENE_HYRULE_FIELD)) {
+        RemixMenu_SetMessage("Hyrule Field is back to normal");
+        return;
+    }
+
+    // Reload Hyrule Field in the chosen style: from where Link entered it, or from the castle bridge.
+    RemixMenu_Close();
+    play->nextEntranceIndex =
+        (play->sceneId == SCENE_HYRULE_FIELD) ? gSaveContext.save.entranceIndex : ENTR_HYRULE_FIELD_0;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_WHITE;
+    RemixMenu_SetMessage((sRemix.biome == REMIX_BIOME_TUNDRA) ? "Welcome to the Frozen Tundra"
+                                                              : "Back to Hyrule Field");
+#else
+    (void)play;
+    RemixMenu_SetMessage("Biomes need a ROM build (see REMIX.md)");
+    SFX_PLAY_CENTERED(NA_SE_SY_ERROR);
+#endif
+}
+
 static s32 RemixMenu_ReadDirection(Input* input) {
     u16 btn = input->cur.button;
     s32 dir = 0;
@@ -729,6 +811,10 @@ static void RemixMenu_UpdateMain(PlayState* play, Input* input, s32 dir) {
                 RemixMenu_SetMessage("Playing as your custom character");
             }
             SFX_PLAY_CENTERED(NA_SE_SY_DECIDE);
+            break;
+
+        case REMIX_MAIN_BIOME:
+            RemixBiome_Toggle(play);
             break;
 
         case REMIX_MAIN_CLOSE:
@@ -838,6 +924,8 @@ void RemixMenu_Update(PlayState* play) {
         sRemix.messageTimer--;
     }
 
+    RemixBiome_StartSnow(play);
+
     if (!sRemix.isOpen) {
         if (CHECK_BTN_ALL(input->press.button, BTN_DUP) && RemixMenu_CanOpen(play)) {
             RemixMenu_Open();
@@ -888,7 +976,9 @@ static void RemixMenu_PrintRow(GfxPrint* printer, s32 row, s32 selected, const c
 }
 
 static void RemixMenu_PrintMain(GfxPrint* printer) {
-    static const char* sRows[] = { "Warp anywhere (Map Select)", NULL, "Spawn characters/objects", NULL, "Close" };
+    static const char* sRows[] = {
+        "Warp anywhere (Map Select)", NULL, "Spawn characters/objects", NULL, NULL, "Close"
+    };
     s32 i;
 
     GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW);
@@ -911,6 +1001,9 @@ static void RemixMenu_PrintMain(GfxPrint* printer) {
                                    (sRemix.playAs == REMIX_PLAY_AS_CUSTOM) ? "Play as custom model: ON"
                                                                            : "Play as custom model: OFF");
             }
+        } else if (i == REMIX_MAIN_BIOME) {
+            RemixMenu_PrintRow(printer, i, sRemix.cursor == i,
+                               (sRemix.biome == REMIX_BIOME_TUNDRA) ? "Biome: Frozen Tundra" : "Biome: Hyrule Field");
         } else {
             RemixMenu_PrintRow(printer, i, sRemix.cursor == i, sRows[i]);
         }

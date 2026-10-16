@@ -48,6 +48,7 @@ while it is open. Move with the D-pad or stick, **A** selects, **B** goes back, 
 | **Warp anywhere (Map Select)** | Opens the developers' Map Select screen, which ships unused in every version of the game. Pick any area and press **A**. **B** switches child/adult, **Z**/**R** change the time of day / cutscene. Your current save and items carry over. |
 | **Fully equipped: ON/OFF** | ON gives every item, sword, shield, tunic, boots and upgrade, all medallions, songs and stones, 20 hearts with double defense, double magic and 500 rupees. OFF puts back exactly what you had. (If you save while it is ON, the full kit is saved.) |
 | **Spawn characters/objects** | Places an actor in front of Link. **FAVORITES** lists ~60 well-known enemies, bosses, characters and props by name (plus the custom 3D model); **ALL ACTORS** lists all 428 actors by their decomp name. Left/right picks (hold **R** to jump 10); **SPAWN!** places it, **PLAY AS!** makes you that character (see below); **Params** sets the actor's parameter value (hold **R** for ×0x10, **Z** for ×0x100). The 3D data the actor needs is loaded on the fly. |
+| **Biome: Hyrule Field / Frozen Tundra** | Swaps Hyrule Field for a snowy copy of it and takes you there: snow-covered ground, frosted blue rock, icy fog and light, and falling snow. Pick it again to switch back. Everything else (exits, enemies, music, the minimap) stays Hyrule Field's. See [Biomes](#biomes). |
 | **Play as custom model: ON/OFF** | You become the custom 3D model (your Character Studio character): it replaces Link's look and plays its idle or walk animation as you move. Link's moves, sword hitboxes and items all still work, just invisibly. |
 
 Things to know about spawning:
@@ -117,6 +118,27 @@ To add more spawnable things, add an actor at the end of `include/tables/actor_t
 at the end of `include/tables/object_table.h`), list the new segments in `spec/remix_overlays.inc` / `spec/remix_objects.inc`, and run
 `python3 tools/remix/gen_actor_db.py` to refresh the menu's list (`FAVORITES` in that script controls
 the named shortlist).
+
+## Biomes
+
+The **Biome** option in the Remix menu turns Hyrule Field into the **Frozen Tundra**. How it's built:
+
+1. `tools/remix/biome_art/` holds the art made with GPT Image (ground and rock tiles, a landmark concept)
+   for three biomes: `tundra`, `swamp` and `autumn`. Only the tundra is wired in so far.
+2. After `make setup`, `tools/remix/make_biome.py` copies the extracted Hyrule Field scene to
+   `extracted/<version>/assets/scenes/remix/tundra/` and restyles the copy: opaque grass textures become the
+   snow tile, dark rocky ones the rock tile, other textures, palettes and vertex colors are mapped to snow and
+   frosty blue-grey (water and signs are kept), and the light settings get icy fog. Its log lists what happened
+   to each texture.
+3. The Makefile notices the copy and builds it in (`REMIX_HAS_TUNDRA=1`, `spec/remix_scenes.inc`).
+4. In game, `RemixBiome_OverrideScene` (called from `Play_SpawnScene`) loads the copy's scene file whenever
+   Hyrule Field loads with the biome on, and the game's own (unused) snowfall effect is switched on.
+
+The CI build runs all of this. If the copy fails to build, the ROM is built without it and the run shows a
+"Biome dropped" warning. `python3 tools/remix/test_make_biome.py` tests the script without a ROM.
+
+Things to know: grass bushes and trees are separate objects, so they stay green for now; the copy only
+exists in ROMs built by this repo, never in git (it is made from your ROM's data).
 
 ## Deploy on Netlify
 
@@ -203,6 +225,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `src/code/z_actor.c` (3 lines) | Lets "play as" draw instead of Link |
 | `web/studio.html`, `web/js/studio*.js`, `web/netlify/functions/studio.mjs` | Character Studio and its fal/GitHub backend |
 | `tools/remix/glb_to_oot.py`, `assets/remix_character/` | Animated GLB → N64 frames converter, and the current Studio character |
+| `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream
 

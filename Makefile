@@ -255,6 +255,14 @@ else
   CPP_DEFINES += -DDEBUG_FEATURES=0 -DNDEBUG
   OPTFLAGS := -O2 -g3
 endif
+
+# Web Remix: tools/remix/make_biome.py (run after `make setup`) adds a restyled copy of Hyrule Field.
+REMIX_BIOME_FILES := $(wildcard $(EXTRACTED_DIR)/assets/scenes/remix/tundra/tundra_scene.c)
+ifneq ($(REMIX_BIOME_FILES),)
+  CPP_DEFINES += -DREMIX_HAS_TUNDRA=1
+else
+  CPP_DEFINES += -DREMIX_HAS_TUNDRA=0
+endif
 ASOPTFLAGS := -O1
 
 ifeq ($(OS),Windows_NT)
@@ -936,7 +944,9 @@ $(O_FILES): | asset_files
 
 .PHONY: o_files asset_files
 
-$(BUILD_DIR)/spec: $(SPEC) $(SPEC_INCLUDES)
+# Rebuild what depends on REMIX_HAS_TUNDRA once the biome copy appears.
+$(BUILD_DIR)/src/code/z_remix_menu.o: $(REMIX_BIOME_FILES)
+$(BUILD_DIR)/spec: $(SPEC) $(SPEC_INCLUDES) $(REMIX_BIOME_FILES)
 	$(CPP) $(CPPFLAGS) -MD -MP -MF $@.d -MT $@ -I. $< | $(BUILD_DIR_REPLACE) > $@
 
 $(LDSCRIPT): $(BUILD_DIR)/spec

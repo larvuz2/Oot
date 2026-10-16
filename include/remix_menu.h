@@ -5,6 +5,7 @@
 
 struct Actor;
 struct PlayState;
+struct SceneTableEntry;
 
 // Web Remix in-game menu (src/code/z_remix_menu.c). Press D-pad Up during gameplay.
 void RemixMenu_Update(struct PlayState* play);
@@ -22,5 +23,9 @@ s32 RemixModel_AnimFrame(struct PlayState* play, s32 slot, f32 speed, f32* animT
 // "Play as" (custom model or a puppet actor): Actor_Draw calls this instead of Link's draw function.
 s32 RemixCostume_IsActive(void);
 void RemixCostume_DrawPlayer(struct PlayState* play, struct Actor* player);
+
+// Biomes: Play_SpawnScene calls this; returns the scene entry to load (a restyled copy of Hyrule Field
+// while a biome is on).
+struct SceneTableEntry* RemixBiome_OverrideScene(struct PlayState* play, s32 sceneId, struct SceneTableEntry* scene);
 
 #endif
