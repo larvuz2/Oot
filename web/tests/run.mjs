@@ -13,6 +13,7 @@ import { yaz0Decompress } from "../js/yaz0.js";
 import { n64Checksum } from "../js/n64crc.js";
 import { applyBps } from "../js/bps.js";
 import { decompressRom, toBigEndian } from "../js/rom.js";
+import { parseEnhance, rigOutputs, rigInput, imagesInput, isFalMediaUrl, isFalQueueUrl } from "../js/studio-pipeline.js";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -75,6 +76,20 @@ for (const r of manifest.roms) {
     const out = await decompressRom(read(`${r.name}.z64`), { dmadataStart: r.dmadataStart, ique: r.ique });
     const exp = read(`${r.name}.expected.z64`);
     check(`decompressRom ${r.name}`, equal(out, exp), `md5 ${nodeMd5(out)} vs ${nodeMd5(exp)}, len ${out.length} vs ${exp.length}`);
+}
+
+// Character Studio pipeline helpers.
+{
+    const e = parseEnhance('```json\n{"name":"Mummy","archetype":"mummy","prompt":"a mummy in T-pose"}\n```', "mummy");
+    check("studio parseEnhance fenced JSON", e.name === "Mummy" && e.archetype === "mummy" && e.prompt === "a mummy in T-pose");
+    const f = parseEnhance("not json", "a robot");
+    check("studio parseEnhance fallback", f.archetype === "humanoid" && f.prompt.includes("a robot") && f.prompt.includes("T-pose"));
+    check("studio unknown archetype -> humanoid", parseEnhance('{"archetype":"dragon","prompt":"x"}', "d").archetype === "humanoid");
+    check("studio rig walk by archetype", JSON.stringify(rigInput("u", "zombie").animation_action_ids) === "[0,119]");
+    check("studio images clamp", imagesInput("p", 99).num_images === 4 && imagesInput("p", 0).num_images === 1);
+    const r = rigOutputs({ rigged_character_glb: { url: "r" }, animations: [{ animation_glb: { url: "i" } }, { animation_glb: { url: "w" } }] });
+    check("studio rigOutputs", r.idleGlb === "i" && r.walkGlb === "w" && r.riggedGlb === "r");
+    check("studio url checks", isFalMediaUrl("https://v3b.fal.media/x.glb") && !isFalMediaUrl("https://evil.com/x") && isFalQueueUrl("https://queue.fal.run/a") && !isFalQueueUrl("http://queue.fal.run/a"));
 }
 
 if (failures) {

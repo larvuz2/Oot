@@ -917,9 +917,11 @@ endseg
 
 #include "overlays.inc"
 
+#include "remix_overlays.inc"
+
 #include "objects.inc"
 
-#include "remix.inc"
+#include "remix_objects.inc"
 
 #include "place_title_cards.inc"
 

@@ -1040,6 +1040,7 @@ void Play_Update(PlayState* this) {
 
                     if (!this->haltAllActors) {
                         Actor_UpdateAll(this, &this->actorCtx);
+                        RemixMenu_AfterActorUpdate(this);
                     }
 
                     PLAY_LOG(3643);

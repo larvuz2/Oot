@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Character Studio</title>
+    <meta name="description" content="Describe a character, pick a concept, and turn it into an animated 3D character you can play as in the Ocarina of Time Web Remix.">
+    <meta name="theme-color" content="#0d1a14">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/studio.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body class="studio">
+    <header class="masthead">
+        <div class="brand">
+            <div>
+                <h1>Character <span>Studio</span></h1>
+                <p class="tagline">Describe it &rarr; pick a concept &rarr; 3D, rigged &amp; animated &rarr; play as it in the game</p>
+            </div>
+        </div>
+        <a class="ghost button" href="./">&larr; Back to the game</a>
+    </header>
+
+    <main>
+        <section id="setup" class="card">
+            <h3>Connection</h3>
+            <p id="mode-text" class="muted">Checking…</p>
+            <div id="password-row" class="row" hidden>
+                <input id="password" type="password" autocomplete="current-password" placeholder="Studio password">
+                <button id="password-save" type="button">Unlock</button>
+            </div>
+            <div id="key-row" class="row" hidden>
+                <input id="fal-key" type="password" autocomplete="off" placeholder="Your fal.ai API key">
+                <button id="key-save" type="button">Save key</button>
+            </div>
+        </section>
+
+        <section class="card step">
+            <h2><span class="num">1</span> Describe your character</h2>
+            <form id="idea-form" class="row">
+                <input id="idea" type="text" maxlength="200" placeholder="e.g. a zombie, a mummy, a goron knight, a robot chef" required>
+                <button id="generate" class="primary" type="submit">Generate</button>
+            </form>
+            <p id="idea-status" class="status" aria-live="polite"></p>
+            <details id="prompt-details" hidden>
+                <summary>Enhanced prompt <span id="char-meta" class="muted"></span></summary>
+                <textarea id="prompt" rows="5"></textarea>
+                <button id="regenerate" type="button">Regenerate images from this prompt</button>
+            </details>
+            <div id="images" class="images"></div>
+        </section>
+
+        <section class="card step">
+            <h2><span class="num">2</span> Make it 3D, rigged &amp; animated</h2>
+            <p class="muted">Pick a concept above, then build it. This takes about 4&ndash;5 minutes; you can leave the page open and come back.</p>
+            <button id="build" class="primary" type="button" disabled>Build 3D character</button>
+            <p id="build-status" class="status" aria-live="polite"></p>
+            <div id="preview" class="preview" hidden>
+                <model-viewer id="viewer" camera-controls autoplay shadow-intensity="1" exposure="1.1" alt="Your character in 3D"></model-viewer>
+                <div class="row">
+                    <button id="show-idle" type="button">Idle</button>
+                    <button id="show-walk" type="button">Walk</button>
+                    <a id="download-glb" class="ghost button" href="#" download>Download GLB</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="card step">
+            <h2><span class="num">3</span> Put it in the game</h2>
+            <p class="muted">Adds the character to the repo; the Remix build converts it to N64 graphics (about 15 minutes). Then load the Remix in the game, press <kbd>T</kbd> (D-Pad Up) and choose <strong>Play as custom model</strong>, or <strong>Spawn &rarr; Custom 3D Model</strong>.</p>
+            <button id="publish" class="primary" type="button" disabled>Add to game</button>
+            <p id="publish-status" class="status" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Images by GPT Image 2.5, 3D and rigging by Meshy, both through <a href="https://fal.ai">fal.ai</a>. Characters are converted to a low-poly, vertex-coloured, frame-animated N64 model.</p>
+    </footer>
+
+    <script type="module" src="js/studio.js"></script>
+</body>
+</html>

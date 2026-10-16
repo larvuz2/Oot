@@ -6,6 +6,9 @@
  *   - Fully equipped: toggles a complete inventory on/off (your own items come back when off).
  *   - Spawn: places any actor (enemy, character, object, or the custom 3D model) in front of Link,
  *     loading the object file it needs on the fly.
+ *   - Play as: either the Character Studio model (object_remix_model) drawn in place of Link, or any
+ *     actor from the spawn list as a "puppet" glued to Link: you keep Link's controls and moves, the
+ *     actor plays its own animations, and its hitboxes and talk/target flags are stripped so it is harmless.
  * The world is frozen while the menu is open.
  */
 
@@ -15,6 +18,7 @@
 #include "array_count.h"
 #include "alignment.h"
 #include "controller.h"
+#include "collision_check.h"
 #include "cutscene.h"
 #include "game.h"
 #include "game_over.h"
@@ -34,7 +38,11 @@
 #include "save.h"
 #include "sfx.h"
 #include "transition.h"
+#include "segmented_address.h"
+#include "sys_matrix.h"
 #include "z_lib.h"
+
+#include "assets/objects/object_remix_model/object_remix_model.h"
 
 #include "ultra64.h"
 
@@ -66,6 +74,7 @@ typedef enum RemixMainRow {
     REMIX_MAIN_WARP,
     REMIX_MAIN_EQUIP,
     REMIX_MAIN_SPAWN,
+    REMIX_MAIN_COSTUME,
     REMIX_MAIN_CLOSE,
     REMIX_MAIN_MAX
 } RemixMainRow;
@@ -75,6 +84,7 @@ typedef enum RemixSpawnRow {
     REMIX_SPAWN_ACTOR,
     REMIX_SPAWN_PARAMS,
     REMIX_SPAWN_GO,
+    REMIX_SPAWN_PLAY_AS,
     REMIX_SPAWN_BACK,
     REMIX_SPAWN_MAX
 } RemixSpawnRow;
@@ -112,10 +122,27 @@ typedef struct RemixMenu {
     s16 messageTimer;
     const char* message;
     s32 equipOn;
+    s32 playAs;      // REMIX_PLAY_AS_*
+    s32 playAsIndex; // sRemixActors index of the possessed actor
+    Actor* puppet;
+    s32 puppetRetryTimer;
+    s32 puppetFailures;
+    f32 costumeAnimTime;
     RemixEquipSnapshot snapshot;
 } RemixMenu;
 
+typedef enum RemixPlayAs {
+    REMIX_PLAY_AS_NONE,
+    REMIX_PLAY_AS_CUSTOM, // the Character Studio model
+    REMIX_PLAY_AS_ACTOR   // an actor from the spawn list, as a puppet
+} RemixPlayAs;
+
 static RemixMenu sRemix;
+
+static void RemixMenu_Close(void);
+static s32 RemixMenu_RequestObject(PlayState* play, s16 objectId);
+static void RemixPossess_Start(PlayState* play, s32 index);
+static void RemixPossess_Stop(PlayState* play);
 
 static void RemixMenu_SetMessage(const char* msg) {
     sRemix.message = msg;
@@ -392,6 +419,222 @@ static void RemixMenu_Spawn(PlayState* play) {
     RemixMenu_Close();
 }
 
+// ---- custom model + "play as" costume ----
+
+s16 RemixModel_GetInfo(PlayState* play, s32 slot, s32 field) {
+    s16* info = (s16*)((uintptr_t)play->objectCtx.slots[slot].segment + SEGMENT_OFFSET(gRemixModelInfo));
+
+    return info[field];
+}
+
+Gfx* RemixModel_GetFrameDL(PlayState* play, s32 slot, s32 frame) {
+    Gfx** frames = (Gfx**)((uintptr_t)play->objectCtx.slots[slot].segment + SEGMENT_OFFSET(gRemixModelFrameDLs));
+
+    return frames[frame]; // a segment 6 address, valid while segment 6 points at this object
+}
+
+s32 RemixModel_AnimFrame(PlayState* play, s32 slot, f32 speed, f32* animTime) {
+    s32 idleFrames = RemixModel_GetInfo(play, slot, REMIX_MODEL_INFO_IDLE_FRAMES);
+    s32 walkFrames = RemixModel_GetInfo(play, slot, REMIX_MODEL_INFO_WALK_FRAMES);
+
+    if (idleFrames < 1) {
+        idleFrames = 1;
+    }
+    if ((walkFrames > 0) && (speed > 0.5f)) {
+        // About one walk cycle per 1.5 seconds at walking speed, faster when running.
+        *animTime += speed * (f32)walkFrames / 135.0f;
+        while (*animTime >= walkFrames) {
+            *animTime -= walkFrames;
+        }
+        return idleFrames + (s32)*animTime;
+    }
+    *animTime += (f32)idleFrames / 60.0f; // one idle loop every 2 seconds
+    while (*animTime >= idleFrames) {
+        *animTime -= idleFrames;
+    }
+    return (s32)*animTime;
+}
+
+s32 RemixCostume_IsActive(void) {
+    return sRemix.playAs != REMIX_PLAY_AS_NONE;
+}
+
+/** Run Link's draw (so hand/sword positions, hitboxes and camera focus stay right) but drop its graphics. */
+static void RemixCostume_DrawLinkHidden(PlayState* play, Actor* player) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    Gfx* opa;
+    Gfx* xlu;
+
+    OPEN_DISPS(gfxCtx, "../z_remix_menu.c", __LINE__);
+    opa = POLY_OPA_DISP;
+    xlu = POLY_XLU_DISP;
+    player->draw(player, play);
+    POLY_OPA_DISP = opa;
+    POLY_XLU_DISP = xlu;
+    CLOSE_DISPS(gfxCtx, "../z_remix_menu.c", __LINE__);
+}
+
+void RemixCostume_DrawPlayer(PlayState* play, Actor* player) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    s32 slot;
+    s32 frame;
+
+    if (sRemix.playAs == REMIX_PLAY_AS_ACTOR) {
+        // The puppet draws itself; Link only disappears while it exists.
+        if (sRemix.puppet != NULL) {
+            RemixCostume_DrawLinkHidden(play, player);
+        } else {
+            player->draw(player, play);
+        }
+        return;
+    }
+
+    slot = Object_GetSlot(&play->objectCtx, OBJECT_REMIX_MODEL);
+    if (slot < 0) {
+        // Room changes drop the object; ask for it again and show Link until it is back.
+        if (play->transitionMode == TRANS_MODE_OFF) {
+            RemixMenu_RequestObject(play, OBJECT_REMIX_MODEL);
+        }
+        player->draw(player, play);
+        return;
+    }
+    if (!Object_IsLoaded(&play->objectCtx, slot)) {
+        player->draw(player, play);
+        return;
+    }
+
+    RemixCostume_DrawLinkHidden(play, player);
+
+    OPEN_DISPS(gfxCtx, "../z_remix_menu.c", __LINE__);
+
+    // Actor_Draw already loaded Link's position/rotation/scale (0.01) into the matrix stack.
+    frame = RemixModel_AnimFrame(play, slot, player->speed, &sRemix.costumeAnimTime);
+    Gfx_SetupDL_25Opa(gfxCtx);
+    gSPSegment(POLY_OPA_DISP++, 0x06, play->objectCtx.slots[slot].segment);
+    gSPMatrix(POLY_OPA_DISP++, MATRIX_FINALIZE(gfxCtx, "../z_remix_menu.c", __LINE__),
+              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gSPDisplayList(POLY_OPA_DISP++, RemixModel_GetFrameDL(play, slot, frame));
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_menu.c", __LINE__);
+}
+
+// ---- possession ("play as" an existing actor) ----
+
+static s32 RemixPossess_PuppetExists(PlayState* play) {
+    s32 i;
+    Actor* actor;
+
+    if (sRemix.puppet == NULL) {
+        return false;
+    }
+    for (i = 0; i < ACTORCAT_MAX; i++) {
+        for (actor = play->actorCtx.actorLists[i].head; actor != NULL; actor = actor->next) {
+            if (actor == sRemix.puppet) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void RemixPossess_StripColliders(CollisionCheckContext* colChkCtx, Actor* puppet) {
+    s32 i;
+    s32 n;
+
+    for (i = 0, n = 0; i < colChkCtx->colATCount; i++) {
+        if (colChkCtx->colAT[i]->actor != puppet) {
+            colChkCtx->colAT[n++] = colChkCtx->colAT[i];
+        }
+    }
+    colChkCtx->colATCount = n;
+    for (i = 0, n = 0; i < colChkCtx->colACCount; i++) {
+        if (colChkCtx->colAC[i]->actor != puppet) {
+            colChkCtx->colAC[n++] = colChkCtx->colAC[i];
+        }
+    }
+    colChkCtx->colACCount = n;
+    for (i = 0, n = 0; i < colChkCtx->colOCCount; i++) {
+        if (colChkCtx->colOC[i]->actor != puppet) {
+            colChkCtx->colOC[n++] = colChkCtx->colOC[i];
+        }
+    }
+    colChkCtx->colOCCount = n;
+}
+
+static Actor* RemixPossess_SpawnPuppet(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    RemixActorInfo* info = &sRemixActors[sRemix.playAsIndex];
+
+    if (RemixMenu_RequestObject(play, info->objectId) < 0) {
+        return NULL;
+    }
+    return Actor_Spawn(&play->actorCtx, play, info->actorId, player->actor.world.pos.x, player->actor.world.pos.y,
+                       player->actor.world.pos.z, 0, player->actor.shape.rot.y, 0, (s16)sRemix.params);
+}
+
+static void RemixPossess_Start(PlayState* play, s32 index) {
+    RemixPossess_Stop(play);
+    sRemix.playAs = REMIX_PLAY_AS_ACTOR;
+    sRemix.playAsIndex = index;
+    sRemix.puppetFailures = 0;
+    sRemix.puppetRetryTimer = 0;
+    sRemix.puppet = RemixPossess_SpawnPuppet(play);
+    if (sRemix.puppet == NULL) {
+        sRemix.playAs = REMIX_PLAY_AS_NONE;
+        if (sRemix.messageTimer == 0) {
+            RemixMenu_SetMessage("Couldn't spawn (limit/cleared room)");
+        }
+        SFX_PLAY_CENTERED(NA_SE_SY_ERROR);
+        return;
+    }
+    RemixMenu_SetMessage("You are now that actor! D-Up to stop");
+    RemixMenu_Close();
+}
+
+static void RemixPossess_Stop(PlayState* play) {
+    if ((sRemix.playAs == REMIX_PLAY_AS_ACTOR) && RemixPossess_PuppetExists(play)) {
+        Actor_Kill(sRemix.puppet);
+    }
+    sRemix.puppet = NULL;
+    sRemix.playAs = REMIX_PLAY_AS_NONE;
+}
+
+void RemixMenu_AfterActorUpdate(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    Actor* puppet;
+
+    if ((sRemix.playAs != REMIX_PLAY_AS_ACTOR) || (player == NULL)) {
+        return;
+    }
+
+    if (!RemixPossess_PuppetExists(play)) {
+        // Gone (room change, or the actor removed itself): bring it back, giving up after a few tries.
+        sRemix.puppet = NULL;
+        if ((play->transitionMode != TRANS_MODE_OFF) || (sRemix.puppetRetryTimer-- > 0)) {
+            return;
+        }
+        sRemix.puppetRetryTimer = 30;
+        sRemix.puppet = RemixPossess_SpawnPuppet(play);
+        if (sRemix.puppet == NULL) {
+            if (++sRemix.puppetFailures >= 3) {
+                sRemix.playAs = REMIX_PLAY_AS_NONE;
+                RemixMenu_SetMessage("That actor can't be played here");
+            }
+            return;
+        }
+    }
+
+    // Glue the puppet to Link: Link's controls and physics move it, it keeps its own animations.
+    puppet = sRemix.puppet;
+    puppet->world.pos = player->actor.world.pos;
+    puppet->home.pos = player->actor.world.pos;
+    puppet->world.rot.y = puppet->shape.rot.y = player->actor.shape.rot.y;
+    puppet->room = -1; // don't unload with the room it was spawned in
+    puppet->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_TALK);
+    puppet->flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
+    RemixPossess_StripColliders(&play->colChkCtx, puppet);
+}
+
 // ---- input ----
 
 static s32 RemixMenu_ReadDirection(Input* input) {
@@ -476,6 +719,18 @@ static void RemixMenu_UpdateMain(PlayState* play, Input* input, s32 dir) {
             SFX_PLAY_CENTERED(NA_SE_SY_DECIDE);
             break;
 
+        case REMIX_MAIN_COSTUME:
+            if (sRemix.playAs != REMIX_PLAY_AS_NONE) {
+                RemixPossess_Stop(play);
+                RemixMenu_SetMessage("Back to Link");
+            } else {
+                sRemix.playAs = REMIX_PLAY_AS_CUSTOM;
+                RemixMenu_RequestObject(play, OBJECT_REMIX_MODEL);
+                RemixMenu_SetMessage("Playing as your custom character");
+            }
+            SFX_PLAY_CENTERED(NA_SE_SY_DECIDE);
+            break;
+
         case REMIX_MAIN_CLOSE:
             RemixMenu_Close();
             break;
@@ -556,6 +811,19 @@ static void RemixMenu_UpdateSpawn(PlayState* play, Input* input, s32 dir) {
             SFX_PLAY_CENTERED(NA_SE_SY_CANCEL);
             break;
 
+        case REMIX_SPAWN_PLAY_AS:
+            if (RemixMenu_SelectedActor()->actorId == ACTOR_EN_REMIX_MODEL) {
+                // The custom model has a proper costume mode, animated by Link's own movement.
+                RemixPossess_Stop(play);
+                sRemix.playAs = REMIX_PLAY_AS_CUSTOM;
+                RemixMenu_RequestObject(play, OBJECT_REMIX_MODEL);
+                RemixMenu_SetMessage("Playing as your custom character");
+                RemixMenu_Close();
+            } else {
+                RemixPossess_Start(play, sRemix.actorIndex);
+            }
+            break;
+
         default:
             RemixMenu_Spawn(play);
             break;
@@ -620,7 +888,7 @@ static void RemixMenu_PrintRow(GfxPrint* printer, s32 row, s32 selected, const c
 }
 
 static void RemixMenu_PrintMain(GfxPrint* printer) {
-    static const char* sRows[] = { "Warp anywhere (Map Select)", NULL, "Spawn characters/objects", "Close" };
+    static const char* sRows[] = { "Warp anywhere (Map Select)", NULL, "Spawn characters/objects", NULL, "Close" };
     s32 i;
 
     GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW);
@@ -631,6 +899,18 @@ static void RemixMenu_PrintMain(GfxPrint* printer) {
         if (i == REMIX_MAIN_EQUIP) {
             RemixMenu_PrintRow(printer, i, sRemix.cursor == i,
                                sRemix.equipOn ? "Fully equipped:  ON" : "Fully equipped:  OFF");
+        } else if (i == REMIX_MAIN_COSTUME) {
+            if (sRemix.playAs == REMIX_PLAY_AS_ACTOR) {
+                GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW + 2 + i);
+                GfxPrint_SetColor(printer, (sRemix.cursor == i) ? 255 : 230, (sRemix.cursor == i) ? 210 : 230,
+                                  (sRemix.cursor == i) ? 80 : 230, 255);
+                GfxPrint_Printf(printer, "%sStop playing as %s", (sRemix.cursor == i) ? "> " : "  ",
+                                sRemixActors[sRemix.playAsIndex].name);
+            } else {
+                RemixMenu_PrintRow(printer, i, sRemix.cursor == i,
+                                   (sRemix.playAs == REMIX_PLAY_AS_CUSTOM) ? "Play as custom model: ON"
+                                                                           : "Play as custom model: OFF");
+            }
         } else {
             RemixMenu_PrintRow(printer, i, sRemix.cursor == i, sRows[i]);
         }
@@ -659,9 +939,10 @@ static void RemixMenu_PrintSpawn(GfxPrint* printer) {
     GfxPrint_Printf(printer, "%sParams: %04X", sel ? "> " : "  ", sRemix.params);
 
     RemixMenu_PrintRow(printer, REMIX_SPAWN_GO, sRemix.cursor == REMIX_SPAWN_GO, "SPAWN!");
+    RemixMenu_PrintRow(printer, REMIX_SPAWN_PLAY_AS, sRemix.cursor == REMIX_SPAWN_PLAY_AS, "PLAY AS!");
     RemixMenu_PrintRow(printer, REMIX_SPAWN_BACK, sRemix.cursor == REMIX_SPAWN_BACK, "Back");
 
-    GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW + 8);
+    GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW + 9);
     GfxPrint_SetColor(printer, 150, 150, 150, 255);
     GfxPrint_Printf(printer, "Actor %03X  R:x10  Z:params x100", info->actorId);
 }
@@ -685,7 +966,7 @@ void RemixMenu_Draw(PlayState* play) {
         gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 10, 20, 190);
-        gDPFillRectangle(OVERLAY_DISP++, (REMIX_COL - 1) * 8, (REMIX_ROW - 1) * 8, 37 * 8, (REMIX_ROW + 12) * 8);
+        gDPFillRectangle(OVERLAY_DISP++, (REMIX_COL - 1) * 8, (REMIX_ROW - 1) * 8, 37 * 8, (REMIX_ROW + 13) * 8);
         gDPPipeSync(OVERLAY_DISP++);
     }
 
@@ -704,12 +985,12 @@ void RemixMenu_Draw(PlayState* play) {
         } else {
             RemixMenu_PrintSpawn(&printer);
         }
-        GfxPrint_SetPos(&printer, REMIX_COL, REMIX_ROW + 10);
+        GfxPrint_SetPos(&printer, REMIX_COL, REMIX_ROW + 11);
         GfxPrint_SetColor(&printer, 150, 150, 150, 255);
         GfxPrint_Printf(&printer, "D-Pad/Stick:Move A:OK B:Back");
     }
     if ((sRemix.messageTimer > 0) && (sRemix.message != NULL)) {
-        GfxPrint_SetPos(&printer, REMIX_COL, sRemix.isOpen ? REMIX_ROW + 11 : 26);
+        GfxPrint_SetPos(&printer, REMIX_COL, sRemix.isOpen ? REMIX_ROW + 12 : 26);
         GfxPrint_SetColor(&printer, 255, 255, 120, 255);
         GfxPrint_Printf(&printer, "%s", sRemix.message);
     }
