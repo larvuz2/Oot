@@ -238,6 +238,9 @@ def restyle_texture(path: Path, tiles: dict, log: list) -> str:
 VTX_RE = re.compile(
     r"VTX\(\s*(-?\w+),\s*(-?\w+),\s*(-?\w+),\s*(-?\w+),\s*(-?\w+),\s*(\w+),\s*(\w+),\s*(\w+),\s*(\w+)\s*\)"
 )
+# Top-level definitions in the scene/room .c files (catches ones the headers don't declare, like the
+# extractor's `u8 spot00_scene_zeros_0123F4[12] = { 0 };` padding).
+DEFINITION_RE = re.compile(r"^(?:static\s+)?[A-Za-z_][\w \t\*]*?\b([A-Za-z_]\w*)\s*(?:\[[^\]\n]*\]\s*)*=", re.M)
 EXTERN_RE = re.compile(r"^\s*extern\s+[^;=]*?\b([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)*;", re.M)
 IDENT_RE = re.compile(r"\b[A-Za-z_]\w*\b")
 GSVTX_RE = re.compile(r"gsSPVertex\(\s*&?\s*\(?\s*([A-Za-z_]\w*)")
@@ -379,6 +382,8 @@ def make_biome(extracted: Path, biome: str, tiles_dir: Path) -> list:
         for name, text in texts.items():
             if name.endswith(".h"):
                 symbols.update(EXTERN_RE.findall(text))
+            elif not name.endswith(".inc.c"):
+                symbols.update(DEFINITION_RE.findall(text))
         if not symbols:
             raise ValueError("no symbols found in the scene headers")
 
