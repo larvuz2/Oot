@@ -177,8 +177,11 @@ def main():
               and "#define ANCIENT_HF_LIGHTS_COUNT 17" in h)
         check("grass is the big green floor, not the bigger cut-out bush", "grass = spot00_sceneTex_013D98" in p.stdout)
         check("dirt is the I4 texture tinted by its vertex colors", "dirt = spot00_room_0Tex_001600" in p.stdout)
-        check("rock is the I4 mountain colored by the primitive color (the grey one is skipped)",
-              "rock = spot00_room_0Tex_001900" in p.stdout)
+        check("rock is the CI4 cliff: color textures come before grey ones covering more wall",
+              "rock = spot00_room_0Tex_001800" in p.stdout)
+        check("grey textures are colored by the primitive color, or skipped when their color is unknown",
+              re.search(r"spot00_room_0Tex_001900: i4 16x16 .* color \(110, 81, 51\)", p.stdout) is not None
+              and "spot00_room_0Tex_grey:" not in p.stdout)
 
         g = out.parent / "hf_grass.rgba16.inc.c"
         if g.exists():
@@ -194,9 +197,9 @@ def main():
         rock = out.parent / "hf_rock.rgba16.inc.c"
         if rock.exists():
             rgb, _ = decode_rgba16_inc(rock.read_text())
-            src = np.array(Image.open(ext / D / "spot00_room_0Tex_001900.i4.png").convert("L")).astype(float)
-            big = np.kron(src, np.ones((2, 2)))[..., None] * np.array([150, 110, 70]) / 255  # 16x16 -> 32x32
-            check("I4 rock tinted by the primitive color and scaled up 2x", np.abs(rgb * 255 / 31 - big).max() <= 5.0)
+            src = np.array(Image.open(next((ext / D).glob("spot00_room_0Tex_001800.*.png"))).convert("RGB")).astype(int)
+            big = np.kron(src, np.ones((2, 2, 1), int))  # 16x16 -> 32x32, nearest
+            check("CI4 rock resolved through its palette and scaled up 2x", np.abs(rgb * 255 / 31 - big).max() <= 4.2)
 
         # No Hyrule Field: exit 1, and no header (the level then uses its own textures).
         out2 = tmp / "none" / "ancient_hf.h"

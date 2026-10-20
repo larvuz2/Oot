@@ -326,17 +326,22 @@ def candidates(field: Field, usage):
 
 def pick(cands):
     """Grass: the green texture covering the most floor. Dirt: the brown one covering the most floor. Rock: the
-    texture covering the most wall."""
+    texture covering the most wall. Color textures come first: the field uses grey (I/IA) ones mostly as blend
+    masks and detail layers, which look wrong on their own (dark bands), so they only stand in when no color
+    texture fits."""
+    color = [c for c in cands if not c["fmt"].startswith(("i4", "i8", "ia"))]
     out = {}
-    grass = [c for c in cands if c["green"] and c["floor"] > 0]
-    if grass:
-        out["GRASS"] = max(grass, key=lambda c: c["floor"])
-    dirt = [c for c in cands if c["brown"] and c["floor"] > 0 and c is not out.get("GRASS")]
-    if dirt:
-        out["DIRT"] = max(dirt, key=lambda c: c["floor"])
-    rock = [c for c in cands if c["wall"] > 0 and not any(c is v for v in out.values())]
-    if rock:
-        out["ROCK"] = max(rock, key=lambda c: c["wall"])
+
+    def choose(role, ok, key):
+        for pool in (color, cands):
+            found = [c for c in pool if ok(c) and not any(c is v for v in out.values())]
+            if found:
+                out[role] = max(found, key=key)
+                return
+
+    choose("GRASS", lambda c: c["green"] and c["floor"] > 0, lambda c: c["floor"])
+    choose("DIRT", lambda c: c["brown"] and c["floor"] > 0, lambda c: c["floor"])
+    choose("ROCK", lambda c: c["wall"] > 0, lambda c: c["wall"])
     return out
 
 
