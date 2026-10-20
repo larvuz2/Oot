@@ -135,6 +135,7 @@ def lighting_after(line, lit):
     return lit
 
 
+PRIM_RE = re.compile(r"gsDPSetPrimColor\(\s*[^,]+,\s*[^,]+,\s*([^,]+),\s*([^,]+),\s*([^,]+),")
 QUAD_RE = re.compile(r"gsSP1Quadrangle\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)")
 CALL_RE = re.compile(r"gsSP(DisplayList|BranchList)\(\s*&?(\w+)\s*\)")
 MACRO_RE = re.compile(r"\b(gs[A-Z]\w*)\(")
@@ -153,6 +154,7 @@ class Replay:
     def __init__(self):
         self.cur = None
         self.lit = False
+        self.prim = None  # primitive color: the field colors its grey (I/IA) textures with it
         self.slots = [None] * 64
 
 
@@ -186,6 +188,10 @@ def texture_usage(field: Field, arrays, stats=None):
                     count("calls to unknown lists")
                 if m.group(1) == "BranchList":
                     return
+                continue
+            m = PRIM_RE.search(line)
+            if m:
+                st.prim = np.array([expr(m.group(i)) for i in (1, 2, 3)], float)
                 continue
             m = TEXLOAD_RE.search(line)
             if m:
@@ -246,7 +252,11 @@ def texture_usage(field: Field, arrays, stats=None):
                 if area < 1:
                     continue
                 ny = n[1] / (2 * area)
-                u = usage.setdefault(st.cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0))
+                u = usage.setdefault(st.cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0,
+                                                  prim=np.zeros(3), prim_weight=0.0))
+                if st.prim is not None:
+                    u["prim"] += st.prim * area
+                    u["prim_weight"] += area
                 u["count"] += 1
                 if ny > 0.75:
                     u["floor"] += area
@@ -301,6 +311,12 @@ def candidates(field: Field, usage):
         if (alpha >= 128).mean() < 0.98:  # cut-out textures (fences, leaves) cannot cover the ground
             continue
         tint = u["color"] / u["weight"] if u["weight"] > 0 else None
+        if fmt.startswith(("i4", "i8", "ia")):
+            # Grey textures get their color when drawn: from the primitive color, else from vertex colors.
+            if u["prim_weight"] > 0:
+                tint = u["prim"] / u["prim_weight"] * (tint / 255.0 if tint is not None else 1.0)
+            if tint is None:
+                continue  # its real color is unknown: grey would not look like the field
         tex = to_level_texture(fmt, img, tint)
         r, g, b = tex[..., :3].reshape(-1, 3).mean(0)
         out.append(dict(sym=sym, fmt=fmt, size=img.size, tex=tex, rgb=(r, g, b), floor=u["floor"], wall=u["wall"],

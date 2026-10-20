@@ -51,8 +51,16 @@ def write_fixture(ext: Path):
         "hf_test_small_vtx": quad(-100, -100, 100, 100),
         "hf_test_cliff_vtx": quad(-3000, 3000, 3000, 3000, 0, 1500, color=(0x00, 0x7F, 0x00)),
         "hf_test_rock_vtx": quad(-300, -3000, 300, -3000, 0, 300),
+        "hf_test_grey_vtx": quad(-3000, -3500, 3000, -3500, 0, 4000),
+        "hf_test_mountain_vtx": quad(-3500, -3000, -3500, 3000, 0, 2500),
     }
-    room_c = (d / "spot00_room_0.c").read_text()
+    Image.fromarray(np.random.default_rng(9).integers(120, 255, (16, 16), dtype=np.uint8), "L").save(
+        d / "spot00_room_0Tex_001900.i4.png")
+    (d / next(d.glob("spot00_room_0Tex_001900.ci4*.png")).name).unlink()
+    Image.fromarray(np.full((16, 16), 200, np.uint8), "L").save(d / "spot00_room_0Tex_001B00.i4.png")
+    room_c = (d / "spot00_room_0.c").read_text().replace(
+        "spot00_room_0Tex_001900.ci4.tlut_spot00_room_0TLUT_001A00.inc.c", "spot00_room_0Tex_001900.i4.inc.c")
+    room_c += "u64 spot00_room_0Tex_grey[] = {\n" + test_make_biome.inc("spot00_room_0Tex_001B00.i4") + "};\n\n"
     for k, (sym, text) in enumerate(vtx.items()):
         w(f"spot00_room_0Vtx_00{k + 5}000.inc.c", text)
         room_c += f"Vtx {sym}[4] = {{\n" + test_make_biome.inc(f"spot00_room_0Vtx_00{k + 5}000") + "};\n\n"
@@ -88,6 +96,15 @@ def write_fixture(ext: Path):
         "gsDPLoadTextureBlock_4b(spot00_room_0Tex_001800, G_IM_FMT_CI, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, "
         "G_TX_NOMIRROR | G_TX_WRAP, 4, 4, G_TX_NOLOD, G_TX_NOLOD),\n"
         "gsSPVertex(hf_test_cliff_vtx, 4, 0),\n" + tris +
+        # biggest wall: an I4 texture under lighting with no color given -> skipped (its color is unknown)
+        "gsDPLoadTextureBlock_4b(spot00_room_0Tex_grey, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, "
+        "G_TX_NOMIRROR | G_TX_WRAP, 4, 4, G_TX_NOLOD, G_TX_NOLOD),\n"
+        "gsSPVertex(hf_test_grey_vtx, 4, 0),\n" + tris +
+        # second biggest: an I4 mountain texture colored brown by the primitive color -> the rock
+        "gsDPSetPrimColor(0, 0, 150, 110, 70, 255),\n"
+        "gsDPLoadTextureBlock_4b(spot00_room_0Tex_001900, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, "
+        "G_TX_NOMIRROR | G_TX_WRAP, 4, 4, G_TX_NOLOD, G_TX_NOLOD),\n"
+        "gsSPVertex(hf_test_mountain_vtx, 4, 0),\n" + tris +
         "gsSPClearGeometryMode(G_LIGHTING),\n"
         "gsDPLoadTextureBlock(spot00_room_0Tex_000C00, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | "
         "G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),\n"
@@ -160,7 +177,8 @@ def main():
               and "#define ANCIENT_HF_LIGHTS_COUNT 17" in h)
         check("grass is the big green floor, not the bigger cut-out bush", "grass = spot00_sceneTex_013D98" in p.stdout)
         check("dirt is the I4 texture tinted by its vertex colors", "dirt = spot00_room_0Tex_001600" in p.stdout)
-        check("rock is the CI4 cliff covering the most wall", "rock = spot00_room_0Tex_001800" in p.stdout)
+        check("rock is the I4 mountain colored by the primitive color (the grey one is skipped)",
+              "rock = spot00_room_0Tex_001900" in p.stdout)
 
         g = out.parent / "hf_grass.rgba16.inc.c"
         if g.exists():
@@ -176,9 +194,9 @@ def main():
         rock = out.parent / "hf_rock.rgba16.inc.c"
         if rock.exists():
             rgb, _ = decode_rgba16_inc(rock.read_text())
-            src = np.array(Image.open(next((ext / D).glob("spot00_room_0Tex_001800.*.png"))).convert("RGB")).astype(int)
-            big = np.kron(src, np.ones((2, 2, 1), int))  # 16x16 -> 32x32, nearest
-            check("CI4 rock resolved through its palette and scaled up 2x", np.abs(rgb * 255 / 31 - big).max() <= 4.2)
+            src = np.array(Image.open(ext / D / "spot00_room_0Tex_001900.i4.png").convert("L")).astype(float)
+            big = np.kron(src, np.ones((2, 2)))[..., None] * np.array([150, 110, 70]) / 255  # 16x16 -> 32x32
+            check("I4 rock tinted by the primitive color and scaled up 2x", np.abs(rgb * 255 / 31 - big).max() <= 5.0)
 
         # No Hyrule Field: exit 1, and no header (the level then uses its own textures).
         out2 = tmp / "none" / "ancient_hf.h"

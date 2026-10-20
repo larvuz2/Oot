@@ -7,7 +7,7 @@ takes screenshots at a few frames (holding the stick forward after the second, s
   - whether the player reported a crash or a stall,
   - whether each screenshot is not blank,
   - whether the picture changes over time (the game did not freeze),
-  - a 48x27 thumbnail of each shot as hex, so a log reader can see roughly what was on screen.
+  - a 96x54 thumbnail of each shot as hex, so a log reader can see roughly what was on screen.
 
     python3 tools/remix/smoke_test.py --rom build/ntsc-1.2/oot-ntsc-1.2.z64 --out /tmp/smoke
 
@@ -70,7 +70,7 @@ def describe(name: str, cap: dict):
         colors = len(img.resize((160, 120)).getcolors(160 * 120) or [])
         print(f"smoke: {name} frame {shot['frame']}: mean={tuple(round(c) for c in ImageStat.Stat(img).mean)} "
               f"colors={colors}{' BLANK' if colors < 12 else ''}")
-        print(f"smoke-thumb {name}-{shot['frame']} 48x27 " + img.resize((48, 27), Image.BILINEAR).tobytes().hex())
+        print(f"smoke-thumb {name}-{shot['frame']} 96x54 " + img.resize((96, 54), Image.BILINEAR).tobytes().hex())
 
 
 EXC = {0: "interrupt", 1: "TLB mod", 2: "TLB load miss", 3: "TLB store miss", 4: "address error (load)",
@@ -198,8 +198,8 @@ def main():
             moved = sum(abs(x - y) for x, y in zip(a, b)) / len(a)
         print(f"smoke: shot {i} {path.name} {img.size[0]}x{img.size[1]} mean={tuple(round(c) for c in stat.mean)} "
               f"colors={colors}{' BLANK' if blank else ''}" + (f" change={moved:.1f}" if moved is not None else ""))
-        thumb = img.resize((48, 27), Image.BILINEAR)
-        print(f"smoke-thumb {i} 48x27 " + thumb.tobytes().hex())
+        thumb = img.resize((96, 54), Image.BILINEAR)
+        print(f"smoke-thumb {i} 96x54 " + thumb.tobytes().hex())
         if blank:
             ok = False
         prev = img
