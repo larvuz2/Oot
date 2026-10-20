@@ -85,14 +85,19 @@ with glowing Sheikah machinery.
 
 It sits in the same world as Hyrule Field and reuses as much of it as it can: the field's grass, dirt-path and
 cliff textures, its sky and its time-of-day lighting and fog, and the field's own trees, bushes, liftable rocks,
-bomb-able boulders and butterflies. What is new is the layout and the monument.
+butterflies. What is new is the layout, the monument and the town around it.
 
 - **The field**: rolling grass with winding dirt paths, broken stone pillars with glowing bands, Hyrule Field's
   trees, bushes and rocks, and three Beamos watching from the hills.
 - **The mountains**: a ring of cliffs, in Hyrule Field's rock, that closes the valley.
 - **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
-  emblems, golden torches at each staircase, eight glowing monoliths around it and four Armos "guardians" on it.
-  Two of them wake up.
+  emblems, golden torches at each staircase and eight glowing monoliths around it.
+- **The town**: houses, a barn, sheds, silos, wells, a watchtower and a shop borrowed from Kakariko Village,
+  Lon Lon Ranch and Kokiri Forest, restyled in the Plateau's stone and teal (roofs of teal slate, windows that
+  glow), around the plaza; a Lon Lon arch is the town gate on the road in. Townspeople from the Market and
+  Kakariko on the plaza and at their doors, the Market's haggling pair and dancing couple, a stroller and two dogs
+  on the walk around the plaza, cuccos, rupees in the pots inside the houses, and Kakariko's man on a roof (who
+  still has his Heart Piece).
 - **The Ancient Spire**: a stepped pedestal and an engraved obelisk with glowing rune panels and orange light
   slits, crowned by a ring that spins around a hovering crystal, with rock shards orbiting it. Two Gossip Stones
   stand at its feet.
@@ -119,12 +124,22 @@ lists and measuring what each texture covers), converts them to the level's form
 and at the field's light settings through `build/VERSION/assets/scenes/remix/ancient/ancient_hf.h`. Without it the
 level builds with its own look-alike textures and lights. The remix build runs it for you.
 
+The town's buildings come from your ROM too. `tools/remix/survey_scenes.py` lists and pictures every chunk of
+the game's town scenes (that is how the buildings were picked), and at build time `tools/remix/make_town.py`
+copies the chosen ones onto the plots of `tools/remix/town_plan.py`, turned to face the Spire, with their
+collision, and restyles every texture they use (`tools/remix/restyle.py`: same size and detail, the Plateau's
+colors). It writes `build/VERSION/assets/scenes/remix/ancient/ancient_town.h` and the data it points to; the
+remix build uploads pictures of the result (`town-preview`). Without a ROM the plaza stands alone. Memory: the
+Plateau keeps 940 KB for objects instead of 1000 KB (its objects take about 920 KB), which leaves room in
+actor memory for the townspeople.
+
 The remix build also checks the level:
 - its log compares the level's memory use with Hyrule Field's (the level has to fit where the field fits);
 - `tools/remix/smoke_test.py` boots the ROM straight into the level in the website's own emulator (headless
   Chromium), runs for about 25 seconds of game time with Link running forward, and checks that the picture is not
   blank and keeps changing. It also reads the console's memory from the emulator and reports where each of the
-  game's threads is and whether one crashed (with the function name). If the level shows nothing, it boots
+  game's threads is and whether one crashed (with the function name), and how much actor memory is left (next to
+  Hyrule Field's, booted the same way). If the level shows nothing, it boots
   Hyrule Field the same quick way, and the game normally, to tell a level problem from a boot problem. The
   screenshots are attached to the run (`smoke-screenshots`).
 
@@ -285,6 +300,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/make_level.py`, `assets/scenes/remix/ancient/`, `src/code/z_remix_level.c`, `include/remix_level.h` | The Ancient Plateau: level generator, generated level, its draw config and the boot-into-level switch. Registered in `include/tables/scene_table.h`, `entrance_table.h`, `include/scene.h` (draw config), `z_scene_table.c`, `z_bgcheck.c` (collision memory), Map Select and `z_title.c` |
 | `src/code/z_demo.c` (skip) | D-pad Right skips cutscenes |
 | `tools/remix/link_level_assets.py`, `tools/remix/test_link_level_assets.py` | Lets the Ancient Plateau use Hyrule Field's textures and lights from your ROM at build time, and its test |
+| `tools/remix/make_town.py`, `restyle.py`, `town_plan.py`, `survey_scenes.py`, `extracted_scene.py`, `test_make_town.py` | The Ancient Plateau's town: buildings borrowed from the game's towns at build time and restyled, the survey used to pick them, and the shared reader for extracted scenes. 4 lines in `src/code/z_scene.c` (the Plateau's object space) |
 | `tools/remix/smoke_test.py`, `tools/remix/smoke_capture.mjs`, `web/js/boot.js` | Emulator smoke test in CI (the website's player in headless Chromium); the site's "Jump into the new level" switch |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
