@@ -219,7 +219,7 @@ jobs:
           # Object space (1000 KB outside a few boss rooms, src/code/z_scene.c): the keep objects, adult Link and the
           # room's object list are loaded one after another; retail builds do not check for overflow.
           room = open("assets/scenes/remix/ancient/ancient_room_0.c").read()
-          objs = re.findall(r"^    (OBJECT_\w+),$", room.split("ObjectList[] = {", 1)[1].split("};", 1)[0], re.M)
+          objs = re.findall(r"\bOBJECT_\w+", room.split("ObjectList[] = {", 1)[1].split("};", 1)[0])
           names = ["gameplay_keep", "gameplay_field_keep", "object_link_boy"] + [o.lower() for o in objs]
           sizes = {n: (size(n) + 15) // 16 * 16 if f"_{n}SegmentRomStart" in syms else None for n in names}
           total = sum(v for v in sizes.values() if v)

@@ -48,6 +48,14 @@ SCENES = {
 TOWN_CENTERS = {"kakariko": (100, 450), "lon_lon": (0, -644), "kokiri": (200, 200)}
 KAK_ALL = [0, 3, 4, 5, 6, 7, 8, 9, 12, 15, 16, 17, 18, 19, 2]  # Kakariko chunks, without terrain, cliffs, mountains
 KOKIRI_STYLE = {"plant": "stone", "dirt": "wood"}  # the tree-stump houses become stone huts
+# Textures whose material the automatic guess gets wrong (steep roofs read as walls), from make_town's log
+TEXTURE_CLASSES = {
+    "spot01_scene_0000E550_CITex": "roof",  # Kakariko's red roof tiles
+    "spot01_scene_0001BF50_CITex": "roof",  # Kakariko's green roof tiles
+    "spot01_scene_00012950_CITex": "roof",
+    "spot01_scene_0000BF50_Tex": "roof",
+    "spot20_scene_0000BD80_CITex": "roof",  # the ranch house's orange tiles
+}
 
 
 def _kak(name, x0, x1, z0, z1, y0, y1, plot):
@@ -79,10 +87,10 @@ BUILDINGS: list[dict] = [
     _kak("kakariko_green_house", -50, 352, -70, 340, -10, 900, 6),
     _kok("kokiri_small_house", 3, 7),
     _ll("lon_lon_shed", [6], 8),
-    _kok("kokiri_stump_house", 16, 9),
+    _ll("lon_lon_silo_2", [7], 9),
     # the far quarter
     _kak("kakariko_hillside_house", 356, 780, -70, 340, 190, 950, 10),
-    _kok("kokiri_ladder_house", 2, 11),
+    _kak("kakariko_red_roof_house_2", -710, -145, -925, -355, 300, 1100, 11),
     _kak("kakariko_shelter", 230, 375, 1545, 1815, 70, 300, 12),
     _ll("lon_lon_shed_2", [6], 13),
     _kak("kakariko_well_2", 655, 870, 405, 645, -90, 130, 14),
@@ -90,7 +98,7 @@ BUILDINGS: list[dict] = [
     _ll("lon_lon_ranch_house", [3, 4], 15, crop=((950, -10, -3410), (1410, 600, -2390))),
     _kak("kakariko_stone_house", -720, -280, 700, 1140, 60, 900, 16),
     _kok("kokiri_shop", 15, 17),
-    _kok("kokiri_twin_house", 0, 18),
+    _kak("kakariko_gabled_house_2", -380, 250, 1380, 1830, 220, 1100, 18),
     _kak("kakariko_watchtower", -60, 70, -180, -55, 190, 820, 19),
     # the town gate over the south road, where Link arrives
     _ll("town_gate", [2], None, at="south_road", scale=1.6, front=0.0),
@@ -165,6 +173,7 @@ class Building:
                 if dl:
                     replay(field, dl, lambda v, st: self.tris.append((v.copy(), st)), stats)
         crop = spec.get("crop")
+        self.total = len(self.tris)
         if crop:
             lo, hi = np.array(crop[0], float), np.array(crop[1], float)
             self.tris = [(v, st) for v, st in self.tris if np.all((v[:, :3].mean(0) >= lo) & (v[:, :3].mean(0) <= hi))]
@@ -260,6 +269,7 @@ class Textures:
         mean = img[..., :3][img[..., 3] >= 128].mean(0) if (img[..., 3] >= 128).any() else np.zeros(3)
         cls = restyle.classify(mean, fmt_src, usage, has_alpha, name)
         cls = (style or {}).get(cls, cls)
+        cls = TEXTURE_CLASSES.get(st["tex"], cls)
         new = restyle.restyle(img, cls, seed=len(self.items))
         n = len(self.items)
         sym = f"ancient_town_tex_{n}"
@@ -403,6 +413,7 @@ def main():
     textures = Textures(out)
     room_lines, entry_lines, cvtx, cpoly, csurf = [], [], [], [], []
     surf_map = {}
+    cvtx_index = {}
     placed = 0
     preview = []
     actors = []  # actors that need the buildings (e.g. the man on a roof)
@@ -502,9 +513,12 @@ def main():
                 continue
             n = n / ln
             ids = []
-            for q in p:
-                cvtx.append(q)
-                ids.append(len(own_v) + len(cvtx) - 1)
+            for q in p:  # shared vertices: each one is stored once
+                k = tuple(s16(x) for x in q)
+                if k not in cvtx_index:
+                    cvtx_index[k] = len(cvtx)
+                    cvtx.append(q)
+                ids.append(len(own_v) + cvtx_index[k])
             dist = -int(round(float(np.dot(n, p[0]))))
             fl = flags if flags.strip() not in ("", "0") else "0"
             cpoly.append(f"    {{ {surf_map[key]}, {{ COLPOLY_VTX({ids[0]}, {fl}), COLPOLY_VTX({ids[1]}, 0), {ids[2]} }}, "
@@ -515,11 +529,17 @@ def main():
                 top = max(roofs, key=lambda p: p[:, 1].mean())
                 c = top.mean(0)
                 yaw = int(math.atan2(-c[0], -c[2]) / (2 * math.pi) * 0x10000) & 0xFFFF
+                print(f"make_town: {spec['roof_actor']} on the roof of {spec['name']} at ({c[0]:.0f}, {c[1]:.0f}, {c[2]:.0f})")
                 actors.append(f"    {{ {spec['roof_actor']}, {{ {s16(c[0])}, {s16(c[1] + 4)}, {s16(c[2])} }}, "
                               f"{{ 0, 0x{yaw:04X}, 0 }}, 0x0000 }},\n")
         preview.append(dict(name=spec["name"], tris=[(v, tex["sym"] if (tex := (textures.get(field, scene, st, usage.get(
             st["tex"], {}), spec.get("style")) if st["tex"] else None)) else None, st["lit"], st["xlu"]) for v, st in tris]))
-        print(f"make_town: {spec['name']} ({scene}, {len(b.tris)} triangles, {len(b.col)} collision) on plot "
+        per_tex = {}
+        for _, st in b.tris:
+            per_tex[st["tex"]] = per_tex.get(st["tex"], 0) + 1
+        print(f"make_town:   {spec['name']} triangles by texture: " +
+              ", ".join(f"{(t or 'none').replace('_scene_', ':').replace('spot', 's')} {n}" for t, n in per_tex.items()))
+        print(f"make_town: {spec['name']} ({scene}, {len(b.tris)} of {b.total} triangles, {len(b.col)} collision) on plot "
               f"({plot['x']}, {plot['z']}) at y {gy:.0f}")
         placed += 1
 

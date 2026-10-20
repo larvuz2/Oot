@@ -154,8 +154,11 @@ def report_threads(state_path: Path, rom: bytes, elf: Path):
               + (f"  CRASHED: {EXC.get(exc, exc)} at 0x{bad:08X}" if fault else ""))
         t = u32(t + 0xC)
     print("smoke:   a thread crashed" if crashed else "smoke:   no crashed thread")
-    arena = syms.get("sZeldaArena")
-    if arena:  # N64 layout (include/libc64/os_malloc.h): Arena { head, start, size, allocFailures }, nodes of 0x30
+    for name, label in (("sZeldaArena", "actor memory (Zelda arena)"), ("gSystemArena", "system heap")):
+        arena = syms.get(name)
+        if not arena:
+            continue
+        # N64 layout (include/libc64/os_malloc.h): Arena { head, start, size, allocFailures }, nodes of 0x30
         node, free, used, largest, n = u32(arena), 0, 0, 0, 0
         while 0x80000000 <= node < 0x80800000 and n < 4000:
             magic_free = u32(node)
@@ -170,8 +173,8 @@ def report_threads(state_path: Path, rom: bytes, elf: Path):
             node = u32(node + 8)
             n += 1
         fails = ram[(arena + 0xC) & 0x7FFFFF]
-        print(f"smoke:   actor memory (Zelda arena): {used // 1024} KB used, {free // 1024} KB free "
-              f"(largest block {largest // 1024} KB), {n} blocks, {fails} failed allocations")
+        print(f"smoke:   {label}: {used // 1024} KB used, {free // 1024} KB free (largest block {largest // 1024} KB), "
+              f"{n} blocks, {fails} failed allocations")
 
 
 def main():

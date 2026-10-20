@@ -41,6 +41,7 @@
 #include "play_state.h"
 #include "player.h"
 #include "prerender.h"
+#include "remix_level.h"
 #include "printf.h"
 #include "quake.h"
 #include "regs.h"
@@ -343,7 +344,8 @@ void Play_Init(GameState* thisx) {
     SystemArena_Display();
 #endif
 
-    GameState_Realloc(&this->state, 0x1D4790);
+    // Web Remix: the Ancient Plateau gets a bigger heap for its town (remix_level.h)
+    GameState_Realloc(&this->state, RemixLevel_PlayHeapSize(&this->state, 0x1D4790));
 
 #if PLATFORM_N64
     if ((B_80121220 != NULL) && (B_80121220->unk_10 != NULL)) {
