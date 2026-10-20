@@ -109,23 +109,35 @@ jobs:
           python3 tools/remix/make_biome.py --version ${{ steps.rom.outputs.version }} \
             || echo "::warning title=Biome skipped::make_biome.py failed (see log); building without the Frozen Tundra."
 
+      - name: Link the new level to Hyrule Field's textures and lights
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          python3 tools/remix/link_level_assets.py --version ${{ steps.rom.outputs.version }} \
+            || echo "::warning title=Ancient Plateau look::Could not read Hyrule Field's assets; the level uses its own textures."
+
       - name: Build ROM
         if: steps.gate.outputs.enabled == 'true'
         env:
           V: ${{ steps.rom.outputs.version }}
         run: |
           build() { make -j"$(nproc)" VERSION=$V REGION=${{ steps.rom.outputs.region }} COMPARE=0 ${{ vars.REMIX_MAKE_FLAGS }}; }
-          if ! build; then
-            if [ -d "extracted/$V/assets/scenes/remix" ]; then
-              # Never lose the whole remix over the biome: retry without it.
-              echo "::warning title=Biome dropped::The ROM did not build with the Frozen Tundra; building without it."
-              rm -rf "extracted/$V/assets/scenes/remix" "build/$V/assets/scenes/remix" "build/$V/src/code/z_remix_menu.o" "build/$V/spec"
-              build
-            else
-              exit 1
-            fi
+          if build; then md5sum build/$V/oot-$V.z64; exit 0; fi
+          HF_LINK="build/$V/assets/scenes/remix/ancient/ancient_hf.h"
+          if [ -f "$HF_LINK" ]; then
+            # Never lose the build over the borrowed Hyrule Field look: retry with the level's own textures.
+            echo "::warning title=Hyrule Field look dropped::The ROM did not build with Hyrule Field's textures in the new level; building without them."
+            rm -f "$HF_LINK" build/$V/assets/scenes/remix/ancient/*.o
+            if build; then md5sum build/$V/oot-$V.z64; exit 0; fi
           fi
-          md5sum build/$V/oot-$V.z64
+          if [ -d "extracted/$V/assets/scenes/remix" ]; then
+            # Never lose the whole remix over the biome: retry without it.
+            echo "::warning title=Biome dropped::The ROM did not build with the Frozen Tundra; building without it."
+            rm -rf "extracted/$V/assets/scenes/remix" "build/$V/assets/scenes/remix" "build/$V/src/code/z_remix_menu.o" "build/$V/spec"
+            build
+            md5sum build/$V/oot-$V.z64
+            exit 0
+          fi
+          exit 1
 
       - name: Compare the new level's memory use with Hyrule Field
         if: steps.gate.outputs.enabled == 'true'
@@ -143,12 +155,15 @@ jobs:
               return syms[f"_{seg}SegmentRomEnd"] - syms[f"_{seg}SegmentRomStart"]
           hdr = open("assets/scenes/remix/ancient/ancient_scene.h").read()
           col = int(re.search(r"ANCIENT_SCENE_BGCHECK_MEMSIZE (0x[0-9A-Fa-f]+)", hdr).group(1), 16)
-          hf = size("spot00_scene") + size("spot00_room_0") + 0xB798
+          # Hyrule Field is a "spot" scene: BgCheck gives it 0xF000 bytes of collision memory (z_bgcheck.c).
+          hf = size("spot00_scene") + size("spot00_room_0") + 0xF000
           new = size("ancient_scene") + size("ancient_room_0") + col
-          print(f"Hyrule Field: scene {size('spot00_scene') // 1024} KB, room {size('spot00_room_0') // 1024} KB, collision 45 KB -> {hf // 1024} KB")
+          print(f"Hyrule Field: scene {size('spot00_scene') // 1024} KB, room {size('spot00_room_0') // 1024} KB, collision 60 KB -> {hf // 1024} KB")
           print(f"Ancient Plateau: scene {size('ancient_scene') // 1024} KB, room {size('ancient_room_0') // 1024} KB, collision {col // 1024} KB -> {new // 1024} KB")
-          if new > hf + 48 * 1024:
+          if new > hf:
               print(f"::warning title=Ancient Plateau memory::Uses {(new - hf) // 1024} KB more than Hyrule Field; actors may run out of memory.")
+          else:
+              print(f"Ancient Plateau uses {(hf - new) // 1024} KB less than Hyrule Field.")
           PY
 
       - name: Build Floating IPS
@@ -168,15 +183,16 @@ jobs:
             --flips "$RUNNER_TEMP/flips/flips" \
             --title "${{ vars.REMIX_TITLE || 'Remix' }}"
 
-      - name: Smoke test the new level in an emulator
+      - name: Smoke test the new level in the website's emulator
         if: steps.gate.outputs.enabled == 'true'
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 20
         env:
           V: ${{ steps.rom.outputs.version }}
         run: |
-          sudo apt-get install -y -q mupen64plus-ui-console mupen64plus-rsp-hle mupen64plus-video-glide64mk2 xvfb libgl1-mesa-dri >/dev/null
-          python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --out "$RUNNER_TEMP/smoke"
+          npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --out "$RUNNER_TEMP/smoke"
 
       - name: Upload smoke test screenshots
         if: steps.gate.outputs.enabled == 'true'
@@ -184,7 +200,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: smoke-screenshots
-          path: ${{ runner.temp }}/smoke/*.png
+          path: |
+            ${{ runner.temp }}/smoke/**/*.png
+            ${{ runner.temp }}/smoke/**/capture.json
           retention-days: 3
 
       - name: Upload patch artifact

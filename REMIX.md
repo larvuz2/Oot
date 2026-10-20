@@ -83,9 +83,13 @@ skip what they set up, so save first. Holding **Space** fast-forwards instead.
 A whole new area, built the way the game's own levels are: an ancient-technology valley where stone merges
 with glowing Sheikah machinery.
 
-- **The field**: rolling grass with winding dirt paths, tech-rock boulders and broken stone pillars with glowing
-  bands, trees, bushes and rocks you can lift, butterflies, and two Beamos watching from the hills.
-- **The mountains**: a ring of snow-capped peaks that closes the valley.
+It sits in the same world as Hyrule Field and reuses as much of it as it can: the field's grass, dirt-path and
+cliff textures, its sky and its time-of-day lighting and fog, and the field's own trees, bushes, liftable rocks,
+bomb-able boulders and butterflies. What is new is the layout and the monument.
+
+- **The field**: rolling grass with winding dirt paths, broken stone pillars with glowing bands, Hyrule Field's
+  trees, bushes and rocks, and three Beamos watching from the hills.
+- **The mountains**: a ring of cliffs, in Hyrule Field's rock, that closes the valley.
 - **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
   emblems, golden torches at each staircase, eight glowing monoliths around it and four Armos "guardians" on it.
   Two of them wake up.
@@ -101,16 +105,25 @@ How to get there:
 - From your own save: Remix menu → **Go to: Ancient Plateau**.
 - In Map Select: the last entry, **NEW:ANCIENT PLATEAU**.
 
-How it's made: `tools/remix/make_level.py` builds the whole level procedurally from the textures in
-`tools/remix/biome_art/ancient/` (made with GPT Image): terrain, paths cut into it, mountains, plaza, Spire,
+How it's made: `tools/remix/make_level.py` builds the whole level procedurally, with textures for the ancient
+technology in `tools/remix/biome_art/ancient/` (made with GPT Image): terrain, paths cut into it, mountains, plaza, Spire,
 props, collision, lighting, actors and the title card. It writes `assets/scenes/remix/ancient/`, which is
 committed and compiled like any scene. Moving and glowing parts are animated by the scene's draw config in
 `src/code/z_remix_level.c` (glow colors, flowing light, the ring, crystal and shards). Change the script and run
 `python3 tools/remix/make_level.py` (it needs `numpy`, `pillow` and `shapely`); add `--preview level.json` to
 dump the geometry for a quick three.js look.
 
-The remix build also boots the ROM in an emulator straight into the level and checks that it renders and keeps
-running (`tools/remix/smoke_test.py`); its log compares the level's memory use with Hyrule Field's.
+Hyrule Field's assets come from your ROM, so they are never committed. After `make setup`,
+`tools/remix/link_level_assets.py` finds the field's grass, dirt and cliff textures (by replaying its display
+lists and measuring what each texture covers), converts them to the level's format and points the level at them
+and at the field's light settings through `build/VERSION/assets/scenes/remix/ancient/ancient_hf.h`. Without it the
+level builds with its own look-alike textures and lights. The remix build runs it for you.
+
+The remix build also checks the level:
+- its log compares the level's memory use with Hyrule Field's (the level has to fit where the field fits);
+- `tools/remix/smoke_test.py` boots the ROM straight into the level in the website's own emulator (headless
+  Chromium), runs for about 25 seconds of game time with Link running forward, and checks that the picture is not
+  blank and keeps changing. The screenshots are attached to the run (`smoke-screenshots`).
 
 ## Character Studio: make your own character
 
@@ -268,7 +281,8 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/glb_to_oot.py`, `assets/remix_character/` | Animated GLB → N64 frames converter, and the current Studio character |
 | `tools/remix/make_level.py`, `assets/scenes/remix/ancient/`, `src/code/z_remix_level.c`, `include/remix_level.h` | The Ancient Plateau: level generator, generated level, its draw config and the boot-into-level switch. Registered in `include/tables/scene_table.h`, `entrance_table.h`, `include/scene.h` (draw config), `z_scene_table.c`, `z_bgcheck.c` (collision memory), Map Select and `z_title.c` |
 | `src/code/z_demo.c` (skip) | D-pad Right skips cutscenes |
-| `tools/remix/smoke_test.py`, `web/js/boot.js` | Emulator smoke test in CI; the site's "Jump into the new level" switch |
+| `tools/remix/link_level_assets.py`, `tools/remix/test_link_level_assets.py` | Lets the Ancient Plateau use Hyrule Field's textures and lights from your ROM at build time, and its test |
+| `tools/remix/smoke_test.py`, `tools/remix/smoke_capture.mjs`, `web/js/boot.js` | Emulator smoke test in CI (the website's player in headless Chromium); the site's "Jump into the new level" switch |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-"""Boot a remix ROM straight into the Ancient Plateau in mupen64plus (headless) and check it runs.
+"""Boot a remix ROM straight into the Ancient Plateau in the website's own emulator and check it runs.
 
 Sets the "boot into the new level" switch in a copy of the ROM (the same one the website's button uses, see
-include/remix_level.h), runs the emulator under Xvfb, takes screenshots at a few frames and reports:
-  - whether each screenshot exists and is not blank,
+include/remix_level.h), runs it in EmulatorJS (web/) in headless Chromium through tools/remix/smoke_capture.mjs,
+takes screenshots at a few frames (holding the stick forward after the second, so Link runs) and reports:
+  - whether the player reported a crash or a stall,
+  - whether each screenshot is not blank,
   - whether the picture changes over time (the game did not freeze),
   - a 48x27 thumbnail of each shot as hex, so a log reader can see roughly what was on screen.
 
     python3 tools/remix/smoke_test.py --rom build/ntsc-1.2/oot-ntsc-1.2.z64 --out /tmp/smoke
 
-Needs: mupen64plus-ui-console, mupen64plus-rsp-hle, a video plugin (glide64mk2), xvfb, Mesa, Pillow.
+Needs: node, the `playwright` npm package (NODE_PATH or current directory) with a Chromium, Pillow.
 Exit status is 0 when the level rendered and kept moving, 1 otherwise.
 """
 
 import argparse
-import os
+import json
 import shutil
 import subprocess
 import sys
@@ -22,8 +24,9 @@ from pathlib import Path
 
 from PIL import Image, ImageStat
 
+HERE = Path(__file__).resolve().parent
 MAGIC = b"RMXBOOT1"
-SHOTS = [240, 600, 1200]  # VI frames (60 per second)
+SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 
 def set_boot_flag(rom: bytearray) -> int:
@@ -38,39 +41,47 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rom", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--gfx", default="mupen64plus-video-glide64mk2")
-    ap.add_argument("--timeout", type=int, default=300)
+    ap.add_argument("--timeout", type=int, default=480, help="seconds for the whole run")
+    ap.add_argument("--no-boot-flag", action="store_true", help="run the ROM as is (to test the harness itself)")
     args = ap.parse_args()
 
     out = args.out
     shutil.rmtree(out, ignore_errors=True)
-    (out / "cfg").mkdir(parents=True)
-    (out / "data").mkdir()
+    out.mkdir(parents=True)
     rom = bytearray(args.rom.read_bytes())
-    at = set_boot_flag(rom)
+    if not args.no_boot_flag:
+        at = set_boot_flag(rom)
+        print(f"smoke: boot flag set at ROM offset 0x{at:X}")
     (out / "boot.z64").write_bytes(rom)
-    print(f"smoke: boot flag set at ROM offset 0x{at:X}")
 
-    exe = shutil.which("mupen64plus") or "/usr/games/mupen64plus"
-    cmd = ["xvfb-run", "-a", "-s", "-screen 0 640x480x24", exe, "--noosd", "--nospeedlimit", "--nosaveoptions",
-           "--configdir", str(out / "cfg"), "--datadir", str(out / "data"), "--gfx", args.gfx,
-           "--rsp", "mupen64plus-rsp-hle", "--audio", "dummy", "--input", "dummy", "--emumode", "2",
-           "--testshots", ",".join(map(str, SHOTS)), "--sshotdir", str(out), str(out / "boot.z64")]
-    env = dict(os.environ, SDL_AUDIODRIVER="dummy")
-    try:
-        p = subprocess.run(cmd, env=env, timeout=args.timeout, capture_output=True, text=True)
-        log = p.stdout + p.stderr
-        print(f"smoke: emulator exited with {p.returncode}")
-    except subprocess.TimeoutExpired as e:
-        log = (e.stdout or b"").decode(errors="replace") + (e.stderr or b"").decode(errors="replace")
-        print("smoke: emulator timed out")
-    (out / "emulator.log").write_text(log)
-    for line in log.splitlines()[-15:]:
-        print("  | " + line)
+    # The website ships two N64 cores; like a player would, try the other one if the first crashes.
+    cap = {}
+    for core in ("mupen64plus_next", "parallel_n64"):
+        print(f"smoke: running in {core}")
+        cmd = ["node", str(HERE / "smoke_capture.mjs"), "--rom", str(out / "boot.z64"), "--out", str(out / core),
+               "--frames", ",".join(map(str, SHOTS)), "--walk-after", str(SHOTS[1]), "--timeout", str(args.timeout),
+               "--core", core]
+        try:
+            p = subprocess.run(cmd, timeout=args.timeout + 60, capture_output=True, text=True)
+            print((p.stdout + p.stderr).rstrip())
+        except subprocess.TimeoutExpired:
+            print("smoke: the capture script hung")
+        f = out / core / "capture.json"
+        cap = json.loads(f.read_text()) if f.exists() else {}
+        if cap.get("crash"):
+            print(f"smoke: CRASH reported by the player in {core}: {cap['crash']}")
+        if cap.get("crash") or len(cap.get("shots", [])) < len(SHOTS):
+            print(f"smoke: reached frame {cap.get('frames')}; last browser log lines:")
+            for line in [x for x in cap.get("log", []) if "Translation not found" not in x][-25:]:
+                print("  | " + line)
+        if not cap.get("crash"):
+            break
+    (out / "boot.z64").unlink(missing_ok=True)
 
-    shots = sorted(out.glob("*.png"), key=lambda q: q.stat().st_mtime)
+    shots = [Path(s["file"]) for s in cap.get("shots", [])]
     print(f"smoke: {len(shots)} screenshot(s)")
-    ok = len(shots) >= 2
+    ok = len(shots) == len(SHOTS) and not cap.get("crash")
+    moved = None
     prev = None
     for i, path in enumerate(shots):
         img = Image.open(path).convert("RGB")
