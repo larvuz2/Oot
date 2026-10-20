@@ -192,7 +192,7 @@ jobs:
         run: |
           npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
-          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --out "$RUNNER_TEMP/smoke"
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --elf "build/$V/oot-$V.elf" --out "$RUNNER_TEMP/smoke"
 
       - name: Upload smoke test screenshots
         if: steps.gate.outputs.enabled == 'true'
@@ -213,7 +213,8 @@ jobs:
           path: web/patches/
 
       - name: Commit patch to the site
-        if: steps.gate.outputs.enabled == 'true'
+        # Only from main: a manual run on another branch is a test build.
+        if: steps.gate.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

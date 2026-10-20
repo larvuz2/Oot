@@ -126,7 +126,20 @@ try {
         const canvas = page.locator("#game canvas").first();
         await ((await canvas.count()) ? canvas : page.locator("#game")).screenshot({ path: file });
         const secs = (Date.now() - t0) / 1000;
-        result.shots.push({ frame: target, file, seconds: secs });
+        // Emulator state (holds the console's RAM): smoke_test.py reads the game's threads out of it.
+        const state = join(out, `state-${target}.bin`);
+        const b64 = await page.evaluate(() => {
+            try {
+                const s = window.EJS_emulator.gameManager.getState();
+                let bin = "";
+                for (let i = 0; i < s.length; i += 0x8000) bin += String.fromCharCode.apply(null, s.subarray(i, i + 0x8000));
+                return btoa(bin);
+            } catch (e) {
+                return "";
+            }
+        });
+        if (b64) writeFileSync(state, Buffer.from(b64, "base64"));
+        result.shots.push({ frame: target, file, seconds: secs, state: b64 ? state : null });
         console.log(`capture: frame ${target} after ${secs.toFixed(1)} s -> ${file}`);
     }
     clearTimeout(watchdog);

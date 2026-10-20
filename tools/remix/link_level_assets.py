@@ -46,6 +46,10 @@ LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(\s*(\w+)\s*,\s*(\w+)\
 
 
 GEO2_RE = re.compile(r"gsSPGeometryMode\(([^,]*),([^)]*)\)")
+# `TYPE SYMBOL[...] = {\n#include "assets/.../file.inc.c"\n};`: how the extractor writes every resource. The file
+# names do not always match the symbols, so everything is looked up through these definitions.
+DEF_RE = re.compile(r'^(?:static\s+)?([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*(?:\[[^\]\n]*\]\s*)*=\s*\{?\s*\n\s*#include\s+"([^"]+)"',
+                    re.M)
 TEX_SIZE = (32, 32)  # the level's grass, dirt and rock materials (tools/remix/make_level.py)
 
 
@@ -53,13 +57,50 @@ def num(s):
     return int(s, 0)
 
 
-def load_vertex_arrays(texts):
-    """symbol -> (Nx3 positions, Nx3 colors) from the `sym.inc.c` files of the extracted VTX(...) arrays."""
+class Field:
+    """The extracted scene: symbol -> (C type, included file), and the text of the included files."""
+
+    def __init__(self, ext: Path, src: Path):
+        self.ext, self.src = ext, src
+        self.defs = {}
+        for c in sorted(src.glob("*.c")):
+            if c.name.endswith(".inc.c"):
+                continue
+            for ctype, sym, inc in DEF_RE.findall(c.read_text()):
+                self.defs[sym] = (ctype, inc)
+        self._texts = {}
+
+    def path(self, inc: str) -> Path:
+        for base in (self.ext, self.src, REPO):
+            if (base / inc).is_file():
+                return base / inc
+        return self.ext / inc
+
+    def text(self, sym: str) -> str:
+        if sym not in self._texts:
+            p = self.path(self.defs[sym][1]) if sym in self.defs else None
+            self._texts[sym] = p.read_text() if p is not None and p.is_file() else ""
+        return self._texts[sym]
+
+    def of_type(self, ctype: str):
+        return [s for s, (t, _) in self.defs.items() if t == ctype]
+
+    def png(self, sym: str):
+        """The PNG a texture symbol is built from, or None."""
+        if sym not in self.defs or not self.defs[sym][1].endswith(".inc.c"):
+            return None
+        p = self.path(self.defs[sym][1][: -len(".inc.c")] + ".png")
+        return p if p.is_file() else None
+
+
+def load_vertex_arrays(field: Field):
+    """symbol -> (Nx3 positions, Nx3 colors) of every Vtx array."""
     arrays = {}
-    for name, text in texts.items():
-        if name.endswith(".inc.c") and "VTX(" in text:
-            rows = np.array([[num(v) for v in m] for m in VTX_RE.findall(text)], float).reshape(-1, 6)
-            arrays[name.split(".")[0]] = (rows[:, :3], rows[:, 3:])
+    for sym in field.of_type("Vtx"):
+        rows = [[num(v) for v in m] for m in VTX_RE.findall(field.text(sym))]
+        if rows:
+            rows = np.array(rows, float)
+            arrays[sym] = (rows[:, :3], rows[:, 3:])
     return arrays
 
 
@@ -74,13 +115,12 @@ def lighting_after(line, lit):
     return lit
 
 
-def texture_usage(texts, arrays):
+def texture_usage(field: Field, arrays):
     """Replay display lists. texture symbol -> dict(count, floor area, wall area, summed vertex color, color
     weight); the color only counts where lighting is off (with lighting on, vertex colors are normals)."""
     usage = {}
-    for name, text in texts.items():
-        if "gsSP" not in text:
-            continue
+    for sym in field.of_type("Gfx"):
+        text = field.text(sym)
         cur = None
         lit = False
         slots = [None] * 64
@@ -139,13 +179,12 @@ def texture_usage(texts, arrays):
     return usage
 
 
-def texture_image(src: Path, sym: str):
+def texture_image(field: Field, sym: str):
     """(format, RGBA image) of a texture symbol (CI textures come with their palette), or None."""
-    files = sorted(src.glob(f"{sym}.*.png"))
-    files = [f for f in files if not f.name.split(".")[1].startswith("tlut")]
-    if not files:
+    p = field.png(sym)
+    if p is None:
         return None
-    return files[0].name.split(".")[1], Image.open(files[0]).convert("RGBA")
+    return p.name.split(".")[1], Image.open(p).convert("RGBA")
 
 
 def to_level_texture(fmt, img, tint):
@@ -168,10 +207,10 @@ def rgba16_inc(a):
     return "".join(f"0x{w:016X}," + ("\n" if k % 4 == 3 else " ") for k, w in enumerate(words))
 
 
-def candidates(src, usage):
+def candidates(field: Field, usage):
     out = []
     for sym, u in usage.items():
-        got = texture_image(src, sym)
+        got = texture_image(field, sym)
         if got is None:
             continue
         fmt, img = got
@@ -202,21 +241,23 @@ def pick(cands):
     return out
 
 
-def find_lights(texts):
-    """The light settings of the scene's main header (the commands list that has the alternate headers)."""
+def find_lights(field: Field):
+    """(symbol, include path, entries) of the light settings of the scene's main header: the commands list with
+    the alternate headers (the others are for cutscenes), else the first one found."""
     best = None
-    for name, text in texts.items():
+    for cmds in field.of_type("SceneCmd"):
+        text = field.text(cmds)
         for m in LIGHTS_CMD_RE.finditer(text):
-            score = ("SCENE_CMD_ALTERNATE_HEADER_LIST" in text, -len(name))
+            sym = m.group(2)
+            if sym not in field.defs:
+                continue
+            score = ("SCENE_CMD_ALTERNATE_HEADER_LIST" in text, "ROOM_LIST" in text)
             if best is None or score > best[0]:
-                best = (score, m.group(2))
+                best = (score, sym)
     if best is None:
         return None
     sym = best[1]
-    if f"{sym}.inc.c" not in texts:
-        return None
-    count = texts[f"{sym}.inc.c"].count("BLEND_RATE_AND_FOG_NEAR(")
-    return sym, count
+    return sym, field.defs[sym][1], field.text(sym).count("BLEND_RATE_AND_FOG_NEAR(")
 
 
 def main():
@@ -232,9 +273,16 @@ def main():
         print(f"link_level_assets: {src} not found (run `make setup` first); the level keeps its own textures")
         sys.exit(1)
 
-    texts = {p.name: p.read_text() for p in src.iterdir() if p.name.endswith((".c", ".h"))}
-    chosen = pick(candidates(src, texture_usage(texts, load_vertex_arrays(texts))))
-    lights = find_lights(texts)
+    field = Field(ext, src)
+    usage = texture_usage(field, load_vertex_arrays(field))
+    print(f"link_level_assets: {len(field.defs)} definitions, {len(field.of_type('Gfx'))} display lists, "
+          f"{len(usage)} textures drawn on triangles")
+    chosen = pick(candidates(field, usage))
+    if not usage:  # show what the display lists look like, to fix the parser
+        for sym in field.of_type("Gfx")[:3]:
+            sample = [ln for ln in field.text(sym).splitlines() if "Tex" in ln or "Vertex" in ln or "Tri" in ln][:6]
+            print(f"link_level_assets: {sym} ({field.defs[sym][1]}): " + " | ".join(sample))
+    lights = find_lights(field)
 
     lines = ["// Generated by tools/remix/link_level_assets.py from the extracted Hyrule Field. Do not edit.",
              "#ifndef ANCIENT_HF_H", "#define ANCIENT_HF_H", ""]
@@ -249,9 +297,9 @@ def main():
                   f"{c['floor'] / 1e6:.2f}M, wall {c['wall'] / 1e6:.2f}M units², color {tuple(int(v) for v in c['rgb'])})")
         else:
             print(f"link_level_assets: no {role.lower()} texture found; keeping the level's own")
-    if lights and lights[1] >= 16:
-        lines.append(f'#define ANCIENT_HF_LIGHTS "{SRC}/{lights[0]}.inc.c"')
-        print(f"link_level_assets: light settings = {lights[0]} ({lights[1]} entries)")
+    if lights and lights[2] >= 16:
+        lines.append(f'#define ANCIENT_HF_LIGHTS "{lights[1]}"')
+        print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")
     lines += ["", "#endif", ""]
