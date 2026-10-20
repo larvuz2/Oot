@@ -224,10 +224,18 @@ jobs:
           sizes = {n: (size(n) + 15) // 16 * 16 if f"_{n}SegmentRomStart" in syms else None for n in names}
           total = sum(v for v in sizes.values() if v)
           print("Objects: " + ", ".join(f"{n} {v // 1024 if v else '?'} KB" for n, v in sizes.items()))
-          print(f"Object space: {total // 1024} KB of 1000 KB ({len(objs)} room objects + 3 always loaded, 19 slots)")
-          if total > 1000 * 1024 - 8 * 1024:
-              print(f"::error title=Ancient Plateau objects::{total // 1024} KB of objects do not fit in the 1000 KB object space.")
+          space = int(re.search(r"REMIX_ANCIENT_OBJECT_SPACE \((\d+) \* 1024\)", open("include/remix_level.h").read()).group(1)) * 1024
+          print(f"Object space: {total // 1024} KB of {space // 1024} KB ({len(objs)} room objects + 3 always loaded, 19 slots)")
+          if total > space - 4 * 1024:
+              print(f"::error title=Ancient Plateau objects::{total // 1024} KB of objects do not fit in the {space // 1024} KB object space.")
               sys.exit(1)
+          # Actor code: each kind of actor in the room loads its overlay once into actor memory
+          table = open("include/tables/actor_table.h").read()
+          ovl = {m.group(2): m.group(1) for m in re.finditer(r"DEFINE_ACTOR\((\w+), (ACTOR_\w+),", table)}
+          kinds = sorted(set(re.findall(r"\{ (ACTOR_\w+),", room)))
+          code = {k: size("ovl_" + ovl[k]) for k in kinds if k in ovl and f"_ovl_{ovl[k]}SegmentRomStart" in syms}
+          print(f"Actor code: {sum(code.values()) // 1024} KB for {len(code)} kinds: " +
+                ", ".join(f"{k[6:]} {v // 1024}" for k, v in sorted(code.items(), key=lambda kv: -kv[1])))
           PY
 
       - name: Build Floating IPS

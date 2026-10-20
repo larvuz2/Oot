@@ -77,19 +77,20 @@ def _kok(name, entry, plot):
 # (x, z, yaw) for a spot of its own. Chunk numbers and boxes come from tools/remix/survey_scenes.py.
 BUILDINGS: list[dict] = [
     # the quarter on Link's right as he arrives
-    _kak("kakariko_white_house", 70, 640, -860, -295, 300, 1100, 0),
+    # (Kakariko's houses #3, #4 and #7 lean on its hillside and have no back walls: only whole houses are used)
+    _kak("kakariko_stone_house_2", -720, -280, 700, 1140, 60, 900, 0),
     _kak("kakariko_red_roof_house", -710, -145, -925, -355, 300, 1100, 1),
     _ll("lon_lon_silo", [7], 2),
     _ll("lon_lon_barn", [5], 3),
     _kak("kakariko_well", 655, 870, 405, 645, -90, 130, 4),
     # the next quarter, clockwise
     _kak("kakariko_gabled_house", -380, 250, 1380, 1830, 220, 1100, 5),
-    _kak("kakariko_green_house", -50, 352, -70, 340, -10, 900, 6),
+    _kak("kakariko_red_roof_house_3", -710, -145, -925, -355, 300, 1100, 6),
     _kok("kokiri_small_house", 3, 7),
     _ll("lon_lon_shed", [6], 8),
     _ll("lon_lon_silo_2", [7], 9),
     # the far quarter
-    _kak("kakariko_hillside_house", 356, 780, -70, 340, 190, 950, 10),
+    _kak("kakariko_gabled_house_3", -380, 250, 1380, 1830, 220, 1100, 10),
     _kak("kakariko_red_roof_house_2", -710, -145, -925, -355, 300, 1100, 11),
     _kak("kakariko_shelter", 230, 375, 1545, 1815, 70, 300, 12),
     _ll("lon_lon_shed_2", [6], 13),

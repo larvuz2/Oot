@@ -10,7 +10,6 @@
 #include "scene.h"
 #include "sequence.h"
 #include "actor_profile.h"
-#include "src/overlays/actors/ovl_En_Am/z_en_am.h"
 #include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"
 #include "src/overlays/actors/ovl_En_Hy/z_en_hy.h"
 #include "z_en_item00.h"
@@ -25,14 +24,14 @@ SceneCmd ancient_room_0Commands[] = {
     SCENE_CMD_SKYBOX_DISABLES(false, false),
     SCENE_CMD_TIME_SETTINGS(0xFF, 0xFF, 10),
     SCENE_CMD_ROOM_SHAPE(&ancient_room_0RoomShape),
-    SCENE_CMD_OBJECT_LIST(16, ancient_room_0ObjectList),
-    SCENE_CMD_ACTOR_LIST(121 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
+    SCENE_CMD_OBJECT_LIST(12, ancient_room_0ObjectList),
+    SCENE_CMD_ACTOR_LIST(110 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
     SCENE_CMD_END(),
 };
 
 s16 ancient_room_0ObjectList[] = {
-    OBJECT_SYOKUDAI, OBJECT_AM,  OBJECT_GS, OBJECT_VM,  OBJECT_WOOD02, OBJECT_OS_ANIME, OBJECT_BOJ, OBJECT_AHG,
-    OBJECT_BBA,      OBJECT_CNE, OBJECT_MU, OBJECT_DOG, OBJECT_NIW,    OBJECT_COW,      OBJECT_ANI, OBJECT_TSUBO,
+    OBJECT_SYOKUDAI, OBJECT_GS, OBJECT_VM,  OBJECT_WOOD02, OBJECT_OS_ANIME, OBJECT_BOJ,
+    OBJECT_AHG,      OBJECT_MU, OBJECT_DOG, OBJECT_NIW,    OBJECT_ANI,      OBJECT_TSUBO,
 };
 
 ActorEntry ancient_room_0ActorList[] = {
@@ -44,10 +43,6 @@ ActorEntry ancient_room_0ActorList[] = {
     { ACTOR_OBJ_SYOKUDAI, { -172, 30, -827 }, { 0, 0x0000, 0 }, 0x043F },
     { ACTOR_OBJ_SYOKUDAI, { -827, 30, -172 }, { 0, 0x0000, 0 }, 0x043F },
     { ACTOR_OBJ_SYOKUDAI, { -827, 30, 172 }, { 0, 0x0000, 0 }, 0x043F },
-    { ACTOR_EN_AM, { 424, 30, 424 }, { 0, 0x2000, 0 }, ARMOS_ENEMY },
-    { ACTOR_EN_AM, { 424, 30, -424 }, { 0, 0x6000, 0 }, ARMOS_STATUE },
-    { ACTOR_EN_AM, { -424, 30, -424 }, { 0, 0xA000, 0 }, ARMOS_ENEMY },
-    { ACTOR_EN_AM, { -424, 30, 424 }, { 0, 0xE000, 0 }, ARMOS_STATUE },
     { ACTOR_EN_GS, { -200, 30, 370 }, { 0, 0x0000, 0 }, 0x3F05 },
     { ACTOR_EN_GS, { 200, 30, 370 }, { 0, 0x0000, 0 }, 0x3F05 },
     { ACTOR_EN_VM, { 1648, 53, 1880 }, { 0, 0x0000, 0 }, 0x1400 },
@@ -122,27 +117,24 @@ ActorEntry ancient_room_0ActorList[] = {
     { ACTOR_EN_MU, { 246, 30, 677 }, { 0, 0x51C7, 0 }, 0 },
     { ACTOR_EN_MU, { 360, 30, 624 }, { 0, 0xD1C8, 0 }, 1 },
     { ACTOR_EN_TG, { 649, 30, -262 }, { 0, 0x0000, 0 }, 0 },
-    { ACTOR_EN_HY, { -246, 30, -677 }, { 0, 0x0E38, 0 }, (ENHY_TYPE_OLD_WOMAN | (15 << 7)) },
-    { ACTOR_EN_HY, { -677, 30, -246 }, { 0, 0x31C7, 0 }, (ENHY_TYPE_YOUNG_WOMAN_BROWN_HAIR | (15 << 7)) },
+    { ACTOR_EN_HY, { -246, 30, -677 }, { 0, 0x0E38, 0 }, (ENHY_TYPE_MAN_1_BOWL_CUT_PURPLE_SHIRT | (15 << 7)) },
+    { ACTOR_EN_HY, { -677, 30, -246 }, { 0, 0x31C7, 0 }, (ENHY_TYPE_BEGGAR | (15 << 7)) },
     { ACTOR_EN_HY, { -668, 30, 270 }, { 0, 0x4FA4, 0 }, (ENHY_TYPE_MAN_1_BEARD | (15 << 7)) },
     { ACTOR_EN_HY, { -270, 30, 668 }, { 0, 0x705B, 0 }, (ENHY_TYPE_MAN_2_MUSTACHE_RED_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { 217, 0, 1089 }, { 0, 0x8800, 0 }, (ENHY_TYPE_MAN_2_BALD | (0 << 7)) },
     { ACTOR_EN_DOG, { 1089, 5, -217 }, { 0, 0x0000, 0 }, 0x0000 },
     { ACTOR_EN_DOG, { -1089, 5, 217 }, { 0, 0x0000, 0 }, 0x0101 },
     { ACTOR_EN_HY, { 714, -1, 1261 }, { 0, 0x94FE, 0 }, (ENHY_TYPE_MAN_2_MUSTACHE_BLUE_SHIRT | (15 << 7)) },
-    { ACTOR_EN_HY, { 1261, 1, 714 }, { 0, 0xAB03, 0 }, (ENHY_TYPE_YOUNG_WOMAN_ORANGE_HAIR | (15 << 7)) },
+    { ACTOR_EN_HY, { 1261, 1, 714 }, { 0, 0xAB03, 0 }, (ENHY_TYPE_MAN_1_SHAVED_BLACK_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { 1261, 1, -714 }, { 0, 0xD4FE, 0 }, (ENHY_TYPE_MAN_2_ALT_MUSTACHE | (15 << 7)) },
     { ACTOR_EN_HY, { 714, 1, -1261 }, { 0, 0xEB03, 0 }, (ENHY_TYPE_MAN_1_SHAVED_GREEN_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { -714, 0, -1261 }, { 0, 0x14FD, 0 }, (ENHY_TYPE_MAN_2_MUSTACHE_WHITE_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { -714, 0, 1261 }, { 0, 0x6B02, 0 }, (ENHY_TYPE_MAN_2_BEARD | (15 << 7)) },
     { ACTOR_EN_NIW, { 833, 109, 2712 }, { 0, 0xA8E2, 0 }, 0x0000 },
     { ACTOR_EN_NIW, { 1895, 124, 2344 }, { 0, 0xF715, 0 }, 0x0000 },
-    { ACTOR_EN_NIW, { 2740, 135, 1468 }, { 0, 0x41A2, 0 }, 0x0000 },
-    { ACTOR_EN_NIW, { 2110, 137, -2280 }, { 0, 0xB7F4, 0 }, 0x0000 },
-    { ACTOR_EN_NIW, { -2344, 136, -1887 }, { 0, 0x4675, 0 }, 0x0000 },
-    { ACTOR_EN_NIW, { -2313, 109, 1631 }, { 0, 0x8B44, 0 }, 0x0000 },
-    { ACTOR_EN_NIW, { -1486, 75, 2139 }, { 0, 0xB062, 0 }, 0x0000 },
-    { ACTOR_EN_COW, { 1874, 72, 1874 }, { 0, 0xA000, 0 }, 0x0000 },
+    { ACTOR_EN_NIW, { 2276, 140, -2117 }, { 0, 0x41A2, 0 }, 0x0000 },
+    { ACTOR_EN_NIW, { -2280, 148, -2110 }, { 0, 0xB7F4, 0 }, 0x0000 },
+    { ACTOR_EN_NIW, { -2544, 134, 1606 }, { 0, 0x4675, 0 }, 0x0000 },
     { ACTOR_OBJ_TSUBO, { 875, 4, 1688 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (1 << 9)) },
     { ACTOR_OBJ_TSUBO, { 997, 4, 1618 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_GREEN | (2 << 9)) },
     { ACTOR_OBJ_TSUBO, { 1618, 8, 997 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (3 << 9)) },
@@ -151,12 +143,8 @@ ActorEntry ancient_room_0ActorList[] = {
     { ACTOR_OBJ_TSUBO, { 1618, 7, -997 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_GREEN | (6 << 9)) },
     { ACTOR_OBJ_TSUBO, { 997, 7, -1618 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (7 << 9)) },
     { ACTOR_OBJ_TSUBO, { 875, 7, -1688 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_GREEN | (8 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -875, 6, -1688 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (9 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -997, 6, -1618 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_GREEN | (10 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -1688, 6, 875 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (11 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -1618, 7, 997 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_RED | (12 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -997, 5, 1618 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (13 << 9)) },
-    { ACTOR_OBJ_TSUBO, { -875, 6, 1688 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_GREEN | (14 << 9)) },
+    { ACTOR_OBJ_TSUBO, { -1688, 6, 875 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_BLUE | (9 << 9)) },
+    { ACTOR_OBJ_TSUBO, { -1618, 7, 997 }, { 0, 0x0000, 0 }, (0x0100 | ITEM00_RUPEE_RED | (10 << 9)) },
 #ifdef ANCIENT_TOWN_ACTORS // placed on the borrowed buildings (tools/remix/make_town.py)
 #include ANCIENT_TOWN_ACTORS
 #endif

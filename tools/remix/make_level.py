@@ -917,11 +917,6 @@ def actors():
             a = PATH_ANGLES[k] + s * 0.205
             x, z = math.sin(a) * 845, math.cos(a) * 845
             add("ACTOR_OBJ_SYOKUDAI", x, PLAZA_Y, z, 0, "0x043F")
-    # dormant guardians: two Armos statues that wake up, two that only sleep
-    for k in range(4):
-        a = math.pi / 4 + k * math.pi / 2
-        x, z = math.sin(a) * 600, math.cos(a) * 600
-        add("ACTOR_EN_AM", x, PLAZA_Y, z, yaw_to(0, 0, x, z), "ARMOS_ENEMY" if k % 2 == 0 else "ARMOS_STATUE")
     # Gossip Stones guarding the Spire's south steps
     for s in (-1, 1):
         add("ACTOR_EN_GS", s * 200, PLAZA_Y, 370, 0, "0x3F05")
@@ -968,11 +963,12 @@ def actors():
     return out
 
 
-OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_AM", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
+OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
            # the town's people and animals (town_people)
-           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_BBA", "OBJECT_CNE", "OBJECT_MU", "OBJECT_DOG",
-           "OBJECT_NIW", "OBJECT_COW", "OBJECT_ANI", "OBJECT_TSUBO"]
-# (with gameplay_keep, field_keep and Link that is 19, every object slot there is: include/object.h)
+           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_MU", "OBJECT_DOG", "OBJECT_NIW", "OBJECT_ANI",
+           "OBJECT_TSUBO"]
+# With gameplay_keep, field_keep and Link these take about 920 KB of the scene's 940 KB object space
+# (REMIX_ANCIENT_OBJECT_SPACE, include/remix_level.h); the rest of the play heap is actor memory for the town.
 
 TOWN_PATH_R = 1110  # the walk around the plaza, between its edge and the monoliths (dogs and strollers follow it)
 
@@ -1005,8 +1001,8 @@ def town_people(add, yaw_to):
     add("ACTOR_EN_MU", x2, PLAZA_Y, z2, yaw_to(x2, z2, x, z), "1")
     x, z = at(700, 112)
     add("ACTOR_EN_TG", x, PLAZA_Y, z, 0, "0")  # the dancing couple
-    hy("ENHY_TYPE_OLD_WOMAN", *at(720, 200), y=PLAZA_Y)
-    hy("ENHY_TYPE_YOUNG_WOMAN_BROWN_HAIR", *at(720, 250), y=PLAZA_Y)
+    hy("ENHY_TYPE_MAN_1_BOWL_CUT_PURPLE_SHIRT", *at(720, 200), y=PLAZA_Y)
+    hy("ENHY_TYPE_BEGGAR", *at(720, 250), y=PLAZA_Y)  # sits; buys bottled fish, bugs and blue fire
     hy("ENHY_TYPE_MAN_1_BEARD", *at(720, 292), y=PLAZA_Y)
     hy("ENHY_TYPE_MAN_2_MUSTACHE_RED_SHIRT", *at(720, 338), y=PLAZA_Y)
     # strolling around the plaza, and the town's two dogs
@@ -1015,24 +1011,22 @@ def town_people(add, yaw_to):
         x, z = at(TOWN_PATH_R, 101.25 + 180 * k)
         add("ACTOR_EN_DOG", x, mesh_height(x, z) + 5, z, 0, params)
     # in front of the houses, talking toward the plaza
-    for (kind, plot) in (("ENHY_TYPE_MAN_2_MUSTACHE_BLUE_SHIRT", 0), ("ENHY_TYPE_YOUNG_WOMAN_ORANGE_HAIR", 1),
+    for (kind, plot) in (("ENHY_TYPE_MAN_2_MUSTACHE_BLUE_SHIRT", 0), ("ENHY_TYPE_MAN_1_SHAVED_BLACK_SHIRT", 1),
                          ("ENHY_TYPE_MAN_2_ALT_MUSTACHE", 5), ("ENHY_TYPE_MAN_1_SHAVED_GREEN_SHIRT", 6),
                          ("ENHY_TYPE_MAN_2_MUSTACHE_WHITE_SHIRT", 10), ("ENHY_TYPE_MAN_2_BEARD", 16)):
         p = town_plan.PLOTS[plot]
         d = p["r"] + 90
         x, z = p["x"] + math.sin(p["face"]) * d, p["z"] + math.cos(p["face"]) * d
         hy(kind, x, z)
-    # cuccos around the barn and the houses, and a cow in the barn
-    for k in range(7):
-        p = town_plan.PLOTS[(2, 3, 4, 8, 13, 17, 18)[k]]
+    # cuccos around the barn and the houses
+    for k in range(5):
+        p = town_plan.PLOTS[(2, 3, 8, 13, 17)[k]]
         a = p["face"] + 1.9 + 0.5 * k
         x, z = p["x"] + math.sin(a) * (p["r"] + 70), p["z"] + math.cos(a) * (p["r"] + 70)
         add("ACTOR_EN_NIW", x, mesh_height(x, z) + 10, z, int(rng.random() * 0x10000), "0x0000")
-    p = town_plan.PLOTS[3]
-    add("ACTOR_EN_COW", p["x"], mesh_height(p["x"], p["z"]), p["z"], yaw_to(p["x"], p["z"], 0, 0), "0x0000")
     # pots with rupees inside the houses (each with its own collectible flag, so every one pays once)
     flag = 1
-    for plot in (0, 1, 5, 6, 10, 15, 16):
+    for plot in (0, 1, 5, 6, 15):
         p = town_plan.PLOTS[plot]
         for k, item in enumerate(("ITEM00_RUPEE_BLUE", "ITEM00_RUPEE_RED" if plot in (1, 15) else "ITEM00_RUPEE_GREEN")):
             a = p["face"] + math.pi / 2 + k * math.pi
@@ -1378,7 +1372,7 @@ def write_sources():
               "\n\n#endif\n")
     lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
-             '#include "src/overlays/actors/ovl_En_Am/z_en_am.h"\n#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n'
+             '#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n'
              '#include "src/overlays/actors/ovl_En_Hy/z_en_hy.h"\n#include "z_en_item00.h"\n\n']
     lines.append("#ifndef ANCIENT_TOWN_ACTOR_COUNT\n#define ANCIENT_TOWN_ACTOR_COUNT 0\n#endif\n\n")
     lines.append(f"SceneCmd {ROOM}Commands[] = {{\n"

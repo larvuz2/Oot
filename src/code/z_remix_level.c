@@ -27,7 +27,6 @@
 #include "sys_matrix.h"
 #include "transition.h"
 #include "z_lib.h"
-#include "libc64/malloc.h"
 
 #include "assets/scenes/remix/ancient/ancient_room_0.h"
 
@@ -96,30 +95,6 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
 
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
-}
-
-u32 RemixLevel_PlayHeapSize(GameState* state, u32 size) {
-    s32 entrance = gSaveContext.save.entranceIndex;
-    u32 maxFree;
-    u32 free;
-    u32 alloc;
-    u32 avail;
-    u32 extra;
-
-    if ((entrance < 0) || (entrance >= ENTR_MAX) || (gEntranceTable[entrance].sceneId != SCENE_REMIX_ANCIENT)) {
-        return size;
-    }
-    // The current game state heap is freed before the new one is allocated, so it counts as available.
-    SystemArena_GetSizes(&maxFree, &free, &alloc);
-    avail = maxFree + state->tha.size;
-    if (avail <= size + REMIX_SYSTEM_HEAP_RESERVE) {
-        return size;
-    }
-    extra = avail - size - REMIX_SYSTEM_HEAP_RESERVE;
-    if (extra > REMIX_ANCIENT_EXTRA_HEAP) {
-        extra = REMIX_ANCIENT_EXTRA_HEAP;
-    }
-    return size + extra;
 }
 
 void RemixLevel_GoToAncient(PlayState* play) {

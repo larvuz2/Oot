@@ -13,12 +13,10 @@ struct PlayState;
 // Spire's moving parts, fed to the room's display lists through segments 0x08-0x0D.
 void RemixLevel_DrawConfigAncient(struct PlayState* play);
 
-// Size of the play heap for the next scene: the Ancient Plateau's town (buildings, townspeople, their collision)
-// needs more than Hyrule Field, so it gets up to REMIX_ANCIENT_EXTRA_HEAP more when the system heap can spare it
-// (keeping REMIX_SYSTEM_HEAP_RESERVE free for transitions and the like). Other scenes get `size` unchanged.
-#define REMIX_ANCIENT_EXTRA_HEAP (192 * 1024)
-#define REMIX_SYSTEM_HEAP_RESERVE (64 * 1024)
-u32 RemixLevel_PlayHeapSize(struct GameState* state, u32 size);
+// Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 920 KB with the keep
+// objects and adult Link, so it reserves less than the usual 1000 KB and the rest goes to actor memory (the
+// town's people). The remix build checks that the objects fit (.github/workflows/remix.yml).
+#define REMIX_ANCIENT_OBJECT_SPACE (940 * 1024)
 
 // Sends Link to the Ancient Plateau from anywhere in the game.
 void RemixLevel_GoToAncient(struct PlayState* play);

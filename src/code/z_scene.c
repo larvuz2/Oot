@@ -28,6 +28,7 @@
 #include "z_actor_dlftbls.h"
 #include "z_lib.h"
 #include "z_math.h"
+#include "remix_level.h"
 
 #include "ultra64.h"
 #include <assert.h>
@@ -109,6 +110,9 @@ void Object_InitContext(PlayState* play, ObjectContext* objectCtx) {
         spaceSize = 1050 * 1024 - OBJECT_SPACE_ADJUSTMENT;
     } else if (play2->sceneId == SCENE_GANONDORF_BOSS) {
         spaceSize = 1050 * 1024 - OBJECT_SPACE_ADJUSTMENT;
+    } else if (play2->sceneId == SCENE_REMIX_ANCIENT) {
+        // Web Remix: the rest goes to actor memory for the town (remix_level.h)
+        spaceSize = REMIX_ANCIENT_OBJECT_SPACE;
     } else {
         spaceSize = 1000 * 1024 - OBJECT_SPACE_ADJUSTMENT;
     }
