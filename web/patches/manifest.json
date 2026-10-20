@@ -6,11 +6,11 @@
             "region": "US",
             "label": "N64 NTSC 1.2 (US)",
             "file": "oot-ntsc-1.2-US.bps",
-            "size": 766661,
+            "size": 817092,
             "sourceMd5": "12fcafeba93992facaf65c2ba00f3089",
-            "targetMd5": "9e15892a4849e8021f61dc1beff0eca8",
-            "commit": "c89a3cf53ef8172d074ea86013f9091ff61ef07d",
-            "builtAt": "2026-10-20T04:58:44+00:00"
+            "targetMd5": "e2acfdff660570ff71a503d43fe0da3e",
+            "commit": "162102e16db71cedd120c8b26168e16eeeafbc94",
+            "builtAt": "2026-10-20T21:36:32+00:00"
         }
     ]
 }
