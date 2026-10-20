@@ -138,6 +138,13 @@ def lighting_after(line, lit):
 QUAD_RE = re.compile(r"gsSP1Quadrangle\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)")
 CALL_RE = re.compile(r"gsSP(DisplayList|BranchList)\(\s*&?(\w+)\s*\)")
 MACRO_RE = re.compile(r"\b(gs[A-Z]\w*)\(")
+# One display list command, wherever the extractor broke its lines (arguments may hold one level of parentheses).
+COMMAND_RE = re.compile(r"\b(gs[A-Z]\w*)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)")
+
+
+def commands(text: str):
+    """The display list's commands, one per item, each on one line."""
+    return [f"{m.group(1)}({' '.join(m.group(2).split())})" for m in COMMAND_RE.finditer(text)]
 
 
 class Replay:
@@ -167,7 +174,7 @@ def texture_usage(field: Field, arrays, stats=None):
     def run(sym, st, depth):
         if depth > 12:
             return
-        for line in field.text(sym).splitlines():
+        for line in commands(field.text(sym)):
             for mac in MACRO_RE.findall(line)[:1]:
                 stats.setdefault("macros", {})[mac] = stats.setdefault("macros", {}).get(mac, 0) + 1
             st.lit = lighting_after(line, st.lit)
@@ -397,6 +404,7 @@ def main():
             print(f"link_level_assets: no {role.lower()} texture found; keeping the level's own")
     if lights and lights[2] >= 16:
         lines.append(f'#define ANCIENT_HF_LIGHTS "{lights[1]}"')
+        lines.append(f"#define ANCIENT_HF_LIGHTS_COUNT {lights[2]}")
         print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")

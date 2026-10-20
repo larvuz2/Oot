@@ -69,6 +69,11 @@ jobs:
           size=$(mips-linux-gnu-size -A build/$V/assets/scenes/remix/ancient/ancient_title.o | awk '$1==".data"{print $2}')
           case "$V" in pal-*|gc-eu*) want=10368;; *) want=6912;; esac
           [ "$size" = "$want" ] || { echo "title card is $size bytes, expected $want"; exit 1; }
+          # The game reads a scene's and a room's commands from the start of the file.
+          for f in scene:ancient_sceneCommands room_0:ancient_room_0Commands; do
+            mips-linux-gnu-nm build/$V/assets/scenes/remix/ancient/ancient_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of ancient_${f%%:*}"; exit 1; }
+          done
 
       - name: Biome copy (stand-in scene, no ROM) compiles
         run: |
@@ -104,5 +109,6 @@ jobs:
           make -j"$(nproc)" VERSION=$V \
             build/$V/assets/scenes/remix/ancient/ancient_scene.o \
             build/$V/assets/scenes/remix/ancient/ancient_room_0.o
-          # 16 light settings of 22 bytes come from the stand-in field
-          mips-linux-gnu-nm -S build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q " 00000160 D ancient_sceneLightSettings"
+          # 17 light settings of 22 bytes come from the stand-in field, and the commands still come first
+          mips-linux-gnu-nm -S build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q " 00000176 D ancient_sceneLightSettings"
+          mips-linux-gnu-nm build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q "^00000000 D ancient_sceneCommands$"

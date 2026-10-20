@@ -73,7 +73,7 @@ def write_fixture(ext: Path):
         "gsDPPipeSync(),\ngsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG),\n"
         "gsDPLoadTextureBlock(spot00_sceneTex_013D98, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | "
         "G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),\n"
-        "gsSPVertex(hf_test_grass_vtx, 4, 0),\n" + tris +
+        "gsSPVertex(\n    &hf_test_grass_vtx[0],\n    4, 0\n),\n" + tris +  # a command over several lines
         "gsDPLoadTextureBlock(spot00_room_0Tex_000400, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | "
         "G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),\n"
         "gsSPVertex(hf_test_small_vtx, 4, 0),\n" + tris +
@@ -99,7 +99,7 @@ def write_fixture(ext: Path):
              "    {  20,  20,  60 },\n    { 140, 120, 100 },\n    BLEND_RATE_AND_FOG_NEAR(4, 993),\n    12800,\n},\n")
     # The light list's file is named unlike its symbol, and a cutscene header has its own list.
     lights = "spot00_scene_000000B0_EnvLightSettingsList"
-    w("spot00_scene_lights_main.inc.c", entry * 16)
+    w("spot00_scene_lights_main.inc.c", entry * 17)  # the real field has 17
     (d / f"{lights}.inc.c").unlink()
     w("spot00_scene_header01_LightSettings.inc.c", entry * 4)
     scene_c = (d / "spot00_scene.c").read_text().replace(f'{D}/{lights}.inc.c', f"{D}/spot00_scene_lights_main.inc.c")
@@ -156,7 +156,8 @@ def main():
         check("grass, dirt and rock linked", all(f'#define ANCIENT_HF_{r} "{inc}/hf_{r.lower()}.rgba16.inc.c"' in h
                                                   for r in ("GRASS", "DIRT", "ROCK")))
         check("main header's light settings linked",
-              f'#define ANCIENT_HF_LIGHTS "{D}/spot00_scene_lights_main.inc.c"' in h)
+              f'#define ANCIENT_HF_LIGHTS "{D}/spot00_scene_lights_main.inc.c"' in h
+              and "#define ANCIENT_HF_LIGHTS_COUNT 17" in h)
         check("grass is the big green floor, not the bigger cut-out bush", "grass = spot00_sceneTex_013D98" in p.stdout)
         check("dirt is the I4 texture tinted by its vertex colors", "dirt = spot00_room_0Tex_001600" in p.stdout)
         check("rock is the CI4 cliff covering the most wall", "rock = spot00_room_0Tex_001800" in p.stdout)

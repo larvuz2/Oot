@@ -1339,7 +1339,10 @@ def write_sources():
     s = [hdr, f'#include "{SCENE}.h"\n#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n', '#include "array_count.h"\n#include "actor.h"\n#include "actor_profile.h"\n#include "camera.h"\n'
          '#include "environment.h"\n#include "object.h"\n#include "player.h"\n#include "save.h"\n#include "segment_symbols.h"\n'
          '#include "sequence.h"\n#include "skybox.h"\n\n']
-    s.append(light_settings())  # before the commands: they take its ARRAY_COUNT
+    # The commands must come first: the game reads them from the start of the scene file.
+    s.append("// Hyrule Field's light settings when the ROM's assets are linked in (tools/remix/link_level_assets.py)\n"
+             "#ifdef ANCIENT_HF_LIGHTS\n#define ANCIENT_LIGHTS_COUNT ANCIENT_HF_LIGHTS_COUNT\n#else\n"
+             f"#define ANCIENT_LIGHTS_COUNT {LIGHTS_OWN}\n#endif\n\n")
     s.append(f"SceneCmd {SCENE}Commands[] = {{\n"
              "    SCENE_CMD_SOUND_SETTINGS(0, NATURE_ID_KOKIRI_REGION, NA_BGM_SHEIK),\n"
              f"    SCENE_CMD_ROOM_LIST(1, {SCENE}RoomList),\n"
@@ -1349,12 +1352,13 @@ def write_sources():
              "    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_OVERWORLD, OBJECT_GAMEPLAY_FIELD_KEEP),\n"
              f"    SCENE_CMD_PLAYER_ENTRY_LIST(1, {SCENE}PlayerEntryList),\n"
              "    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NORMAL_SKY, 0, LIGHT_MODE_TIME),\n"
-             f"    SCENE_CMD_ENV_LIGHT_SETTINGS(ARRAY_COUNT({SCENE}LightSettings), {SCENE}LightSettings),\n"
+             f"    SCENE_CMD_ENV_LIGHT_SETTINGS(ANCIENT_LIGHTS_COUNT, {SCENE}LightSettings),\n"
              "    SCENE_CMD_END(),\n};\n\n")
     s.append(f"RomFile {SCENE}RoomList[] = {{\n    ROM_FILE({ROOM}),\n}};\n\n")
     s.append(f"Spawn {SCENE}SpawnList[] = {{\n    {{ 0, 0 }},\n}};\n\n")
     s.append(f"ActorEntry {SCENE}PlayerEntryList[] = {{\n    {{ ACTOR_PLAYER, {{ {sx}, {sy}, {sz} }}, {{ 0, 0x{SPAWN_YAW:04X}, 0 }}, "
              "PLAYER_PARAMS(PLAYER_START_MODE_MOVE_FORWARD_SLOW, PLAYER_START_BG_CAM_DEFAULT) },\n};\n\n")
+    s.append(light_settings())
     s.append(f"Vec3s {SCENE}CollisionVtx[] = {{\n" + "".join(f"    {{ {v[0]}, {v[1]}, {v[2]} }},\n" for v in verts) + "};\n\n")
     s.append(f"CollisionPoly {SCENE}CollisionPolys[] = {{\n" +
              "".join(f"    {{ {surf}, {{ COLPOLY_VTX({ids[0]}, {('COLPOLY_IGNORE_CAMERA' if flags else '0')}), COLPOLY_VTX({ids[1]}, 0), "
@@ -1385,6 +1389,9 @@ def write_sources():
     return len(polys), len(verts), entries, acts
 
 
+LIGHTS_OWN = 16  # the level's own light settings: 4 times of day x 4 weather configs
+
+
 def light_settings():
     # ambient, light1 dir, light1 color, light2 dir, light2 color, fog, fogNear, zFar
     day = [
@@ -1400,7 +1407,8 @@ def light_settings():
             g = lambda c: tuple(int(min(255, (v * k + (sum(c) / 3) * (1 - k)) * (1 if cfg == 0 else 0.92))) for v in c)
             rows.append((g(amb), g(l1), g(l2), g(fog), near))
     out = (f"// Hyrule Field's own light settings (time of day, fog) when the ROM's assets are there\n"
-           f"EnvLightSettings {SCENE}LightSettings[] = {{\n#ifdef ANCIENT_HF_LIGHTS\n#include ANCIENT_HF_LIGHTS\n#else\n")
+           f"EnvLightSettings {SCENE}LightSettings[ANCIENT_LIGHTS_COUNT] = {{\n#ifdef ANCIENT_HF_LIGHTS\n"
+           "#include ANCIENT_HF_LIGHTS\n#else\n")
     for amb, l1, l2, fog, near in rows:
         out += (f"    {{ {{ {amb[0]}, {amb[1]}, {amb[2]} }}, {{ 73, 73, 73 }}, {{ {l1[0]}, {l1[1]}, {l1[2]} }}, "
                 f"{{ -73, -73, -73 }}, {{ {l2[0]}, {l2[1]}, {l2[2]} }}, {{ {fog[0]}, {fog[1]}, {fog[2]} }}, "
