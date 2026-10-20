@@ -112,7 +112,7 @@ s32 RemixBoot_IsRequested(void) {
  * Same as Map Select's MapSelect_LoadGame with a fresh test save (adult Link), entering the Ancient Plateau
  * in the morning.
  */
-void RemixBoot_Start(GameState* state) {
+void RemixBoot_Start(GameState* gameState) {
     gRemixBootConfig.mode = 0;
 
     gSaveContext.fileNum = 0xFF;
@@ -142,6 +142,8 @@ void RemixBoot_Start(GameState* state) {
     gSaveContext.showTitleCard = true;
     gWeatherMode = WEATHER_MODE_CLEAR;
 
-    state->running = false;
-    SET_NEXT_GAMESTATE(state, Play_Init, PlayState);
+    // (Not named `state`: SET_NEXT_GAMESTATE declares its own `state`, and `GameState* state = state;` would set
+    // the next game state on a garbage pointer, ending the game loop on a black screen.)
+    gameState->running = false;
+    SET_NEXT_GAMESTATE(gameState, Play_Init, PlayState);
 }

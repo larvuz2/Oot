@@ -28,6 +28,6 @@ typedef struct RemixBootConfig {
 extern RemixBootConfig gRemixBootConfig;
 
 s32 RemixBoot_IsRequested(void);
-void RemixBoot_Start(struct GameState* state);
+void RemixBoot_Start(struct GameState* gameState);
 
 #endif

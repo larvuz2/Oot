@@ -56,6 +56,9 @@ def write_fixture(ext: Path):
     for k, (sym, text) in enumerate(vtx.items()):
         w(f"spot00_room_0Vtx_00{k + 5}000.inc.c", text)
         room_c += f"Vtx {sym}[4] = {{\n" + test_make_biome.inc(f"spot00_room_0Vtx_00{k + 5}000") + "};\n\n"
+    # the dirt is drawn by a list of its own, called after its texture is loaded, with a quadrangle
+    w("spot00_room_0DL_009000.inc.c", "gsSPVertex(hf_test_dirt_vtx, 4, 0),\ngsSP1Quadrangle(0, 1, 2, 3, 0),\ngsSPEndDisplayList(),\n")
+    room_c += "Gfx hf_test_dirt_dl[] = {\n" + test_make_biome.inc("spot00_room_0DL_009000") + "};\n\n"
     (d / "spot00_room_0.c").write_text(room_c)
     rng = np.random.default_rng(5)
     grass = np.clip(np.array((60, 150, 45)) + rng.normal(0, 14, (32, 32, 1)), 0, 255).astype(np.uint8)
@@ -79,7 +82,7 @@ def write_fixture(ext: Path):
         "gsSPVertex(&hf_test_bush_vtx[0], 4, 4),\ngsSP2Triangles(4, 5, 6, 0, 4, 6, 7, 0),\n"
         "gsDPLoadTextureBlock_4b(spot00_room_0Tex_001600, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, "
         "G_TX_NOMIRROR | G_TX_WRAP, 4, 4, G_TX_NOLOD, G_TX_NOLOD),\n"
-        "gsSPVertex(hf_test_dirt_vtx, 4, 0),\n" + tris +
+        "gsSPDisplayList(hf_test_dirt_dl),\n"
         "gsSPSetGeometryMode(G_LIGHTING),\n"
         "gsDPLoadTLUT_pal16(0, spot00_room_0TLUT_001A00),\n"
         "gsDPLoadTextureBlock_4b(spot00_room_0Tex_001800, G_IM_FMT_CI, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP, "

@@ -115,67 +115,117 @@ def lighting_after(line, lit):
     return lit
 
 
-def texture_usage(field: Field, arrays):
-    """Replay display lists. texture symbol -> dict(count, floor area, wall area, summed vertex color, color
-    weight); the color only counts where lighting is off (with lighting on, vertex colors are normals)."""
+QUAD_RE = re.compile(r"gsSP1Quadrangle\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)")
+CALL_RE = re.compile(r"gsSP(DisplayList|BranchList)\(\s*&?(\w+)\s*\)")
+MACRO_RE = re.compile(r"\b(gs[A-Z]\w*)\(")
+
+
+class Replay:
+    """RSP/RDP state while walking display lists: the current texture, lighting, the vertex buffer."""
+
+    def __init__(self):
+        self.cur = None
+        self.lit = False
+        self.slots = [None] * 64
+
+
+def texture_usage(field: Field, arrays, stats=None):
+    """Replay the display lists, following calls between them (a texture loaded in one list is drawn by the
+    lists it calls). texture symbol -> dict(count, floor area, wall area, summed vertex color, color weight); the
+    color only counts where lighting is off (with lighting on, vertex colors are normals)."""
+    stats = stats if stats is not None else {}
+    dls = field.of_type("Gfx")
+    called = set()
+    for sym in dls:
+        called.update(m.group(2) for m in CALL_RE.finditer(field.text(sym)))
+    roots = [d for d in dls if d not in called] or dls
     usage = {}
-    for sym in field.of_type("Gfx"):
-        text = field.text(sym)
-        cur = None
-        lit = False
-        slots = [None] * 64
-        for line in text.splitlines():
-            lit = lighting_after(line, lit)
+
+    def count(key, n=1):
+        stats[key] = stats.get(key, 0) + n
+
+    def run(sym, st, depth):
+        if depth > 12:
+            return
+        for line in field.text(sym).splitlines():
+            for mac in MACRO_RE.findall(line)[:1]:
+                stats.setdefault("macros", {})[mac] = stats.setdefault("macros", {}).get(mac, 0) + 1
+            st.lit = lighting_after(line, st.lit)
+            m = CALL_RE.search(line)
+            if m:
+                if m.group(2) in field.defs:
+                    run(m.group(2), st, depth + 1)
+                else:
+                    count("calls to unknown lists")
+                if m.group(1) == "BranchList":
+                    return
+                continue
             m = TEXLOAD_RE.search(line)
             if m:
-                cur = m.group(1)
+                st.cur = m.group(1)
+                count("texture loads")
                 continue
             m = MULTI_RE.search(line)
             if m:
                 if m.group(2) in ("G_TX_RENDERTILE", "0"):
-                    cur = m.group(1)
+                    st.cur = m.group(1)
+                    count("texture loads")
                 continue
             m = SETTIMG_RE.search(line)
             if m and "G_IM_FMT" in line and "TLUT" not in m.group(1):
-                cur = m.group(1)
+                st.cur = m.group(1)
+                count("texture loads")
                 continue
             m = VERTEX_RE.search(line)
             if m:
                 arr = arrays.get(m.group(1))
+                count("vertex loads")
+                if arr is None:
+                    count("vertex loads from unknown arrays")
                 start = int(m.group(2) or 0)
                 n, v0 = int(m.group(3)), int(m.group(4))
                 for k in range(n):
-                    ok = arr is not None and start + k < len(arr[0]) and v0 + k < len(slots)
-                    if v0 + k < len(slots):
-                        slots[v0 + k] = (arr[0][start + k], arr[1][start + k]) if ok else None
+                    if v0 + k < len(st.slots):
+                        ok = arr is not None and start + k < len(arr[0])
+                        st.slots[v0 + k] = (arr[0][start + k], arr[1][start + k]) if ok else None
                 continue
             tris = []
             m = TRI2_RE.search(line)
             if m:
                 g = [int(x) for x in m.groups()]
                 tris = [g[:3], g[3:]]
-            else:
-                m = TRI1_RE.search(line)
-                if m:
-                    tris = [[int(x) for x in m.groups()]]
+            elif (m := QUAD_RE.search(line)) is not None:
+                q = [int(x) for x in m.groups()]
+                tris = [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]
+            elif (m := TRI1_RE.search(line)) is not None:
+                tris = [[int(x) for x in m.groups()]]
             for t in tris:
-                if cur is None or any(i >= len(slots) or slots[i] is None for i in t):
+                count("triangles")
+                if st.cur is None:
+                    count("triangles with no texture")
                     continue
-                pa, pb, pc = (slots[i][0] for i in t)
+                if any(i >= len(st.slots) or st.slots[i] is None for i in t):
+                    count("triangles with unknown vertices")
+                    continue
+                pa, pb, pc = (st.slots[i][0] for i in t)
                 n = np.cross(pb - pa, pc - pa)
                 area = np.linalg.norm(n) / 2
                 if area < 1:
                     continue
                 ny = n[1] / (2 * area)
-                u = usage.setdefault(cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0))
+                u = usage.setdefault(st.cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0))
                 u["count"] += 1
                 if ny > 0.75:
                     u["floor"] += area
                 elif abs(ny) < 0.55:
                     u["wall"] += area
-                if not lit:
-                    u["color"] += sum(slots[i][1] for i in t) / 3 * area
+                if not st.lit:
+                    u["color"] += sum(st.slots[i][1] for i in t) / 3 * area
                     u["weight"] += area
+
+    for root in roots:
+        run(root, Replay(), 0)
+    stats["root lists"] = len(roots)
     return usage
 
 
@@ -274,15 +324,30 @@ def main():
         sys.exit(1)
 
     field = Field(ext, src)
-    usage = texture_usage(field, load_vertex_arrays(field))
-    print(f"link_level_assets: {len(field.defs)} definitions, {len(field.of_type('Gfx'))} display lists, "
-          f"{len(usage)} textures drawn on triangles")
-    chosen = pick(candidates(field, usage))
-    if not usage:  # show what the display lists look like, to fix the parser
-        for sym in field.of_type("Gfx")[:3]:
-            sample = [ln for ln in field.text(sym).splitlines() if "Tex" in ln or "Vertex" in ln or "Tri" in ln][:6]
-            print(f"link_level_assets: {sym} ({field.defs[sym][1]}): " + " | ".join(sample))
+    stats = {}
+    arrays = load_vertex_arrays(field)
+    usage = texture_usage(field, arrays, stats)
+    types = {}
+    for t, _ in field.defs.values():
+        types[t] = types.get(t, 0) + 1
+    macros = stats.pop("macros", {})
+    print(f"link_level_assets: definitions by type: {types}; {len(arrays)} vertex arrays read")
+    print(f"link_level_assets: replay: {stats}; {len(usage)} textures drawn on triangles")
+    print("link_level_assets: display list commands: "
+          + ", ".join(f"{k} {v}" for k, v in sorted(macros.items(), key=lambda kv: -kv[1])))
+    cands = candidates(field, usage)
+    for c in sorted(cands, key=lambda c: -(c["floor"] + c["wall"]))[:12]:
+        print(f"link_level_assets:   {c['sym']}: {c['fmt']} {c['size'][0]}x{c['size'][1]} floor {c['floor'] / 1e6:.2f}M "
+              f"wall {c['wall'] / 1e6:.2f}M color {tuple(int(v) for v in c['rgb'])}")
+    skipped = [s for s in usage if field.png(s) is None]
+    if skipped:
+        print(f"link_level_assets: {len(skipped)} drawn textures without a PNG: {skipped[:6]}")
+    chosen = pick(cands)
     lights = find_lights(field)
+    n_cmds = len(field.of_type("SceneCmd"))
+    n_light_cmds = sum(len(LIGHTS_CMD_RE.findall(field.text(c))) for c in field.of_type("SceneCmd"))
+    print(f"link_level_assets: {n_cmds} command lists, {n_light_cmds} light settings commands, "
+          f"{len(field.of_type('EnvLightSettings'))} light lists defined")
 
     lines = ["// Generated by tools/remix/link_level_assets.py from the extracted Hyrule Field. Do not edit.",
              "#ifndef ANCIENT_HF_H", "#define ANCIENT_HF_H", ""]
