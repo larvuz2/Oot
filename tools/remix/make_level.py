@@ -144,8 +144,27 @@ def paths_polygon():
             a = path_angle(k, rs)
             lines.append(LineString(np.stack([rs * np.sin(a), rs * np.cos(a)], 1)).buffer(
                 PATH_HALF_WIDTH, cap_style="round", join_style="round", quad_segs=3))
+        # the town's ring road and lanes (tools/remix/town_plan.py)
+        for line in town_plan.lanes() + [town_plan.ring_road()]:
+            lines.append(LineString(line).buffer(town_plan.LANE_HALF, cap_style="round", join_style="round", quad_segs=3))
         _paths_poly = unary_union(lines).simplify(12, preserve_topology=True)
     return _paths_poly
+
+
+_town_streets = None
+
+
+def street_dist(x, z):
+    """Distance from (x, z) to the town's ring road and lanes."""
+    global _town_streets
+    if _town_streets is None:
+        from shapely.geometry import LineString
+        from shapely.ops import unary_union
+
+        _town_streets = unary_union([LineString(line) for line in town_plan.lanes() + [town_plan.ring_road()]])
+    from shapely.geometry import Point
+
+    return max(0.0, _town_streets.distance(Point(float(x), float(z))) - town_plan.LANE_HALF)
 
 
 def path_dist(x, z):
@@ -400,7 +419,7 @@ def build_terrain():
                 else:
                     uvs = [planar_uv(mat, p) for p in pts]
                 on_path = False
-                if mat is GRASS and pd < 400:
+                if mat is GRASS and (pd < 400 or 950 < rc < 2800):
                     on_path = cut_paths(e, pts, nrm)
                 else:
                     e.tri(mat, [V(pts[k], uvs[k], nrm[k]) for k in range(3)])
@@ -853,7 +872,7 @@ def build_monoliths():
 def build_pillars():
     es = {k: new_entry(f"pillars_{k}") for k in range(4)}
     for k in range(4):
-        for i, (r, s, off) in enumerate(((1700, 1, 250), (2250, -1, 270), (2900, 1, 420))):
+        for i, (r, s, off) in enumerate(((2900, 1, 420),)):  # (the inner ones gave way to the town)
             sidek = 1
             ang = float(path_angle(k, r))
             fwd = np.array([math.sin(ang), 0, math.cos(ang)])
@@ -927,38 +946,23 @@ def actors():
             a += 0.35
             x, z = math.sin(a) * 2500, math.cos(a) * 2500
         add("ACTOR_EN_VM", x, mesh_height(x, z), z, 0, "0x1400")
-    # trees, bushes, rocks and butterflies in the field
-    free = []
-    tries = 0
-    while len(free) < 66 and tries < 6000:
-        tries += 1
-        r = 1500 + rng.random() * 2100
-        a = rng.random() * 2 * math.pi
-        x, z = math.sin(a) * r, math.cos(a) * r
-        if float(path_dist(x, z)) < 220 or math.hypot(x - SPAWN[0], z - SPAWN[1]) < 300:
-            continue
-        if town_plan.near_plot(x, z, 140):
-            continue
-        if any(math.hypot(x - fx, z - fz) < 170 for fx, fz in free):
-            continue
-        if float(normal_at(x, z)[1]) < 0.85:
-            continue
-        free.append((x, z))
-    # the same props as Hyrule Field: its trees, bushes, liftable rocks, silver boulders and bomb boulders
-    for i, (x, z) in enumerate(free):
+    # trees, bushes and butterflies in the field (its rocks are static scenery: build_decor)
+    for i, (x, z) in enumerate(field_spots()):
         y = mesh_height(x, z)
         if i < 20:
             add("ACTOR_EN_WOOD02", x, y, z, int(rng.random() * 0x10000), "0xFF05" if i % 3 else "0xFF00")
         elif i < 38:
             add("ACTOR_EN_KUSA", x, y, z, 0, "0x0000")
-        elif i < 52:
-            add("ACTOR_EN_ISHI", x, y, z, 0, "ROCK_SMALL")
-        elif i < 56:
-            add("ACTOR_EN_ISHI", x, y, z, int(rng.random() * 0x10000), "ROCK_LARGE")
-        elif i < 59:
-            add("ACTOR_EN_ISHI", x, y, z, 0, "ROCK_SMALL")
-        else:
+        elif i >= 59:
             add("ACTOR_EN_BUTTE", x, y + 60, z, 0, "0x0000")
+    # lanterns where each quarter's main street leaves the ring road
+    for q in range(4):
+        mid = math.pi / 4 + q * math.pi / 2
+        for s in (-1, 1):
+            a = mid + s * 0.095
+            r = town_plan.RING_ROAD_R + 120
+            x, z = math.sin(a) * r, math.cos(a) * r
+            add("ACTOR_OBJ_SYOKUDAI", x, mesh_height(x, z), z, 0, "0x043F")
     town_people(add, yaw_to)
     return out
 
@@ -970,7 +974,7 @@ OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
 # With gameplay_keep, field_keep and Link these take about 920 KB of the scene's 940 KB object space
 # (REMIX_ANCIENT_OBJECT_SPACE, include/remix_level.h); the rest of the play heap is actor memory for the town.
 
-TOWN_PATH_R = 1110  # the walk around the plaza, between its edge and the monoliths (dogs and strollers follow it)
+TOWN_PATH_R = town_plan.RING_ROAD_R  # the ring road around the plaza (dogs and strollers follow it)
 
 
 def town_path():
@@ -980,6 +984,151 @@ def town_path():
         x, z = math.sin(a) * TOWN_PATH_R, math.cos(a) * TOWN_PATH_R
         pts.append((round(x), round(mesh_height(x, z)), round(z)))
     return pts
+
+
+_SPOTS = []
+
+
+def field_spots():
+    """Spots in the field for trees, bushes, rocks and butterflies (off the paths, streets and house plots)."""
+    if not _SPOTS:
+        prng = np.random.default_rng(77)
+        tries = 0
+        while len(_SPOTS) < 66 and tries < 8000:
+            tries += 1
+            r = 1500 + prng.random() * 2100
+            a = prng.random() * 2 * math.pi
+            x, z = math.sin(a) * r, math.cos(a) * r
+            if float(path_dist(x, z)) < 220 or math.hypot(x - SPAWN[0], z - SPAWN[1]) < 300:
+                continue
+            if town_plan.near_plot(x, z, 160) or street_dist(x, z) < 110:
+                continue
+            if any(math.hypot(x - fx, z - fz) < 170 for fx, fz in _SPOTS):
+                continue
+            if float(normal_at(x, z)[1]) < 0.85:
+                continue
+            _SPOTS.append((x, z))
+    return _SPOTS
+
+
+# Static scenery drawn with the game's own models from gameplay_field_keep (always loaded here, segment 5):
+# (symbol, scale, needs white primitive color). The actors that normally draw them use the same scales.
+DECOR_KINDS = {
+    "bush": ("gFieldBushDL", 0.4),
+    "pebble": ("gFieldKakeraDL", 0.1),
+    "rock": ("gSilverRockDL", 0.4),
+    "flower": ("gHanaDL", 0.01),
+}
+DECOR = []  # (kind, x, y, z, yaw radians, scale factor)
+
+
+def build_decor():
+    """Bushes, flower beds and rocks around the houses and along the streets, and the field's rocks."""
+    drng = np.random.default_rng(31)
+
+    def free(x, z, gap=55):
+        if float(path_dist(x, z)) < 130 or street_dist(x, z) < 25:
+            return False
+        if any(math.hypot(x - p["x"], z - p["z"]) < p["r"] + 15 for p in town_plan.PLOTS):
+            return False
+        return all(math.hypot(x - d[1], z - d[3]) >= gap for d in DECOR)
+
+    def put(kind, x, z, size=1.0, gap=55):
+        if free(x, z, gap):
+            DECOR.append((kind, x, mesh_height(x, z), z, drng.random() * 2 * math.pi, size))
+            return True
+        return False
+
+    for p in town_plan.PLOTS:
+        face = p["face"]
+        # flower beds by the front corners, bushes along the sides and back, a few stones
+        for s in (-1, 1):
+            for k in range(3):
+                a = face + s * (0.62 + 0.13 * k)
+                d = p["r"] * 0.78 + 35 + 18 * k
+                put("flower", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, gap=30)
+        for k in range(5):
+            a = face + math.pi + (k - 2) * 0.55 + drng.normal(0, 0.06)
+            d = p["r"] + 45 + drng.random() * 70
+            put("bush", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.85 + drng.random() * 0.4)
+        for k in range(3):
+            a = drng.random() * 2 * math.pi
+            d = p["r"] + 30 + drng.random() * 90
+            put("pebble", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.8 + drng.random() * 0.6, gap=40)
+        if p["ring"] == "outer":
+            a = face + math.pi + drng.normal(0, 0.5)
+            d = p["r"] + 140
+            if put("rock", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.9 + drng.random() * 0.3, gap=90):
+                x, y, z = DECOR[-1][1:4]
+                prism_col((x, y, z), 46, y - 20, y + 60, 8, SURF_STONE)
+    # flowers along the main streets
+    for line in town_plan.lanes()[::5]:
+        (x0, z0), (x1, z1) = line[0], line[-1]
+        n = int(math.hypot(x1 - x0, z1 - z0) // 160)
+        side = np.array([z1 - z0, -(x1 - x0)]) / max(math.hypot(x1 - x0, z1 - z0), 1)
+        for k in range(1, n):
+            t = k / n
+            for s in (-1, 1):
+                off = side * s * (town_plan.LANE_HALF + 34)
+                put("flower" if k % 2 else "bush", x0 + (x1 - x0) * t + off[0], z0 + (z1 - z0) * t + off[1], gap=40)
+    # the field's rocks (static: the liftable ones cost 36 KB of actor code)
+    for i, (x, z) in enumerate(field_spots()):
+        if 38 <= i < 59:
+            if i < 52:
+                put("pebble", x, z, size=1.0 + drng.random() * 0.5, gap=10)
+            elif put("rock", x, z, size=0.9 + drng.random() * 0.4, gap=10):
+                xx, y, zz = DECOR[-1][1:4]
+                prism_col((xx, y, zz), 46, y - 20, y + 60, 8, SURF_STONE)
+
+
+def decor_mtx(x, y, z, yaw, scale):
+    """The 16 words of an N64 Mtx (s15.16, integer parts then fractions) for scale, turn about Y, move."""
+    c, s_ = math.cos(yaw) * scale, math.sin(yaw) * scale
+    mf = [[c, 0, -s_, 0], [0, scale, 0, 0], [s_, 0, c, 0], [x, y, z, 1]]
+    fixed = [int(round(mf[i][j] * 65536)) & 0xFFFFFFFF for i in range(4) for j in range(4)]
+    ints = [(v >> 16) & 0xFFFF for v in fixed]
+    fracs = [v & 0xFFFF for v in fixed]
+    return [(ints[k] << 16) | ints[k + 1] for k in range(0, 16, 2)] + [(fracs[k] << 16) | fracs[k + 1] for k in range(0, 16, 2)]
+
+
+def emit_decor():
+    """Matrices, display lists (one per quarter) and room entries for DECOR."""
+    lines, entries, decl = [], [], []
+    if not DECOR:
+        return lines, entries, decl
+    lines.append("// static scenery: the game's own bush, flower and rock models (gameplay_field_keep, segment 5)\n" +
+                 "".join(f"extern Gfx {sym}[];\n" for sym, _ in DECOR_KINDS.values()) + "\n")
+    lines.append(f"Mtx {ROOM}DecorMtx[{len(DECOR)}] = {{\n" + "".join(
+        "    { { " + ", ".join("{ " + ", ".join(f"0x{w:08X}" for w in m[r * 4:(r + 1) * 4]) + " }" for r in range(4)) + " } },\n"
+        for m in (decor_mtx(d[1], d[2], d[3], d[4], DECOR_KINDS[d[0]][1] * d[5]) for d in DECOR)) + "};\n\n")
+    setup = ["gsDPPipeSync()", "gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON)",
+             "gsDPSetCombineMode(G_CC_MODULATEIDECALA, G_CC_MODULATEIA_PRIM2)",
+             "gsDPSetOtherMode(G_AD_NOTPATTERN | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
+             "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | G_RM_AA_ZB_OPA_SURF2)",
+             "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_LIGHTING | G_SHADING_SMOOTH)",
+             "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]  # SETUPDL_25, as the actors draw them
+    for q in range(4):
+        idx = [i for i, d in enumerate(DECOR)
+               if int(((math.atan2(d[1], d[3]) % (2 * math.pi)) // (math.pi / 2))) == q]
+        if not idx:
+            continue
+        cmds = []
+        for kind in DECOR_KINDS:
+            items = [i for i in idx if DECOR[i][0] == kind]
+            if not items:
+                continue
+            cmds += setup
+            for i in items:
+                cmds += [f"gsSPMatrix(&{ROOM}DecorMtx[{i}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
+                         f"gsSPDisplayList({DECOR_KINDS[kind][0]})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
+        name = f"{ROOM}DL_decor_{q}"
+        lines.append(f"Gfx {name}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
+        pts = np.array([[DECOR[i][1], DECOR[i][2], DECOR[i][3]] for i in idx])
+        c = (pts.min(0) + pts.max(0)) / 2
+        rad = float(np.max(np.linalg.norm(pts - c, axis=1))) + 120
+        entries.append((tuple(int(round(v)) for v in c), int(math.ceil(rad)), name, "NULL"))
+        decl.append(f"extern Gfx {name}[];")
+    return lines, entries, decl
 
 
 def town_people(add, yaw_to):
@@ -1347,6 +1496,10 @@ def bgcheck_memsize(verts, polys, lo, hi):
 
 def write_sources():
     vtx_out, dl_out, entries, decl = emit_room()
+    decor_lines, decor_entries, decor_decl = emit_decor()
+    entries = entries + decor_entries
+    decl = decl + decor_decl
+    assert len(entries) <= 64 - 6, f"{len(entries)} room entries: the town needs up to 6 of the 64"
     acts = actors()
     hdr = "// Generated by tools/remix/make_level.py - the Ancient Plateau (Web Remix). Do not edit.\n"
 
@@ -1392,6 +1545,7 @@ def write_sources():
                  "#include ANCIENT_TOWN_ACTORS\n#endif\n};\n\n")
     # The town's buildings, borrowed from the game's towns at build time (tools/remix/make_town.py)
     lines.append("#ifdef ANCIENT_TOWN_ROOM\n#include ANCIENT_TOWN_ROOM\n#endif\n\n")
+    lines += decor_lines
     lines.append(f"RoomShapeCullableEntry {ROOM}RoomShapeEntries[] = {{\n" +
                  "".join(f"    {{ {{ {c[0]}, {c[1]}, {c[2]} }}, {r}, {o}, {x} }},\n" for c, r, o, x in entries) +
                  "#ifdef ANCIENT_TOWN_ENTRIES\n#include ANCIENT_TOWN_ENTRIES\n#endif\n};\n\n")
@@ -1571,8 +1725,9 @@ def main():
     build_monoliths()
     build_pillars()
     build_boundary()
+    build_decor()
     npolys, nverts, entries, acts = write_sources()
-    actors_cache[:] = [[a[0], a[1], a[2], a[3]] for a in acts]
+    actors_cache[:] = [[a[0], a[1], a[2], a[3]] for a in acts] + [[f"DECOR_{d[0].upper()}", d[1], d[2], d[3]] for d in DECOR]
     tris = sum(len(t) for e in ENTRIES for t in e.groups.values())
     print(f"Ancient Plateau: {len(ENTRIES)} room chunks, {tris} triangles, {npolys} collision polys ({nverts} vertices), "
           f"{len(acts)} actors")

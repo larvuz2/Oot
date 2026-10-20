@@ -93,8 +93,11 @@ butterflies. What is new is the layout, the monument and the town around it.
 - **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
   emblems, golden torches at each staircase and eight glowing monoliths around it.
 - **The town**: houses, a barn, sheds, silos, wells, a watchtower and a shop borrowed from Kakariko Village,
-  Lon Lon Ranch and Kokiri Forest, restyled in the Plateau's stone and teal (roofs of teal slate, windows that
-  glow), around the plaza; a Lon Lon arch is the town gate on the road in. Townspeople from the Market and
+  Lon Lon Ranch and Kokiri Forest, plus Lake Hylia's lab and ruins, the Colossus's ruined walls and a Gerudo
+  watchtower, restyled in the Plateau's stone and teal (roofs of teal slate, windows that glow), around the
+  plaza; a Lon Lon arch is the town gate on the road in and a second one spans a street. A dirt ring road
+  circles the plaza, a main street (with a torch at the corner) runs into each quarter and lanes lead to every
+  front door; bushes, flower beds, pebbles and rocks from Hyrule Field line the houses and streets. Townspeople from the Market and
   Kakariko on the plaza and at their doors, the Market's haggling pair and dancing couple, a stroller and two dogs
   on the walk around the plaza, cuccos, rupees in the pots inside the houses, and Kakariko's man on a roof (who
   still has his Heart Piece).
@@ -131,7 +134,10 @@ collision, and restyles every texture they use (`tools/remix/restyle.py`: same s
 colors). It writes `build/VERSION/assets/scenes/remix/ancient/ancient_town.h` and the data it points to; the
 remix build uploads pictures of the result (`town-preview`). Without a ROM the plaza stands alone. Memory: the
 Plateau keeps 940 KB for objects instead of 1000 KB (its objects take about 920 KB), which leaves room in
-actor memory for the townspeople.
+actor memory for the townspeople. The bushes, flowers and rocks in town are drawn by the room itself (Hyrule
+Field's models, one matrix each), so they cost no actor memory; the rocks can't be lifted. The child Market
+has the shops and stalls a market would want, but it is a prerendered background (only a rough, untextured
+floor and wall shape exists as 3D), so none of it can be borrowed.
 
 The remix build also checks the level:
 - its log compares the level's memory use with Hyrule Field's (the level has to fit where the field fits);

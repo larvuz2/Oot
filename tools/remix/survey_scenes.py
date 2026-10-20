@@ -37,7 +37,16 @@ SCENES = {
     "lon_lon": "assets/scenes/overworld/spot20",
     "kokiri": "assets/scenes/overworld/spot04",
     "castle": "assets/scenes/overworld/spot15",
+    "graveyard": "assets/scenes/overworld/spot02",
+    "zora_river": "assets/scenes/overworld/spot03",
+    "lake": "assets/scenes/overworld/spot06",
+    "gerudo_valley": "assets/scenes/overworld/spot09",
+    "colossus": "assets/scenes/overworld/spot11",
+    "fortress": "assets/scenes/overworld/spot12",
+    "death_mountain": "assets/scenes/overworld/spot16",
 }
+# The scenes a branch test build surveys (the first five were surveyed for the first town)
+SURVEY_DEFAULT = "graveyard,zora_river,lake,gerudo_valley,colossus,fortress,death_mountain"
 
 
 def collect(field: Field, dls):
@@ -154,7 +163,7 @@ def main():
     ap.add_argument("--version", default="ntsc-1.2")
     ap.add_argument("--extracted", type=Path)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--scenes", default=",".join(SCENES), help="comma-separated: " + ", ".join(SCENES))
+    ap.add_argument("--scenes", default=SURVEY_DEFAULT, help="comma-separated: " + ", ".join(SCENES))
     ap.add_argument("--render", action="store_true")
     args = ap.parse_args()
     ext = args.extracted or HERE.parents[1] / "extracted" / args.version
