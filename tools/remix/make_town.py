@@ -41,11 +41,15 @@ SCENES = {
     "lon_lon": "assets/scenes/overworld/spot20",
     "kokiri": "assets/scenes/overworld/spot04",
     "castle": "assets/scenes/overworld/spot15",
+    "lake": "assets/scenes/overworld/spot06",
+    "fortress": "assets/scenes/overworld/spot12",
+    "colossus": "assets/scenes/overworld/spot11",
 }
 
 # Where each source town's streets meet: a borrowed building is turned so that the side that faced this point
 # faces the Spire.
-TOWN_CENTERS = {"kakariko": (100, 450), "lon_lon": (0, -644), "kokiri": (200, 200)}
+TOWN_CENTERS = {"kakariko": (100, 450), "lon_lon": (0, -644), "kokiri": (200, 200), "lake": (0, 0),
+                "colossus": (0, 0), "fortress": (0, 0)}
 KAK_ALL = [0, 3, 4, 5, 6, 7, 8, 9, 12, 15, 16, 17, 18, 19, 2]  # Kakariko chunks, without terrain, cliffs, mountains
 KOKIRI_STYLE = {"plant": "stone", "dirt": "wood"}  # the tree-stump houses become stone huts
 # Textures whose material the automatic guess gets wrong (steep roofs read as walls), from make_town's log
@@ -85,16 +89,16 @@ BUILDINGS: list[dict] = [
     _kak("kakariko_well", 655, 870, 405, 645, -90, 130, 4),
     # the next quarter, clockwise
     _kak("kakariko_gabled_house", -380, 250, 1380, 1830, 220, 1100, 5),
-    _kak("kakariko_red_roof_house_3", -710, -145, -925, -355, 300, 1100, 6),
+    dict(name="lake_lab", scene="lake", room="spot06_room_0", entries=[5], plot=6),
     _kok("kokiri_small_house", 3, 7),
     _ll("lon_lon_shed", [6], 8),
-    _ll("lon_lon_silo_2", [7], 9),
+    dict(name="colossus_ruin_walls", scene="colossus", room="spot11_room_0", entries=[6], plot=9),
     # the far quarter
     _kak("kakariko_gabled_house_3", -380, 250, 1380, 1830, 220, 1100, 10),
     _kak("kakariko_red_roof_house_2", -710, -145, -925, -355, 300, 1100, 11),
     _kak("kakariko_shelter", 230, 375, 1545, 1815, 70, 300, 12),
-    _ll("lon_lon_shed_2", [6], 13),
-    _kak("kakariko_well_2", 655, 870, 405, 645, -90, 130, 14),
+    dict(name="gerudo_watchtower", scene="fortress", room="spot12_room_0", entries=[8], plot=13),
+    dict(name="lake_ruins", scene="lake", room="spot06_room_0", entries=[9], plot=14),
     # the quarter on Link's left
     _ll("lon_lon_ranch_house", [3, 4], 15, crop=((950, -10, -3410), (1410, 600, -2390))),
     _kak("kakariko_stone_house", -720, -280, 700, 1140, 60, 900, 16),
@@ -103,6 +107,10 @@ BUILDINGS: list[dict] = [
     _kak("kakariko_watchtower", -60, 70, -180, -55, 190, 820, 19),
     # the town gate over the south road, where Link arrives
     _ll("town_gate", [2], None, at="south_road", scale=1.6, front=0.0),
+    # a gateway over the main street of the quarter on Link's left: the Colossus's stone arch, its legs either side
+    # (it is long along its z axis, so its x axis is turned to the plaza), between the ring road and the monoliths
+    dict(name="street_arch", scene="colossus", room="spot11_room_0", entries=[11], plot=None,
+         at=("street", 3, 1240), scale=0.85, front=math.pi / 2),
 ]
 SINK = 12  # how far buildings sit into the ground, so no gap shows on uneven terrain
 
@@ -413,6 +421,7 @@ def main():
     fields, cols = {}, {}
     textures = Textures(out)
     room_lines, entry_lines, cvtx, cpoly, csurf = [], [], [], [], []
+    groups_out = {}
     surf_map = {}
     cvtx_index = {}
     placed = 0
@@ -429,6 +438,10 @@ def main():
             da = float(make_level.path_angle(0, r + 10)) - a
             heading = math.atan2(math.sin(a) + r * math.cos(a) * da / 10, math.cos(a) - r * math.sin(a) * da / 10)
             plot = dict(x=r * math.sin(a), z=r * math.cos(a), face=heading + math.pi)
+        elif spec["at"][0] == "street":  # across a quarter's main street, facing the plaza
+            _, q, r = spec["at"]
+            mid = math.pi / 4 + q * math.pi / 2
+            plot = dict(x=math.sin(mid) * r, z=math.cos(mid) * r, face=mid + math.pi, quarter=q)
         else:
             x, z, yaw = spec["at"]
             plot = dict(x=x, z=z, face=yaw)
@@ -491,11 +504,14 @@ def main():
             if dl:
                 room_lines.append(f"Gfx {name}_{suffix}[] = {{\n" + "".join(f"    {c},\n" for c in dl)
                                   + "    gsSPEndDisplayList(),\n};\n\n")
-        pts = np.concatenate([v[:, :3] for v, _ in tris])
-        c = (pts.min(0) + pts.max(0)) / 2
-        rad = float(np.max(np.linalg.norm(pts - c, axis=1)))
-        entry_lines.append(f"    {{ {{ {s16(c[0])}, {s16(c[1])}, {s16(c[2])} }}, {int(rad) + 1}, "
-                           f"{name + '_opa' if dl_opa else 'NULL'}, {name + '_xlu' if dl_xlu else 'NULL'} }},\n")
+        # One room-shape entry per quarter of the town (and one for the rest): the room can have at most 64,
+        # and Room_DrawCullable keeps the visible ones in a 64-slot buffer on the stack (src/code/z_room.c).
+        group = groups_out.setdefault(plot.get("quarter", "other"), dict(pts=[], opa=[], xlu=[]))
+        group["pts"].append(np.concatenate([v[:, :3] for v, _ in tris]))
+        if dl_opa:
+            group["opa"].append(name + "_opa")
+        if dl_xlu:
+            group["xlu"].append(name + "_xlu")
 
         # collision
         for p, surf, flags in colp:
@@ -546,6 +562,22 @@ def main():
 
     if not placed:
         print("make_town: no building placed; the level keeps its plain plaza")
+        sys.exit(1)
+    for k, (key, g) in enumerate(groups_out.items()):
+        pts = np.concatenate(g["pts"])
+        c = (pts.min(0) + pts.max(0)) / 2
+        rad = float(np.max(np.linalg.norm(pts - c, axis=1)))
+        names = {}
+        for suffix in ("opa", "xlu"):
+            if g[suffix]:
+                names[suffix] = f"ancient_town_group_{k}_{suffix}"
+                room_lines.append(f"Gfx {names[suffix]}[] = {{\n" + "".join(f"    gsSPDisplayList({d}),\n" for d in g[suffix])
+                                  + "    gsSPEndDisplayList(),\n};\n\n")
+        entry_lines.append(f"    {{ {{ {s16(c[0])}, {s16(c[1])}, {s16(c[2])} }}, {int(rad) + 1}, "
+                           f"{names.get('opa', 'NULL')}, {names.get('xlu', 'NULL')} }},\n")
+    own_entries = (LEVEL / "ancient_room_0.c").read_text().split("RoomShapeEntries[] = {", 1)[1].split("};", 1)[0].count("{ {")
+    if own_entries + len(entry_lines) > 64:
+        print(f"make_town: {own_entries} + {len(entry_lines)} room entries is more than the 64 a room can have")
         sys.exit(1)
 
     # textures first (the display lists refer to them)
