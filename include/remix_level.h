@@ -21,13 +21,17 @@ void RemixLevel_GoToAncient(struct PlayState* play);
 // going to the title screen.
 typedef struct RemixBootConfig {
     /* 0x00 */ char magic[8]; // "RMXBOOT1"
-    /* 0x08 */ u8 mode;       // 0: normal boot, 1: Ancient Plateau as adult Link
+    /* 0x08 */ u8 mode;       // REMIX_BOOT_*
     /* 0x09 */ u8 pad[7];
 } RemixBootConfig;
+
+#define REMIX_BOOT_NORMAL 0        // title screen as usual
+#define REMIX_BOOT_ANCIENT 1       // the Ancient Plateau, as adult Link
+#define REMIX_BOOT_HYRULE_FIELD 2  // Hyrule Field the same way (tests: tools/remix/smoke_test.py)
 
 extern RemixBootConfig gRemixBootConfig;
 
 s32 RemixBoot_IsRequested(void);
-void RemixBoot_Start(struct GameState* state);
+void RemixBoot_Start(struct GameState* gameState);
 
 #endif

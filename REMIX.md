@@ -123,7 +123,10 @@ The remix build also checks the level:
 - its log compares the level's memory use with Hyrule Field's (the level has to fit where the field fits);
 - `tools/remix/smoke_test.py` boots the ROM straight into the level in the website's own emulator (headless
   Chromium), runs for about 25 seconds of game time with Link running forward, and checks that the picture is not
-  blank and keeps changing. The screenshots are attached to the run (`smoke-screenshots`).
+  blank and keeps changing. It also reads the console's memory from the emulator and reports where each of the
+  game's threads is and whether one crashed (with the function name). If the level shows nothing, it boots
+  Hyrule Field the same quick way, and the game normally, to tell a level problem from a boot problem. The
+  screenshots are attached to the run (`smoke-screenshots`).
 
 ## Character Studio: make your own character
 

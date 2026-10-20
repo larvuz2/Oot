@@ -39,13 +39,17 @@ GEO_RE = re.compile(r"gsSP(Set|Clear|Load)GeometryMode\(([^)]*)\)")
 TEXLOAD_RE = re.compile(r"gsDPLoadTextureBlock(?:_4b)?\(\s*(\w+)\s*,")
 MULTI_RE = re.compile(r"gsDPLoadMultiBlock(?:_4b)?\(\s*(\w+)\s*,\s*\w+\s*,\s*(\w+)\s*,")
 SETTIMG_RE = re.compile(r"gsDPSetTextureImage\([^,]+,[^,]+,[^,]+,\s*(\w+)\s*\)")
-VERTEX_RE = re.compile(r"gsSPVertex\(\s*&?(\w+)(?:\[(\d+)\])?\s*,\s*(\d+)\s*,\s*(\d+)\s*\)")
+VERTEX_RE = re.compile(r"gsSPVertex\((.*)\)")
 TRI1_RE = re.compile(r"gsSP1Triangle\(\s*(\d+),\s*(\d+),\s*(\d+)")
 TRI2_RE = re.compile(r"gsSP2Triangles\(\s*(\d+),\s*(\d+),\s*(\d+),\s*\d+,\s*(\d+),\s*(\d+),\s*(\d+)")
-LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(\s*(\w+)\s*,\s*(\w+)\s*\)")
+LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(([^\n]*),[ \t]*&?\(?[ \t]*(\w+)[^,\n]*\)")
 
 
 GEO2_RE = re.compile(r"gsSPGeometryMode\(([^,]*),([^)]*)\)")
+# `TYPE SYMBOL[...] = {\n#include "assets/.../file.inc.c"\n};`: how the extractor writes every resource. The file
+# names do not always match the symbols, so everything is looked up through these definitions.
+DEF_RE = re.compile(r'^(?:static\s+)?([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*(?:\[[^\]\n]*\]\s*)*=\s*\{?\s*\n\s*#include\s+"([^"]+)"',
+                    re.M)
 TEX_SIZE = (32, 32)  # the level's grass, dirt and rock materials (tools/remix/make_level.py)
 
 
@@ -53,13 +57,70 @@ def num(s):
     return int(s, 0)
 
 
-def load_vertex_arrays(texts):
-    """symbol -> (Nx3 positions, Nx3 colors) from the `sym.inc.c` files of the extracted VTX(...) arrays."""
+def expr(s: str) -> int:
+    """Value of a small integer expression from the extracted sources (`12`, `0x1E`, `3 * 32`...)."""
+    s = s.strip()
+    if not re.fullmatch(r"[0-9a-fA-FxX+\-*/() ]+", s):
+        raise ValueError(s)
+    return int(eval(re.sub(r"\b0[xX][0-9a-fA-F]+\b", lambda m: str(int(m.group(0), 16)), s).replace("/", "//")))
+
+
+def parse_vertex(args: str):
+    """`&sym[index], count, v0` (or `sym`, `sym + index`) -> (sym, index, count, v0), or None."""
+    parts = [p.strip() for p in args.split(",")]
+    if len(parts) != 3:
+        return None
+    m = re.fullmatch(r"&?\s*\(?\s*(\w+)\s*(?:\[([^\]]+)\])?\s*(?:\+\s*([^)]+))?\)?", parts[0])
+    try:
+        return m.group(1), expr(m.group(2) or m.group(3) or "0"), expr(parts[1]), expr(parts[2])
+    except (AttributeError, ValueError, SyntaxError):
+        return None
+
+
+class Field:
+    """The extracted scene: symbol -> (C type, included file), and the text of the included files."""
+
+    def __init__(self, ext: Path, src: Path):
+        self.ext, self.src = ext, src
+        self.defs = {}
+        for c in sorted(src.glob("*.c")):
+            if c.name.endswith(".inc.c"):
+                continue
+            for ctype, sym, inc in DEF_RE.findall(c.read_text()):
+                self.defs[sym] = (ctype, inc)
+        self._texts = {}
+
+    def path(self, inc: str) -> Path:
+        for base in (self.ext, self.src, REPO):
+            if (base / inc).is_file():
+                return base / inc
+        return self.ext / inc
+
+    def text(self, sym: str) -> str:
+        if sym not in self._texts:
+            p = self.path(self.defs[sym][1]) if sym in self.defs else None
+            self._texts[sym] = p.read_text() if p is not None and p.is_file() else ""
+        return self._texts[sym]
+
+    def of_type(self, ctype: str):
+        return [s for s, (t, _) in self.defs.items() if t == ctype]
+
+    def png(self, sym: str):
+        """The PNG a texture symbol is built from, or None."""
+        if sym not in self.defs or not self.defs[sym][1].endswith(".inc.c"):
+            return None
+        p = self.path(self.defs[sym][1][: -len(".inc.c")] + ".png")
+        return p if p.is_file() else None
+
+
+def load_vertex_arrays(field: Field):
+    """symbol -> (Nx3 positions, Nx3 colors) of every Vtx array."""
     arrays = {}
-    for name, text in texts.items():
-        if name.endswith(".inc.c") and "VTX(" in text:
-            rows = np.array([[num(v) for v in m] for m in VTX_RE.findall(text)], float).reshape(-1, 6)
-            arrays[name.split(".")[0]] = (rows[:, :3], rows[:, 3:])
+    for sym in field.of_type("Vtx"):
+        rows = [[num(v) for v in m] for m in VTX_RE.findall(field.text(sym))]
+        if rows:
+            rows = np.array(rows, float)
+            arrays[sym] = (rows[:, :3], rows[:, 3:])
     return arrays
 
 
@@ -74,78 +135,149 @@ def lighting_after(line, lit):
     return lit
 
 
-def texture_usage(texts, arrays):
-    """Replay display lists. texture symbol -> dict(count, floor area, wall area, summed vertex color, color
-    weight); the color only counts where lighting is off (with lighting on, vertex colors are normals)."""
+PRIM_RE = re.compile(r"gsDPSetPrimColor\(\s*[^,]+,\s*[^,]+,\s*([^,]+),\s*([^,]+),\s*([^,]+),")
+QUAD_RE = re.compile(r"gsSP1Quadrangle\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)")
+CALL_RE = re.compile(r"gsSP(DisplayList|BranchList)\(\s*&?(\w+)\s*\)")
+MACRO_RE = re.compile(r"\b(gs[A-Z]\w*)\(")
+# One display list command, wherever the extractor broke its lines (arguments may hold one level of parentheses).
+COMMAND_RE = re.compile(r"\b(gs[A-Z]\w*)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)")
+
+
+def commands(text: str):
+    """The display list's commands, one per item, each on one line."""
+    return [f"{m.group(1)}({' '.join(m.group(2).split())})" for m in COMMAND_RE.finditer(text)]
+
+
+class Replay:
+    """RSP/RDP state while walking display lists: the current texture, lighting, the vertex buffer."""
+
+    def __init__(self):
+        self.cur = None
+        self.lit = False
+        self.prim = None  # primitive color: the field colors its grey (I/IA) textures with it
+        self.slots = [None] * 64
+
+
+def texture_usage(field: Field, arrays, stats=None):
+    """Replay the display lists, following calls between them (a texture loaded in one list is drawn by the
+    lists it calls). texture symbol -> dict(count, floor area, wall area, summed vertex color, color weight); the
+    color only counts where lighting is off (with lighting on, vertex colors are normals)."""
+    stats = stats if stats is not None else {}
+    dls = field.of_type("Gfx")
+    called = set()
+    for sym in dls:
+        called.update(m.group(2) for m in CALL_RE.finditer(field.text(sym)))
+    roots = [d for d in dls if d not in called] or dls
     usage = {}
-    for name, text in texts.items():
-        if "gsSP" not in text:
-            continue
-        cur = None
-        lit = False
-        slots = [None] * 64
-        for line in text.splitlines():
-            lit = lighting_after(line, lit)
+
+    def count(key, n=1):
+        stats[key] = stats.get(key, 0) + n
+
+    def run(sym, st, depth):
+        if depth > 12:
+            return
+        for line in commands(field.text(sym)):
+            for mac in MACRO_RE.findall(line)[:1]:
+                stats.setdefault("macros", {})[mac] = stats.setdefault("macros", {}).get(mac, 0) + 1
+            st.lit = lighting_after(line, st.lit)
+            m = CALL_RE.search(line)
+            if m:
+                if m.group(2) in field.defs:
+                    run(m.group(2), st, depth + 1)
+                else:
+                    count("calls to unknown lists")
+                if m.group(1) == "BranchList":
+                    return
+                continue
+            m = PRIM_RE.search(line)
+            if m:
+                st.prim = np.array([expr(m.group(i)) for i in (1, 2, 3)], float)
+                continue
             m = TEXLOAD_RE.search(line)
             if m:
-                cur = m.group(1)
+                st.cur = m.group(1)
+                count("texture loads")
                 continue
             m = MULTI_RE.search(line)
             if m:
                 if m.group(2) in ("G_TX_RENDERTILE", "0"):
-                    cur = m.group(1)
+                    st.cur = m.group(1)
+                    count("texture loads")
                 continue
             m = SETTIMG_RE.search(line)
             if m and "G_IM_FMT" in line and "TLUT" not in m.group(1):
-                cur = m.group(1)
+                st.cur = m.group(1)
+                count("texture loads")
                 continue
             m = VERTEX_RE.search(line)
             if m:
-                arr = arrays.get(m.group(1))
-                start = int(m.group(2) or 0)
-                n, v0 = int(m.group(3)), int(m.group(4))
+                v = parse_vertex(m.group(1))
+                if v is None:
+                    count("vertex loads not understood")
+                    stats.setdefault("samples", []).append(line.strip()[:120])
+                    st.slots = [None] * 64
+                    continue
+                vsym, start, n, v0 = v
+                arr = arrays.get(vsym)
+                count("vertex loads")
+                if arr is None:
+                    count("vertex loads from unknown arrays")
+                    stats.setdefault("samples", []).append(line.strip()[:120])
                 for k in range(n):
-                    ok = arr is not None and start + k < len(arr[0]) and v0 + k < len(slots)
-                    if v0 + k < len(slots):
-                        slots[v0 + k] = (arr[0][start + k], arr[1][start + k]) if ok else None
+                    if v0 + k < len(st.slots):
+                        ok = arr is not None and start + k < len(arr[0])
+                        st.slots[v0 + k] = (arr[0][start + k], arr[1][start + k]) if ok else None
                 continue
             tris = []
             m = TRI2_RE.search(line)
             if m:
                 g = [int(x) for x in m.groups()]
                 tris = [g[:3], g[3:]]
-            else:
-                m = TRI1_RE.search(line)
-                if m:
-                    tris = [[int(x) for x in m.groups()]]
+            elif (m := QUAD_RE.search(line)) is not None:
+                q = [int(x) for x in m.groups()]
+                tris = [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]
+            elif (m := TRI1_RE.search(line)) is not None:
+                tris = [[int(x) for x in m.groups()]]
             for t in tris:
-                if cur is None or any(i >= len(slots) or slots[i] is None for i in t):
+                count("triangles")
+                if st.cur is None:
+                    count("triangles with no texture")
                     continue
-                pa, pb, pc = (slots[i][0] for i in t)
+                if any(i >= len(st.slots) or st.slots[i] is None for i in t):
+                    count("triangles with unknown vertices")
+                    continue
+                pa, pb, pc = (st.slots[i][0] for i in t)
                 n = np.cross(pb - pa, pc - pa)
                 area = np.linalg.norm(n) / 2
                 if area < 1:
                     continue
                 ny = n[1] / (2 * area)
-                u = usage.setdefault(cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0))
+                u = usage.setdefault(st.cur, dict(count=0, floor=0.0, wall=0.0, color=np.zeros(3), weight=0.0,
+                                                  prim=np.zeros(3), prim_weight=0.0))
+                if st.prim is not None:
+                    u["prim"] += st.prim * area
+                    u["prim_weight"] += area
                 u["count"] += 1
                 if ny > 0.75:
                     u["floor"] += area
                 elif abs(ny) < 0.55:
                     u["wall"] += area
-                if not lit:
-                    u["color"] += sum(slots[i][1] for i in t) / 3 * area
+                if not st.lit:
+                    u["color"] += sum(st.slots[i][1] for i in t) / 3 * area
                     u["weight"] += area
+
+    for root in roots:
+        run(root, Replay(), 0)
+    stats["root lists"] = len(roots)
     return usage
 
 
-def texture_image(src: Path, sym: str):
+def texture_image(field: Field, sym: str):
     """(format, RGBA image) of a texture symbol (CI textures come with their palette), or None."""
-    files = sorted(src.glob(f"{sym}.*.png"))
-    files = [f for f in files if not f.name.split(".")[1].startswith("tlut")]
-    if not files:
+    p = field.png(sym)
+    if p is None:
         return None
-    return files[0].name.split(".")[1], Image.open(files[0]).convert("RGBA")
+    return p.name.split(".")[1], Image.open(p).convert("RGBA")
 
 
 def to_level_texture(fmt, img, tint):
@@ -168,10 +300,10 @@ def rgba16_inc(a):
     return "".join(f"0x{w:016X}," + ("\n" if k % 4 == 3 else " ") for k, w in enumerate(words))
 
 
-def candidates(src, usage):
+def candidates(field: Field, usage):
     out = []
     for sym, u in usage.items():
-        got = texture_image(src, sym)
+        got = texture_image(field, sym)
         if got is None:
             continue
         fmt, img = got
@@ -179,6 +311,12 @@ def candidates(src, usage):
         if (alpha >= 128).mean() < 0.98:  # cut-out textures (fences, leaves) cannot cover the ground
             continue
         tint = u["color"] / u["weight"] if u["weight"] > 0 else None
+        if fmt.startswith(("i4", "i8", "ia")):
+            # Grey textures get their color when drawn: from the primitive color, else from vertex colors.
+            if u["prim_weight"] > 0:
+                tint = u["prim"] / u["prim_weight"] * (tint / 255.0 if tint is not None else 1.0)
+            if tint is None:
+                continue  # its real color is unknown: grey would not look like the field
         tex = to_level_texture(fmt, img, tint)
         r, g, b = tex[..., :3].reshape(-1, 3).mean(0)
         out.append(dict(sym=sym, fmt=fmt, size=img.size, tex=tex, rgb=(r, g, b), floor=u["floor"], wall=u["wall"],
@@ -188,35 +326,42 @@ def candidates(src, usage):
 
 def pick(cands):
     """Grass: the green texture covering the most floor. Dirt: the brown one covering the most floor. Rock: the
-    texture covering the most wall."""
+    texture covering the most wall. Color textures come first: the field uses grey (I/IA) ones mostly as blend
+    masks and detail layers, which look wrong on their own (dark bands), so they only stand in when no color
+    texture fits."""
+    color = [c for c in cands if not c["fmt"].startswith(("i4", "i8", "ia"))]
     out = {}
-    grass = [c for c in cands if c["green"] and c["floor"] > 0]
-    if grass:
-        out["GRASS"] = max(grass, key=lambda c: c["floor"])
-    dirt = [c for c in cands if c["brown"] and c["floor"] > 0 and c is not out.get("GRASS")]
-    if dirt:
-        out["DIRT"] = max(dirt, key=lambda c: c["floor"])
-    rock = [c for c in cands if c["wall"] > 0 and not any(c is v for v in out.values())]
-    if rock:
-        out["ROCK"] = max(rock, key=lambda c: c["wall"])
+
+    def choose(role, ok, key):
+        for pool in (color, cands):
+            found = [c for c in pool if ok(c) and not any(c is v for v in out.values())]
+            if found:
+                out[role] = max(found, key=key)
+                return
+
+    choose("GRASS", lambda c: c["green"] and c["floor"] > 0, lambda c: c["floor"])
+    choose("DIRT", lambda c: c["brown"] and c["floor"] > 0, lambda c: c["floor"])
+    choose("ROCK", lambda c: c["wall"] > 0, lambda c: c["wall"])
     return out
 
 
-def find_lights(texts):
-    """The light settings of the scene's main header (the commands list that has the alternate headers)."""
+def find_lights(field: Field):
+    """(symbol, include path, entries) of the light settings of the scene's main header: the commands list with
+    the alternate headers (the others are for cutscenes), else the first one found."""
     best = None
-    for name, text in texts.items():
+    for cmds in field.of_type("SceneCmd"):
+        text = field.text(cmds)
         for m in LIGHTS_CMD_RE.finditer(text):
-            score = ("SCENE_CMD_ALTERNATE_HEADER_LIST" in text, -len(name))
+            sym = m.group(2)
+            if sym not in field.defs:
+                continue
+            score = ("SCENE_CMD_ALTERNATE_HEADER_LIST" in text, "ROOM_LIST" in text)
             if best is None or score > best[0]:
-                best = (score, m.group(2))
+                best = (score, sym)
     if best is None:
         return None
     sym = best[1]
-    if f"{sym}.inc.c" not in texts:
-        return None
-    count = texts[f"{sym}.inc.c"].count("BLEND_RATE_AND_FOG_NEAR(")
-    return sym, count
+    return sym, field.defs[sym][1], field.text(sym).count("BLEND_RATE_AND_FOG_NEAR(")
 
 
 def main():
@@ -232,9 +377,38 @@ def main():
         print(f"link_level_assets: {src} not found (run `make setup` first); the level keeps its own textures")
         sys.exit(1)
 
-    texts = {p.name: p.read_text() for p in src.iterdir() if p.name.endswith((".c", ".h"))}
-    chosen = pick(candidates(src, texture_usage(texts, load_vertex_arrays(texts))))
-    lights = find_lights(texts)
+    field = Field(ext, src)
+    stats = {}
+    arrays = load_vertex_arrays(field)
+    usage = texture_usage(field, arrays, stats)
+    types = {}
+    for t, _ in field.defs.values():
+        types[t] = types.get(t, 0) + 1
+    macros = stats.pop("macros", {})
+    samples = stats.pop("samples", [])
+    print(f"link_level_assets: definitions by type: {types}; {len(arrays)} vertex arrays read")
+    print(f"link_level_assets: replay: {stats}; {len(usage)} textures drawn on triangles")
+    for line in samples[:3]:
+        print(f"link_level_assets:   e.g. {line}")
+    print("link_level_assets: display list commands: "
+          + ", ".join(f"{k} {v}" for k, v in sorted(macros.items(), key=lambda kv: -kv[1])))
+    cands = candidates(field, usage)
+    for c in sorted(cands, key=lambda c: -(c["floor"] + c["wall"]))[:12]:
+        print(f"link_level_assets:   {c['sym']}: {c['fmt']} {c['size'][0]}x{c['size'][1]} floor {c['floor'] / 1e6:.2f}M "
+              f"wall {c['wall'] / 1e6:.2f}M color {tuple(int(v) for v in c['rgb'])}")
+    skipped = [s for s in usage if field.png(s) is None]
+    if skipped:
+        print(f"link_level_assets: {len(skipped)} drawn textures without a PNG: {skipped[:6]}")
+    chosen = pick(cands)
+    lights = find_lights(field)
+    n_cmds = len(field.of_type("SceneCmd"))
+    n_light_cmds = sum(len(LIGHTS_CMD_RE.findall(field.text(c))) for c in field.of_type("SceneCmd"))
+    if not n_light_cmds:
+        for c in field.of_type("SceneCmd")[:2]:
+            lines = [ln.strip()[:100] for ln in field.text(c).splitlines() if "LIGHT" in ln]
+            print(f"link_level_assets:   {c} ({field.defs[c][1]}, {len(field.text(c))} chars): {lines[:2]}")
+    print(f"link_level_assets: {n_cmds} command lists, {n_light_cmds} light settings commands, "
+          f"{len(field.of_type('EnvLightSettings'))} light lists defined")
 
     lines = ["// Generated by tools/remix/link_level_assets.py from the extracted Hyrule Field. Do not edit.",
              "#ifndef ANCIENT_HF_H", "#define ANCIENT_HF_H", ""]
@@ -249,9 +423,10 @@ def main():
                   f"{c['floor'] / 1e6:.2f}M, wall {c['wall'] / 1e6:.2f}M units², color {tuple(int(v) for v in c['rgb'])})")
         else:
             print(f"link_level_assets: no {role.lower()} texture found; keeping the level's own")
-    if lights and lights[1] >= 16:
-        lines.append(f'#define ANCIENT_HF_LIGHTS "{SRC}/{lights[0]}.inc.c"')
-        print(f"link_level_assets: light settings = {lights[0]} ({lights[1]} entries)")
+    if lights and lights[2] >= 16:
+        lines.append(f'#define ANCIENT_HF_LIGHTS "{lights[1]}"')
+        lines.append(f"#define ANCIENT_HF_LIGHTS_COUNT {lights[2]}")
+        print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")
     lines += ["", "#endif", ""]

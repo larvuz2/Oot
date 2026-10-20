@@ -14,8 +14,43 @@
 #include "sequence.h"
 #include "skybox.h"
 
+// Hyrule Field's light settings when the ROM's assets are linked in (tools/remix/link_level_assets.py)
+#ifdef ANCIENT_HF_LIGHTS
+#define ANCIENT_LIGHTS_COUNT ANCIENT_HF_LIGHTS_COUNT
+#else
+#define ANCIENT_LIGHTS_COUNT 16
+#endif
+
+SceneCmd ancient_sceneCommands[] = {
+    SCENE_CMD_SOUND_SETTINGS(0, NATURE_ID_KOKIRI_REGION, NA_BGM_SHEIK),
+    SCENE_CMD_ROOM_LIST(1, ancient_sceneRoomList),
+    SCENE_CMD_MISC_SETTINGS(SCENE_CAM_TYPE_DEFAULT, WORLD_MAP_AREA_HYRULE_FIELD),
+    SCENE_CMD_COL_HEADER(&ancient_sceneCollisionHeader),
+    SCENE_CMD_SPAWN_LIST(ancient_sceneSpawnList),
+    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_OVERWORLD, OBJECT_GAMEPLAY_FIELD_KEEP),
+    SCENE_CMD_PLAYER_ENTRY_LIST(1, ancient_scenePlayerEntryList),
+    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NORMAL_SKY, 0, LIGHT_MODE_TIME),
+    SCENE_CMD_ENV_LIGHT_SETTINGS(ANCIENT_LIGHTS_COUNT, ancient_sceneLightSettings),
+    SCENE_CMD_END(),
+};
+
+RomFile ancient_sceneRoomList[] = {
+    ROM_FILE(ancient_room_0),
+};
+
+Spawn ancient_sceneSpawnList[] = {
+    { 0, 0 },
+};
+
+ActorEntry ancient_scenePlayerEntryList[] = {
+    { ACTOR_PLAYER,
+      { -400, 142, 3276 },
+      { 0, 0x7B0C, 0 },
+      PLAYER_PARAMS(PLAYER_START_MODE_MOVE_FORWARD_SLOW, PLAYER_START_BG_CAM_DEFAULT) },
+};
+
 // Hyrule Field's own light settings (time of day, fog) when the ROM's assets are there
-EnvLightSettings ancient_sceneLightSettings[] = {
+EnvLightSettings ancient_sceneLightSettings[ANCIENT_LIGHTS_COUNT] = {
 #ifdef ANCIENT_HF_LIGHTS
 #include ANCIENT_HF_LIGHTS
 #else
@@ -148,34 +183,6 @@ EnvLightSettings ancient_sceneLightSettings[] = {
       BLEND_RATE_AND_FOG_NEAR(4, 986),
       12800 },
 #endif
-};
-
-SceneCmd ancient_sceneCommands[] = {
-    SCENE_CMD_SOUND_SETTINGS(0, NATURE_ID_KOKIRI_REGION, NA_BGM_SHEIK),
-    SCENE_CMD_ROOM_LIST(1, ancient_sceneRoomList),
-    SCENE_CMD_MISC_SETTINGS(SCENE_CAM_TYPE_DEFAULT, WORLD_MAP_AREA_HYRULE_FIELD),
-    SCENE_CMD_COL_HEADER(&ancient_sceneCollisionHeader),
-    SCENE_CMD_SPAWN_LIST(ancient_sceneSpawnList),
-    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_OVERWORLD, OBJECT_GAMEPLAY_FIELD_KEEP),
-    SCENE_CMD_PLAYER_ENTRY_LIST(1, ancient_scenePlayerEntryList),
-    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NORMAL_SKY, 0, LIGHT_MODE_TIME),
-    SCENE_CMD_ENV_LIGHT_SETTINGS(ARRAY_COUNT(ancient_sceneLightSettings), ancient_sceneLightSettings),
-    SCENE_CMD_END(),
-};
-
-RomFile ancient_sceneRoomList[] = {
-    ROM_FILE(ancient_room_0),
-};
-
-Spawn ancient_sceneSpawnList[] = {
-    { 0, 0 },
-};
-
-ActorEntry ancient_scenePlayerEntryList[] = {
-    { ACTOR_PLAYER,
-      { -400, 142, 3276 },
-      { 0, 0x7B0C, 0 },
-      PLAYER_PARAMS(PLAYER_START_MODE_MOVE_FORWARD_SLOW, PLAYER_START_BG_CAM_DEFAULT) },
 };
 
 Vec3s ancient_sceneCollisionVtx[] = {
