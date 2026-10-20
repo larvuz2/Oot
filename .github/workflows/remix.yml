@@ -95,6 +95,28 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: make -j"$(nproc)" setup VERSION=${{ steps.rom.outputs.version }}
 
+      - name: Survey town scenes (test builds on branches only)
+        if: steps.gate.outputs.enabled == 'true' && github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        continue-on-error: true
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
+          npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/survey_scenes.py --version "$V" \
+            --out "$RUNNER_TEMP/survey" --render > "$RUNNER_TEMP/survey.log" 2>&1 || true
+          tail -5 "$RUNNER_TEMP/survey.log"
+
+      - name: Upload survey
+        if: steps.gate.outputs.enabled == 'true' && github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: scene-survey
+          path: ${{ runner.temp }}/survey/
+          retention-days: 7
+
       - name: Convert Character Studio model
         if: steps.gate.outputs.enabled == 'true' && hashFiles('assets/remix_character/character.json') != ''
         run: |

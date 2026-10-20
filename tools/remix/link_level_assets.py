@@ -30,12 +30,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from extracted_scene import Field, commands, expr, lighting_after, num, parse_vertex  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 SRC = "assets/scenes/overworld/spot00"
 OUT_REL = "assets/scenes/remix/ancient/ancient_hf.h"
 
 VTX_RE = re.compile(r"VTX\(\s*(-?\w+),\s*(-?\w+),\s*(-?\w+),\s*-?\w+,\s*-?\w+,\s*(\w+),\s*(\w+),\s*(\w+),")
-GEO_RE = re.compile(r"gsSP(Set|Clear|Load)GeometryMode\(([^)]*)\)")
 TEXLOAD_RE = re.compile(r"gsDPLoadTextureBlock(?:_4b)?\(\s*(\w+)\s*,")
 MULTI_RE = re.compile(r"gsDPLoadMultiBlock(?:_4b)?\(\s*(\w+)\s*,\s*\w+\s*,\s*(\w+)\s*,")
 SETTIMG_RE = re.compile(r"gsDPSetTextureImage\([^,]+,[^,]+,[^,]+,\s*(\w+)\s*\)")
@@ -45,72 +47,7 @@ TRI2_RE = re.compile(r"gsSP2Triangles\(\s*(\d+),\s*(\d+),\s*(\d+),\s*\d+,\s*(\d+
 LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(([^\n]*),[ \t]*&?\(?[ \t]*(\w+)[^,\n]*\)")
 
 
-GEO2_RE = re.compile(r"gsSPGeometryMode\(([^,]*),([^)]*)\)")
-# `TYPE SYMBOL[...] = {\n#include "assets/.../file.inc.c"\n};`: how the extractor writes every resource. The file
-# names do not always match the symbols, so everything is looked up through these definitions.
-DEF_RE = re.compile(r'^(?:static\s+)?([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*(?:\[[^\]\n]*\]\s*)*=\s*\{?\s*\n\s*#include\s+"([^"]+)"',
-                    re.M)
 TEX_SIZE = (32, 32)  # the level's grass, dirt and rock materials (tools/remix/make_level.py)
-
-
-def num(s):
-    return int(s, 0)
-
-
-def expr(s: str) -> int:
-    """Value of a small integer expression from the extracted sources (`12`, `0x1E`, `3 * 32`...)."""
-    s = s.strip()
-    if not re.fullmatch(r"[0-9a-fA-FxX+\-*/() ]+", s):
-        raise ValueError(s)
-    return int(eval(re.sub(r"\b0[xX][0-9a-fA-F]+\b", lambda m: str(int(m.group(0), 16)), s).replace("/", "//")))
-
-
-def parse_vertex(args: str):
-    """`&sym[index], count, v0` (or `sym`, `sym + index`) -> (sym, index, count, v0), or None."""
-    parts = [p.strip() for p in args.split(",")]
-    if len(parts) != 3:
-        return None
-    m = re.fullmatch(r"&?\s*\(?\s*(\w+)\s*(?:\[([^\]]+)\])?\s*(?:\+\s*([^)]+))?\)?", parts[0])
-    try:
-        return m.group(1), expr(m.group(2) or m.group(3) or "0"), expr(parts[1]), expr(parts[2])
-    except (AttributeError, ValueError, SyntaxError):
-        return None
-
-
-class Field:
-    """The extracted scene: symbol -> (C type, included file), and the text of the included files."""
-
-    def __init__(self, ext: Path, src: Path):
-        self.ext, self.src = ext, src
-        self.defs = {}
-        for c in sorted(src.glob("*.c")):
-            if c.name.endswith(".inc.c"):
-                continue
-            for ctype, sym, inc in DEF_RE.findall(c.read_text()):
-                self.defs[sym] = (ctype, inc)
-        self._texts = {}
-
-    def path(self, inc: str) -> Path:
-        for base in (self.ext, self.src, REPO):
-            if (base / inc).is_file():
-                return base / inc
-        return self.ext / inc
-
-    def text(self, sym: str) -> str:
-        if sym not in self._texts:
-            p = self.path(self.defs[sym][1]) if sym in self.defs else None
-            self._texts[sym] = p.read_text() if p is not None and p.is_file() else ""
-        return self._texts[sym]
-
-    def of_type(self, ctype: str):
-        return [s for s, (t, _) in self.defs.items() if t == ctype]
-
-    def png(self, sym: str):
-        """The PNG a texture symbol is built from, or None."""
-        if sym not in self.defs or not self.defs[sym][1].endswith(".inc.c"):
-            return None
-        p = self.path(self.defs[sym][1][: -len(".inc.c")] + ".png")
-        return p if p.is_file() else None
 
 
 def load_vertex_arrays(field: Field):
@@ -124,30 +61,10 @@ def load_vertex_arrays(field: Field):
     return arrays
 
 
-def lighting_after(line, lit):
-    m = GEO_RE.search(line)
-    if m:
-        has = "G_LIGHTING" in m.group(2)
-        return {"Set": lit or has, "Clear": lit and not has, "Load": has}[m.group(1)]
-    m = GEO2_RE.search(line)
-    if m:
-        return (lit and "G_LIGHTING" not in m.group(1)) or "G_LIGHTING" in m.group(2)
-    return lit
-
-
 PRIM_RE = re.compile(r"gsDPSetPrimColor\(\s*[^,]+,\s*[^,]+,\s*([^,]+),\s*([^,]+),\s*([^,]+),")
 QUAD_RE = re.compile(r"gsSP1Quadrangle\(\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)")
 CALL_RE = re.compile(r"gsSP(DisplayList|BranchList)\(\s*&?(\w+)\s*\)")
 MACRO_RE = re.compile(r"\b(gs[A-Z]\w*)\(")
-# One display list command, wherever the extractor broke its lines (arguments may hold one level of parentheses).
-COMMAND_RE = re.compile(r"\b(gs[A-Z]\w*)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)")
-
-
-def commands(text: str):
-    """The display list's commands, one per item, each on one line."""
-    return [f"{m.group(1)}({' '.join(m.group(2).split())})" for m in COMMAND_RE.finditer(text)]
-
-
 class Replay:
     """RSP/RDP state while walking display lists: the current texture, lighting, the vertex buffer."""
 

@@ -1,0 +1,102 @@
+name: Remix scene survey
+
+# Manual: surveys the game's town scenes (Kakariko, Market, Lon Lon, Kokiri, castle) for buildings the Ancient
+# Plateau can reuse, using your ROM (BASEROM_URL, like the remix build). Uploads pictures and a table of
+# numbers only (tools/remix/survey_scenes.py).
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenes:
+        description: "Scenes to survey (comma-separated)"
+        default: "kakariko,market,lon_lon,kokiri,castle"
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    name: Survey town scenes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check for a base ROM
+        id: gate
+        env:
+          BASEROM_URL: ${{ secrets.BASEROM_URL }}
+        run: |
+          if [ -z "$BASEROM_URL" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Remix build skipped::Set the BASEROM_URL repository secret to build ROMs (see REMIX.md)."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q build-essential binutils-mips-linux-gnu curl python3 python3-pip python3-venv libxml2-dev
+
+      - name: Download base ROM
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          BASEROM_URL: ${{ secrets.BASEROM_URL }}
+          BASEROM_AUTH_HEADER: ${{ secrets.BASEROM_AUTH_HEADER }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rom"
+          if [ -n "$BASEROM_AUTH_HEADER" ]; then
+            curl -fsSL --retry 3 -H "$BASEROM_AUTH_HEADER" -o "$RUNNER_TEMP/rom/download" "$BASEROM_URL"
+          else
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/rom/download" "$BASEROM_URL"
+          fi
+          # Accept a .zip containing the ROM as well as a bare ROM file.
+          python3 - "$RUNNER_TEMP/rom/download" "$RUNNER_TEMP/rom/baserom.bin" <<'EOF'
+          import sys, zipfile, shutil
+          src, dst = sys.argv[1], sys.argv[2]
+          if zipfile.is_zipfile(src):
+              with zipfile.ZipFile(src) as z:
+                  info = max(z.infolist(), key=lambda i: i.file_size)
+                  with z.open(info) as f, open(dst, "wb") as out:
+                      shutil.copyfileobj(f, out)
+          else:
+              shutil.move(src, dst)
+          EOF
+          ls -l "$RUNNER_TEMP/rom/baserom.bin"
+
+      - name: Identify ROM
+        if: steps.gate.outputs.enabled == 'true'
+        id: rom
+        run: python3 tools/web/identify_rom.py "$RUNNER_TEMP/rom/baserom.bin" --github-output
+
+      - name: Place base ROM
+        if: steps.gate.outputs.enabled == 'true'
+        run: cp "$RUNNER_TEMP/rom/baserom.bin" "baseroms/${{ steps.rom.outputs.version }}/baserom.z64"
+
+      - name: Setup (extract assets)
+        if: steps.gate.outputs.enabled == 'true'
+        run: make -j"$(nproc)" setup VERSION=${{ steps.rom.outputs.version }}
+
+      - name: Survey
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
+          npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/survey_scenes.py --version "$V" \
+            --scenes "${{ inputs.scenes }}" --out "$RUNNER_TEMP/survey" --render
+
+      - name: Upload survey
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: scene-survey
+          path: ${{ runner.temp }}/survey/
+          retention-days: 7
