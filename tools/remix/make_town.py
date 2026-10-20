@@ -107,10 +107,9 @@ BUILDINGS: list[dict] = [
     _kak("kakariko_watchtower", -60, 70, -180, -55, 190, 820, 19),
     # the town gate over the south road, where Link arrives
     _ll("town_gate", [2], None, at="south_road", scale=1.6, front=0.0),
-    # a gateway over the main street of the quarter on Link's left: the Colossus's stone arch, its legs either side
-    # (it is long along its z axis, so its x axis is turned to the plaza), between the ring road and the monoliths
-    dict(name="street_arch", scene="colossus", room="spot11_room_0", entries=[11], plot=None,
-         at=("street", 3, 1240), scale=0.85, front=math.pi / 2),
+    # a second Lon Lon arch over the main street of the quarter on Link's left, between the ring road and the
+    # monoliths (the Colossus's "arch" is a solid rock in the game's data, so it is not used)
+    _ll("street_arch", [2], None, at=("street", 3, 1320), scale=1.2, front=0.0),
 ]
 SINK = 12  # how far buildings sit into the ground, so no gap shows on uneven terrain
 

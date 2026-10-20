@@ -95,7 +95,7 @@ butterflies. What is new is the layout, the monument and the town around it.
 - **The town**: houses, a barn, sheds, silos, wells, a watchtower and a shop borrowed from Kakariko Village,
   Lon Lon Ranch and Kokiri Forest, plus Lake Hylia's lab and ruins, the Colossus's ruined walls and a Gerudo
   watchtower, restyled in the Plateau's stone and teal (roofs of teal slate, windows that glow), around the
-  plaza; a Lon Lon arch is the town gate on the road in and a Colossus arch spans one street. A dirt ring road
+  plaza; a Lon Lon arch is the town gate on the road in and a second one spans a street. A dirt ring road
   circles the plaza, a main street (with a torch at the corner) runs into each quarter and lanes lead to every
   front door; bushes, flower beds, pebbles and rocks from Hyrule Field line the houses and streets. Townspeople from the Market and
   Kakariko on the plaza and at their doors, the Market's haggling pair and dancing couple, a stroller and two dogs
