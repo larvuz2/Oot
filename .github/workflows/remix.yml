@@ -137,6 +137,29 @@ jobs:
           python3 tools/remix/link_level_assets.py --version ${{ steps.rom.outputs.version }} \
             || echo "::warning title=Ancient Plateau look::Could not read Hyrule Field's assets; the level uses its own textures."
 
+      - name: Build the new level's town from the game's buildings
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10" "shapely>=2.0"
+          if [ ! -d "$RUNNER_TEMP/pw/node_modules/playwright" ]; then
+            npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+            "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          fi
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/make_town.py --version "$V" --preview "$RUNNER_TEMP/town-preview" \
+            || echo "::warning title=Ancient Plateau town::make_town.py failed (see log); the level keeps its plain plaza."
+
+      - name: Upload town pictures
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: town-preview
+          path: ${{ runner.temp }}/town-preview/
+          retention-days: 7
+
       - name: Build ROM
         if: steps.gate.outputs.enabled == 'true'
         env:
@@ -144,6 +167,13 @@ jobs:
         run: |
           build() { make -j"$(nproc)" VERSION=$V REGION=${{ steps.rom.outputs.region }} COMPARE=0 ${{ vars.REMIX_MAKE_FLAGS }}; }
           if build; then md5sum build/$V/oot-$V.z64; exit 0; fi
+          A="build/$V/assets/scenes/remix/ancient"
+          if [ -f "$A/ancient_town.h" ]; then
+            # Never lose the build over the borrowed town: retry with the plain plaza.
+            echo "::warning title=Town dropped::The ROM did not build with the borrowed town; building without it."
+            rm -f "$A"/ancient_town* "$A"/*.o "build/$V/src/code/z_bgcheck.o"
+            if build; then md5sum build/$V/oot-$V.z64; exit 0; fi
+          fi
           HF_LINK="build/$V/assets/scenes/remix/ancient/ancient_hf.h"
           if [ -f "$HF_LINK" ]; then
             # Never lose the build over the borrowed Hyrule Field look: retry with the level's own textures.
@@ -186,6 +216,18 @@ jobs:
               print(f"::warning title=Ancient Plateau memory::Uses {(new - hf) // 1024} KB more than Hyrule Field; actors may run out of memory.")
           else:
               print(f"Ancient Plateau uses {(hf - new) // 1024} KB less than Hyrule Field.")
+          # Object space (1000 KB outside a few boss rooms, src/code/z_scene.c): the keep objects, adult Link and the
+          # room's object list are loaded one after another; retail builds do not check for overflow.
+          room = open("assets/scenes/remix/ancient/ancient_room_0.c").read()
+          objs = re.findall(r"^    (OBJECT_\w+),$", room.split("ObjectList[] = {", 1)[1].split("};", 1)[0], re.M)
+          names = ["gameplay_keep", "gameplay_field_keep", "object_link_boy"] + [o.lower() for o in objs]
+          sizes = {n: (size(n) + 15) // 16 * 16 if f"_{n}SegmentRomStart" in syms else None for n in names}
+          total = sum(v for v in sizes.values() if v)
+          print("Objects: " + ", ".join(f"{n} {v // 1024 if v else '?'} KB" for n, v in sizes.items()))
+          print(f"Object space: {total // 1024} KB of 1000 KB ({len(objs)} room objects + 3 always loaded, 19 slots)")
+          if total > 1000 * 1024 - 8 * 1024:
+              print(f"::error title=Ancient Plateau objects::{total // 1024} KB of objects do not fit in the 1000 KB object space.")
+              sys.exit(1)
           PY
 
       - name: Build Floating IPS
@@ -212,8 +254,10 @@ jobs:
         env:
           V: ${{ steps.rom.outputs.version }}
         run: |
-          npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
-          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          if [ ! -d "$RUNNER_TEMP/pw/node_modules/playwright" ]; then
+            npm install --silent --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+            "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
+          fi
           NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --elf "build/$V/oot-$V.elf" --out "$RUNNER_TEMP/smoke"
 
       - name: Upload smoke test screenshots

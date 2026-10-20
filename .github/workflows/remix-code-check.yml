@@ -112,3 +112,17 @@ jobs:
           # 17 light settings of 22 bytes come from the stand-in field, and the commands still come first
           mips-linux-gnu-nm -S build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q " 00000176 D ancient_sceneLightSettings"
           mips-linux-gnu-nm build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q "^00000000 D ancient_sceneCommands$"
+
+      - name: New level with a borrowed town (stand-in, no ROM) compiles
+        run: |
+          V=${{ matrix.version }}
+          python3 -m pip install --user --break-system-packages -q "shapely>=2.0"
+          python3 tools/remix/test_make_town.py
+          python3 tools/remix/test_make_town.py --build $V
+          A=build/$V/assets/scenes/remix/ancient
+          rm -f $A/ancient_scene.o $A/ancient_room_0.o build/$V/src/code/z_bgcheck.o
+          make -j"$(nproc)" VERSION=$V $A/ancient_scene.o $A/ancient_room_0.o build/$V/src/code/z_bgcheck.o
+          for f in scene:ancient_sceneCommands room_0:ancient_room_0Commands; do
+            mips-linux-gnu-nm $A/ancient_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$"
+          done
+          mips-linux-gnu-nm $A/ancient_room_0.o | grep -q " D ancient_town_0_opa$"
