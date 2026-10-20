@@ -17,6 +17,7 @@
 #include "player.h"
 #include "save.h"
 #include "line_numbers.h"
+#include "remix_level.h"
 
 #include "assets/scenes/indoors/miharigoya/miharigoya_scene.h"
 #include "assets/scenes/indoors/souko/souko_scene.h"
@@ -205,6 +206,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     Scene_DrawConfigFishingPond,                 // SDC_FISHING_POND
     Scene_DrawConfigGanonsTowerCollapseInterior, // SDC_GANONS_TOWER_COLLAPSE_INTERIOR
     Scene_DrawConfigInsideGanonsCastleCollapse,  // SDC_INSIDE_GANONS_CASTLE_COLLAPSE
+    RemixLevel_DrawConfigAncient,                // SDC_REMIX_ANCIENT
 };
 
 void Scene_Draw(PlayState* play) {
@@ -1771,6 +1773,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     Scene_DrawConfigFishingPond,                 // SDC_FISHING_POND
     Scene_DrawConfigGanonsTowerCollapseInterior, // SDC_GANONS_TOWER_COLLAPSE_INTERIOR
     Scene_DrawConfigInsideGanonsCastleCollapse,  // SDC_INSIDE_GANONS_CASTLE_COLLAPSE
+    RemixLevel_DrawConfigAncient,                // SDC_REMIX_ANCIENT
 };
 
 void Scene_Draw(PlayState* play) {

@@ -45,6 +45,7 @@ while it is open. Move with the D-pad or stick, **A** selects, **B** goes back, 
 
 | Option | What it does |
 |---|---|
+| **Go to: Ancient Plateau (NEW)** | Takes you to the new level built for this remix (see [The Ancient Plateau](#the-ancient-plateau-a-new-level)). |
 | **Warp anywhere (Map Select)** | Opens the developers' Map Select screen, which ships unused in every version of the game. Pick any area and press **A**. **B** switches child/adult, **Z**/**R** change the time of day / cutscene. Your current save and items carry over. |
 | **Fully equipped: ON/OFF** | ON gives every item, sword, shield, tunic, boots and upgrade, all medallions, songs and stones, 20 hearts with double defense, double magic and 500 rupees. OFF puts back exactly what you had. (If you save while it is ON, the full kit is saved.) |
 | **Spawn characters/objects** | Places an actor in front of Link. **FAVORITES** lists ~60 well-known enemies, bosses, characters and props by name (plus the custom 3D model); **ALL ACTORS** lists all 428 actors by their decomp name. Left/right picks (hold **R** to jump 10); **SPAWN!** places it, **PLAY AS!** makes you that character (see below); **Params** sets the actor's parameter value (hold **R** for ×0x10, **Z** for ×0x100). The 3D data the actor needs is loaded on the fly. |
@@ -70,6 +71,46 @@ Open the menu and choose **Stop playing as …** to go back to Link.
 Limits: the character's own AI still picks its animations (an enemy may play attack animations because
 "Link" is right on top of it), and its special moves (e.g. Epona's gallop) aren't mapped to your
 buttons. Bosses and story characters may misbehave outside their own scenes.
+
+### Skipping cutscenes
+
+In the remix build, press **D-pad Right** (keyboard **H**) during a cutscene to skip it. A cutscene that leads
+somewhere (the next scene, the next cutscene) jumps straight there; others just end. Skipping story scenes can
+skip what they set up, so save first. Holding **Space** fast-forwards instead.
+
+## The Ancient Plateau: a new level
+
+A whole new area, built the way the game's own levels are: an ancient-technology valley where stone merges
+with glowing Sheikah machinery.
+
+- **The field**: rolling grass with winding dirt paths, tech-rock boulders and broken stone pillars with glowing
+  bands, trees, bushes and rocks you can lift, butterflies, and two Beamos watching from the hills.
+- **The mountains**: a ring of snow-capped peaks that closes the valley.
+- **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
+  emblems, golden torches at each staircase, eight glowing monoliths around it and four Armos "guardians" on it.
+  Two of them wake up.
+- **The Ancient Spire**: a stepped pedestal and an engraved obelisk with glowing rune panels and orange light
+  slits, crowned by a ring that spins around a hovering crystal, with rock shards orbiting it. Two Gossip Stones
+  stand at its feet.
+
+It follows the time of day (sunrise, noon, sunset, night: the glow stands out at night) and has its own title
+card, music (Sheik's theme) and footstep sounds.
+
+How to get there:
+- On the site: **Jump into the new level** starts a test save as adult Link right there.
+- From your own save: Remix menu → **Go to: Ancient Plateau**.
+- In Map Select: the last entry, **NEW:ANCIENT PLATEAU**.
+
+How it's made: `tools/remix/make_level.py` builds the whole level procedurally from the textures in
+`tools/remix/biome_art/ancient/` (made with GPT Image): terrain, paths cut into it, mountains, plaza, Spire,
+props, collision, lighting, actors and the title card. It writes `assets/scenes/remix/ancient/`, which is
+committed and compiled like any scene. Moving and glowing parts are animated by the scene's draw config in
+`src/code/z_remix_level.c` (glow colors, flowing light, the ring, crystal and shards). Change the script and run
+`python3 tools/remix/make_level.py` (it needs `numpy`, `pillow` and `shapely`); add `--preview level.json` to
+dump the geometry for a quick three.js look.
+
+The remix build also boots the ROM in an emulator straight into the level and checks that it renders and keeps
+running (`tools/remix/smoke_test.py`); its log compares the level's memory use with Hyrule Field's.
 
 ## Character Studio: make your own character
 
@@ -225,6 +266,9 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `src/code/z_actor.c` (3 lines) | Lets "play as" draw instead of Link |
 | `web/studio.html`, `web/js/studio*.js`, `web/netlify/functions/studio.mjs` | Character Studio and its fal/GitHub backend |
 | `tools/remix/glb_to_oot.py`, `assets/remix_character/` | Animated GLB → N64 frames converter, and the current Studio character |
+| `tools/remix/make_level.py`, `assets/scenes/remix/ancient/`, `src/code/z_remix_level.c`, `include/remix_level.h` | The Ancient Plateau: level generator, generated level, its draw config and the boot-into-level switch. Registered in `include/tables/scene_table.h`, `entrance_table.h`, `include/scene.h` (draw config), `z_scene_table.c`, `z_bgcheck.c` (collision memory), Map Select and `z_title.c` |
+| `src/code/z_demo.c` (skip) | D-pad Right skips cutscenes |
+| `tools/remix/smoke_test.py`, `web/js/boot.js` | Emulator smoke test in CI; the site's "Jump into the new level" switch |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

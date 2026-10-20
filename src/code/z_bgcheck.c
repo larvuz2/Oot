@@ -1,3 +1,4 @@
+#include "assets/scenes/remix/ancient/ancient_scene.h"
 #include "libu64/debug.h"
 #include "array_count.h"
 #include "attributes.h"
@@ -1517,6 +1518,12 @@ s32 BgCheck_TryGetCustomMemsize(s32 sceneId, u32* memSize) {
         { SCENE_FIRE_TEMPLE, 0x198C8 },         { SCENE_GANONDORF_BOSS, 0x84C8 },
     };
     s32 i;
+
+    // Web Remix: the Ancient Plateau's collision memory, computed by tools/remix/make_level.py
+    if (sceneId == SCENE_REMIX_ANCIENT) {
+        *memSize = ANCIENT_SCENE_BGCHECK_MEMSIZE;
+        return true;
+    }
 
     for (i = 0; i < ARRAY_COUNT(sceneMemList); i++) {
         if (sceneId == sceneMemList[i].sceneId) {

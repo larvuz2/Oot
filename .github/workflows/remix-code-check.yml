@@ -10,6 +10,7 @@ on:
       - "src/**"
       - "include/**"
       - "assets/objects/object_remix_model/**"
+      - "assets/scenes/remix/**"
       - "spec/**"
       - "tools/remix/**"
       - ".github/workflows/remix-code-check.yml"
@@ -18,6 +19,7 @@ on:
       - "src/**"
       - "include/**"
       - "assets/objects/object_remix_model/**"
+      - "assets/scenes/remix/**"
       - "spec/**"
       - "tools/remix/**"
       - ".github/workflows/remix-code-check.yml"
@@ -53,6 +55,21 @@ jobs:
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
 
+      - name: New level (Ancient Plateau) and engine changes compile
+        run: |
+          V=${{ matrix.version }}
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/ancient/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V \
+            build/$V/assets/scenes/remix/ancient/ancient_scene.o \
+            build/$V/assets/scenes/remix/ancient/ancient_room_0.o \
+            build/$V/assets/scenes/remix/ancient/ancient_title.o \
+            build/$V/src/code/z_remix_level.o \
+            build/$V/src/code/z_bgcheck.o
+          # the title card holds one 144x24 IA8 image per language (2 on NTSC, 3 on PAL)
+          size=$(mips-linux-gnu-size -A build/$V/assets/scenes/remix/ancient/ancient_title.o | awk '$1==".data"{print $2}')
+          case "$V" in pal-*|gc-eu*) want=10368;; *) want=6912;; esac
+          [ "$size" = "$want" ] || { echo "title card is $size bytes, expected $want"; exit 1; }
+
       - name: Biome copy (stand-in scene, no ROM) compiles
         run: |
           python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
@@ -68,6 +85,8 @@ jobs:
             build/${{ matrix.version }}/assets/scenes/remix/tundra/tundra_room_0.o \
             build/${{ matrix.version }}/spec
           grep -q '"tundra_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"ancient_room_0"' build/${{ matrix.version }}/spec
+          grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.
           B=build/${{ matrix.version }}/assets/scenes
           dup=$(comm -12 <(mips-linux-gnu-nm --defined-only -g $B/overworld/spot00/*.o | awk '{print $3}' | sort -u) \

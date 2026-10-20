@@ -603,6 +603,11 @@ void CutsceneCmd_SetTime(UNUSED PlayState* play, CutsceneContext* csCtx, CsCmdTi
     }
 }
 
+// Web Remix: set when the player presses the skip button (D-pad Right) during a scripted cutscene.
+// CutsceneCmd_Destination then jumps straight to where the cutscene leads; scripts without a
+// destination are simply stopped (see CutsceneHandler_RunScript).
+static s32 sRemixCutsceneSkip = false;
+
 void CutsceneCmd_Destination(PlayState* play, CutsceneContext* csCtx, CsCmdDestination* cmd) {
     Player* player = GET_PLAYER(play);
     s32 titleDemoSkipped = false;
@@ -617,9 +622,10 @@ void CutsceneCmd_Destination(PlayState* play, CutsceneContext* csCtx, CsCmdDesti
         titleDemoSkipped = true;
     }
 
-    if ((csCtx->curFrame == cmd->startFrame) || titleDemoSkipped ||
+    if ((csCtx->curFrame == cmd->startFrame) || titleDemoSkipped || sRemixCutsceneSkip ||
         (DEBUG_FEATURES && (csCtx->curFrame > 20) && CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
          (gSaveContext.fileNum != 0xFEDC))) {
+        sRemixCutsceneSkip = false;
         csCtx->state = CS_STATE_RUN_UNSTOPPABLE;
         Audio_SetCutsceneFlag(0);
         gSaveContext.cutsceneTransitionControl = 1;
@@ -1855,6 +1861,13 @@ void Cutscene_ProcessScript(PlayState* play, CutsceneContext* csCtx, u8* script)
     }
 #endif
 
+    // Web Remix: D-pad Right skips the cutscene.
+    if ((csCtx->curFrame > 20) && (csCtx->state == CS_STATE_RUN) &&
+        CHECK_BTN_ALL(play->state.input[0].press.button, BTN_DRIGHT) &&
+        (play->transitionTrigger == TRANS_TRIGGER_OFF) && (gSaveContext.gameMode == GAMEMODE_NORMAL)) {
+        sRemixCutsceneSkip = true;
+    }
+
     for (i = 0; i < totalEntries; i++) {
         MemCopy(&cmdType, script, sizeof(cmdType));
         script += sizeof(cmdType);
@@ -2291,6 +2304,14 @@ void CutsceneHandler_RunScript(PlayState* play, CutsceneContext* csCtx) {
 #else
         Cutscene_ProcessScript(play, csCtx, play->csCtx.script);
 #endif
+
+        // Web Remix: the skip button was pressed but the script has no destination: just end it.
+        if (sRemixCutsceneSkip) {
+            sRemixCutsceneSkip = false;
+            if (csCtx->state == CS_STATE_RUN) {
+                csCtx->state = CS_STATE_STOP;
+            }
+        }
     }
 }
 

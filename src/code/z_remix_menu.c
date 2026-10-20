@@ -2,6 +2,7 @@
  * File: z_remix_menu.c
  * Description: Web Remix in-game menu. Press D-pad Up during gameplay to open it
  * (the D-pad is unused in normal play; L would clash with the minimap toggle):
+ *   - Go to the Ancient Plateau: the new level (z_remix_level.c, tools/remix/make_level.py).
  *   - Warp anywhere: opens the developers' Map Select screen.
  *   - Fully equipped: toggles a complete inventory on/off (your own items come back when off).
  *   - Spawn: places any actor (enemy, character, object, or the custom 3D model) in front of Link,
@@ -15,6 +16,7 @@
  */
 
 #include "remix_menu.h"
+#include "remix_level.h"
 
 #include "libu64/gfxprint.h"
 #include "array_count.h"
@@ -77,6 +79,7 @@ typedef enum RemixPage {
 } RemixPage;
 
 typedef enum RemixMainRow {
+    REMIX_MAIN_ANCIENT,
     REMIX_MAIN_WARP,
     REMIX_MAIN_EQUIP,
     REMIX_MAIN_SPAWN,
@@ -776,6 +779,11 @@ static void RemixMenu_UpdateMain(PlayState* play, Input* input, s32 dir) {
     }
 
     switch (sRemix.cursor) {
+        case REMIX_MAIN_ANCIENT:
+            RemixMenu_Close();
+            RemixLevel_GoToAncient(play);
+            break;
+
         case REMIX_MAIN_WARP:
             RemixMenu_Close();
             gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -976,9 +984,13 @@ static void RemixMenu_PrintRow(GfxPrint* printer, s32 row, s32 selected, const c
 }
 
 static void RemixMenu_PrintMain(GfxPrint* printer) {
-    static const char* sRows[] = {
-        "Warp anywhere (Map Select)", NULL, "Spawn characters/objects", NULL, NULL, "Close"
-    };
+    static const char* sRows[] = { "Go to: Ancient Plateau (NEW)",
+                                   "Warp anywhere (Map Select)",
+                                   NULL,
+                                   "Spawn characters/objects",
+                                   NULL,
+                                   NULL,
+                                   "Close" };
     s32 i;
 
     GfxPrint_SetPos(printer, REMIX_COL, REMIX_ROW);

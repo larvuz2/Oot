@@ -4,6 +4,7 @@
  * Description: Displays the Nintendo Logo
  */
 
+#include "remix_level.h"
 #include "libu64/gfxprint.h"
 #if PLATFORM_N64
 #include "cic6105.h"
@@ -187,12 +188,17 @@ void ConsoleLogo_Main(GameState* thisx) {
     this->exit = true;
 #endif
 
-    if (this->exit) {
+    if (this->exit || RemixBoot_IsRequested()) {
         gSaveContext.seqId = (u8)NA_BGM_DISABLED;
         gSaveContext.natureAmbienceId = 0xFF;
         gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
         this->state.running = false;
-        SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, TitleSetupState);
+        if (RemixBoot_IsRequested()) {
+            // Web Remix: the website asked to start straight in the new level (remix_level.h)
+            RemixBoot_Start(&this->state);
+        } else {
+            SET_NEXT_GAMESTATE(&this->state, TitleSetup_Init, TitleSetupState);
+        }
     }
 
     CLOSE_DISPS(this->state.gfxCtx, "../z_title.c", 541);

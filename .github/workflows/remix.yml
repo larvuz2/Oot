@@ -127,6 +127,30 @@ jobs:
           fi
           md5sum build/$V/oot-$V.z64
 
+      - name: Compare the new level's memory use with Hyrule Field
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          python3 - "build/$V/oot-$V.elf" <<'PY'
+          import subprocess, sys, re
+          syms = {}
+          for line in subprocess.run(["mips-linux-gnu-nm", sys.argv[1]], capture_output=True, text=True).stdout.splitlines():
+              parts = line.split()
+              if len(parts) == 3 and parts[2].endswith(("SegmentRomStart", "SegmentRomEnd")):
+                  syms[parts[2]] = int(parts[0], 16)
+          def size(seg):
+              return syms[f"_{seg}SegmentRomEnd"] - syms[f"_{seg}SegmentRomStart"]
+          hdr = open("assets/scenes/remix/ancient/ancient_scene.h").read()
+          col = int(re.search(r"ANCIENT_SCENE_BGCHECK_MEMSIZE (0x[0-9A-Fa-f]+)", hdr).group(1), 16)
+          hf = size("spot00_scene") + size("spot00_room_0") + 0xB798
+          new = size("ancient_scene") + size("ancient_room_0") + col
+          print(f"Hyrule Field: scene {size('spot00_scene') // 1024} KB, room {size('spot00_room_0') // 1024} KB, collision 45 KB -> {hf // 1024} KB")
+          print(f"Ancient Plateau: scene {size('ancient_scene') // 1024} KB, room {size('ancient_room_0') // 1024} KB, collision {col // 1024} KB -> {new // 1024} KB")
+          if new > hf + 48 * 1024:
+              print(f"::warning title=Ancient Plateau memory::Uses {(new - hf) // 1024} KB more than Hyrule Field; actors may run out of memory.")
+          PY
+
       - name: Build Floating IPS
         if: steps.gate.outputs.enabled == 'true'
         run: |
@@ -143,6 +167,25 @@ jobs:
             --target build/${{ steps.rom.outputs.version }}/oot-${{ steps.rom.outputs.version }}.z64 \
             --flips "$RUNNER_TEMP/flips/flips" \
             --title "${{ vars.REMIX_TITLE || 'Remix' }}"
+
+      - name: Smoke test the new level in an emulator
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          V: ${{ steps.rom.outputs.version }}
+        run: |
+          sudo apt-get install -y -q mupen64plus-ui-console mupen64plus-rsp-hle mupen64plus-video-glide64mk2 xvfb libgl1-mesa-dri >/dev/null
+          python3 tools/remix/smoke_test.py --rom "build/$V/oot-$V.z64" --out "$RUNNER_TEMP/smoke"
+
+      - name: Upload smoke test screenshots
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: smoke-screenshots
+          path: ${{ runner.temp }}/smoke/*.png
+          retention-days: 3
 
       - name: Upload patch artifact
         if: steps.gate.outputs.enabled == 'true'

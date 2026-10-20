@@ -260,7 +260,7 @@ typedef BAD_RETURN(s32) (*SceneCmdHandlerFunc)(struct PlayState*, SceneCmd*);
 
 typedef enum SceneID {
     #include "tables/scene_table.h"
-    /* 0x6E */ SCENE_ID_MAX
+    SCENE_ID_MAX
 } SceneID;
 
 #undef DEFINE_SCENE
@@ -306,7 +306,7 @@ typedef struct EntranceInfo {
 
 typedef enum EntranceIndex {
     #include "tables/entrance_table.h"
-    /* 0x614 */ ENTR_MAX
+    /* 0x618 */ ENTR_MAX
 } EntranceIndex;
 
 #undef DEFINE_ENTRANCE
@@ -377,7 +377,8 @@ typedef enum SceneDrawConfig {
     /* 50 */ SDC_FISHING_POND,
     /* 51 */ SDC_GANONS_TOWER_COLLAPSE_INTERIOR,
     /* 52 */ SDC_INSIDE_GANONS_CASTLE_COLLAPSE,
-    /* 53 */ SDC_MAX
+    /* 53 */ SDC_REMIX_ANCIENT, // Web Remix: the Ancient Plateau (z_remix_level.c)
+    /* 54 */ SDC_MAX
 } SceneDrawConfig;
 
 typedef void (*SceneDrawConfigFunc)(struct PlayState*);
