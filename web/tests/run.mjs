@@ -14,6 +14,7 @@ import { n64Checksum } from "../js/n64crc.js";
 import { applyBps } from "../js/bps.js";
 import { decompressRom, toBigEndian } from "../js/rom.js";
 import { parseEnhance, rigOutputs, rigInput, imagesInput, isFalMediaUrl, isFalQueueUrl } from "../js/studio-pipeline.js";
+import { findBootConfig, setBootMode, BOOT_ANCIENT_PLATEAU } from "../js/boot.js";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -90,6 +91,19 @@ for (const r of manifest.roms) {
     const r = rigOutputs({ rigged_character_glb: { url: "r" }, animations: [{ animation_glb: { url: "i" } }, { animation_glb: { url: "w" } }] });
     check("studio rigOutputs", r.idleGlb === "i" && r.walkGlb === "w" && r.riggedGlb === "r");
     check("studio url checks", isFalMediaUrl("https://v3b.fal.media/x.glb") && !isFalMediaUrl("https://evil.com/x") && isFalQueueUrl("https://queue.fal.run/a") && !isFalQueueUrl("http://queue.fal.run/a"));
+}
+
+// "Jump into the new level" boot switch.
+{
+    const rom = new Uint8Array(0x40000);
+    const magic = new TextEncoder().encode("RMXBOOT1");
+    rom.set([0x52, 0x4d, 0x58], 0x2000); // a false start
+    rom.set(magic, 0x2f3f8);
+    check("boot config found", findBootConfig(rom) === 0x2f3f8);
+    check("boot mode set", setBootMode(rom, BOOT_ANCIENT_PLATEAU) && rom[0x2f3f8 + 8] === 1 && rom[0x2f3f8 + 7] === 0x31);
+    const header = new Uint8Array(0x2000);
+    header.set(magic, 0x10); // inside the ROM header area: ignored
+    check("boot config ignores the header", findBootConfig(header) === -1 && !setBootMode(header, 1));
 }
 
 if (failures) {

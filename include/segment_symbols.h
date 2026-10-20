@@ -685,4 +685,8 @@ DECLARE_ROM_SEGMENT(testroom_room_4)
 DECLARE_ROM_SEGMENT(tundra_scene)
 DECLARE_ROM_SEGMENT(tundra_room_0)
 
+// Web Remix new level: the Ancient Plateau (spec/remix_scenes.inc, tools/remix/make_level.py)
+DECLARE_ROM_SEGMENT(ancient_scene)
+DECLARE_ROM_SEGMENT(ancient_room_0)
+
 #endif

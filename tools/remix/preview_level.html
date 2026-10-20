@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><!-- Preview of the Ancient Plateau outside the game. Usage: python3 tools/remix/make_level.py --preview level.json, copy
+     assets/scenes/remix/ancient/*.png next to it, serve the folder and open preview_level.html?cam=x,y,z,tx,ty,tz&time=day|dusk|night --><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script>
+const params = new URLSearchParams(location.search);
+const W = 1280, H = 720;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const TIMES = {
+  day:  { amb: [108,108,116], sun: [255,248,232], fog: [170,198,218], sky: ["#5d8fd8", "#bcd6ea"], dir: [0.55, 0.62, 0.55] },
+  dusk: { amb: [100,72,84], sun: [255,152,96], fog: [196,124,104], sky: ["#3b3a6e", "#e0906a"], dir: [-0.8, 0.25, 0.3] },
+  night:{ amb: [44,50,82], sun: [66,78,132], fog: [24,30,58], sky: ["#070b1c", "#1a2348"], dir: [0.3, 0.8, -0.4] },
+};
+const T = TIMES[params.get("time") || "day"];
+const c3 = (a) => new THREE.Color(a[0]/255, a[1]/255, a[2]/255);
+scene.fog = new THREE.Fog(c3(T.fog), 2400, 14000);
+document.body.style.background = `linear-gradient(${T.sky[0]}, ${T.sky[1]})`;
+renderer.setClearColor(c3(T.fog), 1);
+scene.add(new THREE.AmbientLight(c3(T.amb), 1.0));
+const sun = new THREE.DirectionalLight(c3(T.sun), 1.0); sun.position.set(...T.dir); scene.add(sun);
+// sky dome with gradient
+const skyGeo = new THREE.SphereGeometry(30000, 32, 16);
+const skyCols = []; const skyTop = new THREE.Color(T.sky[0]), skyBot = new THREE.Color(T.sky[1]);
+for (let i = 0; i < skyGeo.attributes.position.count; i++) { const y = skyGeo.attributes.position.getY(i) / 30000; const c = skyBot.clone().lerp(skyTop, Math.max(0, Math.min(1, y * 2.2))); skyCols.push(c.r, c.g, c.b); }
+skyGeo.setAttribute("color", new THREE.Float32BufferAttribute(skyCols, 3));
+scene.add(new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
+const loader = new THREE.TextureLoader();
+const texCache = {};
+function tex(name, clampT) {
+  const k = name + clampT; if (texCache[k]) return texCache[k];
+  const t = loader.load(name); t.wrapS = THREE.RepeatWrapping; t.wrapT = clampT ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return (texCache[k] = t);
+}
+fetch("level.json").then(r => r.json()).then(data => {
+  for (const m of data.meshes) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(m.pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(m.uv.map((v, i) => i % 2 ? 1 - v : v), 2));
+    let mat;
+    if (m.xlu) {
+      const col = m.glow === "cyan" ? new THREE.Color(70/255, 235/255, 1) : new THREE.Color(1, 150/255, 40/255);
+      mat = new THREE.MeshBasicMaterial({ color: col, alphaMap: tex(m.tex, m.clampT), transparent: true, depthWrite: false, opacity: 0.85 });
+    } else if (m.lit) {
+      g.setAttribute("normal", new THREE.Float32BufferAttribute(m.nc, 3));
+      mat = new THREE.MeshLambertMaterial({ color: c3(m.prim), map: m.tex ? tex(m.tex, false) : null });
+    } else {
+      g.setAttribute("color", new THREE.Float32BufferAttribute(m.nc, 3));
+      mat = new THREE.MeshBasicMaterial({ vertexColors: true, map: m.tex ? tex(m.tex, false) : null });
+    }
+    scene.add(new THREE.Mesh(g, mat));
+  }
+  // actor markers (the game draws real models here)
+  const markerCols = { ACTOR_OBJ_SYOKUDAI: 0xffb040, ACTOR_EN_AM: 0x8a7a6a, ACTOR_EN_GS: 0x9a9aa8, ACTOR_EN_VM: 0x5a5a66, ACTOR_EN_WOOD02: 0x2f7a2a, ACTOR_EN_KUSA: 0x3f9a35, ACTOR_EN_ISHI: 0x9a948a, ACTOR_EN_BUTTE: 0xffffff };
+  const markerSize = { ACTOR_OBJ_SYOKUDAI: [14, 90], ACTOR_EN_AM: [28, 90], ACTOR_EN_GS: [26, 70], ACTOR_EN_VM: [30, 120], ACTOR_EN_WOOD02: [70, 300], ACTOR_EN_KUSA: [26, 28], ACTOR_EN_ISHI: [18, 16], ACTOR_EN_BUTTE: [4, 4] };
+  if (params.get("markers") !== "0") for (const [id, x, y, z] of data.actors) {
+    const [r, h] = markerSize[id] || [10, 30];
+    const geo = id === "ACTOR_EN_WOOD02" ? new THREE.ConeGeometry(r, h, 8) : new THREE.CylinderGeometry(r * 0.8, r, h, 8);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: markerCols[id] || 0xff00ff }));
+    mesh.position.set(x, y + h / 2, z); scene.add(mesh);
+  }
+  const cam = new THREE.PerspectiveCamera(Number(params.get("fov") || 60), W / H, 20, 40000);
+  const [ex, ey, ez, tx, ty, tz] = (params.get("cam") || "0,300,3700,0,400,0").split(",").map(Number);
+  cam.position.set(ex, ey, ez); cam.lookAt(tx, ty, tz);
+  THREE.DefaultLoadingManager.onLoad = () => { renderer.render(scene, cam); document.title = "ready"; };
+  setTimeout(() => { renderer.render(scene, cam); document.title = "ready"; }, 2500);
+});
+</script></body></html>

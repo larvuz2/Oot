@@ -1,6 +1,7 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
+import { setBootMode, BOOT_ANCIENT_PLATEAU } from "./boot.js";
 
 const $ = (id) => document.getElementById(id);
 const setState = (s) => (document.body.dataset.state = s);
@@ -76,6 +77,8 @@ function renderReady() {
     $("rom-detail").textContent = `${name} · decomp version ${version.version}`;
 
     const patch = manifest.patches.find((p) => p.sourceMd5 === version.decompressedMd5);
+    $("play-level").hidden = !patch;
+    $("play-level-note").hidden = !patch;
     const modes = $("modes");
     const options = [];
     if (patch) {
@@ -332,8 +335,8 @@ function startEmulator(bytes, gameName, meta = {}) {
     $("game").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function play(forcedMode) {
-    const mode = (typeof forcedMode === "string" && forcedMode) || document.querySelector('input[name="mode"]:checked')?.value || "original";
+async function play(forcedMode, { newLevel = false } = {}) {
+    const mode = newLevel ? "remix" : (typeof forcedMode === "string" && forcedMode) || document.querySelector('input[name="mode"]:checked')?.value || "original";
     const core = $("core").value;
     setPreferredCore(core);
     try {
@@ -348,7 +351,15 @@ async function play(forcedMode) {
             const source = rom.decompressed.slice();
             bytes = await call({ cmd: "patch", source: source.buffer, patch: patchBytes, targetMd5: patch.targetMd5 }, [source.buffer, patchBytes]);
         }
-        startEmulator(bytes, `oot-${rom.version.version}-${rom.version.region}-${mode}`, { core, mode, version: rom.version.label });
+        let gameName = `oot-${rom.version.version}-${rom.version.region}-${mode}`;
+        if (newLevel) {
+            if (!setBootMode(bytes, BOOT_ANCIENT_PLATEAU)) {
+                throw new Error("This remix build doesn't include the new level yet. Wait for the next remix build and reload.");
+            }
+            // A test save: keep it apart from your real remix saves.
+            gameName += "-newlevel";
+        }
+        startEmulator(bytes, gameName, { core, mode, version: rom.version.label });
     } catch (err) {
         fail(err);
     }
@@ -393,6 +404,7 @@ $("forget").addEventListener("click", async () => {
     setState("empty");
 });
 $("play").addEventListener("click", () => play());
+$("play-level").addEventListener("click", () => play("remix", { newLevel: true }));
 $("crash-restart").addEventListener("click", () => restart(session.core));
 $("crash-copy").addEventListener("click", async () => {
     const text = diagnostics();
