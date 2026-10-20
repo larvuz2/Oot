@@ -29,12 +29,48 @@ MAGIC = b"RMXBOOT1"
 SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 
-def set_boot_flag(rom: bytearray) -> int:
+BOOT_ANCIENT, BOOT_HYRULE_FIELD = 1, 2  # include/remix_level.h
+
+
+def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
     i = rom.find(MAGIC)
     if i < 0:
         raise SystemExit("smoke: RMXBOOT1 not found in the ROM (built without z_remix_level.c?)")
-    rom[i + 8] = 1
+    rom[i + 8] = mode
     return i
+
+
+def capture(rom: bytes, out: Path, frames, core: str, timeout: int, walk_after=None) -> dict:
+    """Run the ROM in the website's player (smoke_capture.mjs); returns its capture.json."""
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "rom.z64").write_bytes(rom)
+    cmd = ["node", str(HERE / "smoke_capture.mjs"), "--rom", str(out / "rom.z64"), "--out", str(out),
+           "--frames", ",".join(map(str, frames)), "--walk-after", str(walk_after or 10**9), "--timeout", str(timeout),
+           "--core", core]
+    try:
+        p = subprocess.run(cmd, timeout=timeout + 60, capture_output=True, text=True)
+        print((p.stdout + p.stderr).rstrip())
+    except subprocess.TimeoutExpired:
+        print("smoke: the capture script hung")
+    (out / "rom.z64").unlink(missing_ok=True)
+    f = out / "capture.json"
+    cap = json.loads(f.read_text()) if f.exists() else {}
+    if cap.get("crash"):
+        print(f"smoke: CRASH reported by the player in {core}: {cap['crash']}")
+    if cap.get("crash") or len(cap.get("shots", [])) < len(frames):
+        print(f"smoke: reached frame {cap.get('frames')}; last browser log lines:")
+        for line in [x for x in cap.get("log", []) if "Translation not found" not in x][-15:]:
+            print("  | " + line)
+    return cap
+
+
+def describe(name: str, cap: dict):
+    for shot in cap.get("shots", []):
+        img = Image.open(shot["file"]).convert("RGB")
+        colors = len(img.resize((160, 120)).getcolors(160 * 120) or [])
+        print(f"smoke: {name} frame {shot['frame']}: mean={tuple(round(c) for c in ImageStat.Stat(img).mean)} "
+              f"colors={colors}{' BLANK' if colors < 12 else ''}")
+        print(f"smoke-thumb {name}-{shot['frame']} 48x27 " + img.resize((48, 27), Image.BILINEAR).tobytes().hex())
 
 
 EXC = {0: "interrupt", 1: "TLB mod", 2: "TLB load miss", 3: "TLB store miss", 4: "address error (load)",
@@ -124,7 +160,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rom", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--timeout", type=int, default=480, help="seconds for the whole run")
+    ap.add_argument("--timeout", type=int, default=300, help="seconds per emulator run")
     ap.add_argument("--no-boot-flag", action="store_true", help="run the ROM as is (to test the harness itself)")
     ap.add_argument("--elf", type=Path, help="the ROM's ELF: report the game's threads from the emulator state")
     args = ap.parse_args()
@@ -136,31 +172,14 @@ def main():
     if not args.no_boot_flag:
         at = set_boot_flag(rom)
         print(f"smoke: boot flag set at ROM offset 0x{at:X}")
-    (out / "boot.z64").write_bytes(rom)
 
-    # The website ships two N64 cores; like a player would, try the other one if the first crashes.
+    # The website ships two N64 cores; like a player would, try the other one if the first fails.
     cap = {}
     for core in ("mupen64plus_next", "parallel_n64"):
         print(f"smoke: running in {core}")
-        cmd = ["node", str(HERE / "smoke_capture.mjs"), "--rom", str(out / "boot.z64"), "--out", str(out / core),
-               "--frames", ",".join(map(str, SHOTS)), "--walk-after", str(SHOTS[1]), "--timeout", str(args.timeout),
-               "--core", core]
-        try:
-            p = subprocess.run(cmd, timeout=args.timeout + 60, capture_output=True, text=True)
-            print((p.stdout + p.stderr).rstrip())
-        except subprocess.TimeoutExpired:
-            print("smoke: the capture script hung")
-        f = out / core / "capture.json"
-        cap = json.loads(f.read_text()) if f.exists() else {}
-        if cap.get("crash"):
-            print(f"smoke: CRASH reported by the player in {core}: {cap['crash']}")
-        if cap.get("crash") or len(cap.get("shots", [])) < len(SHOTS):
-            print(f"smoke: reached frame {cap.get('frames')}; last browser log lines:")
-            for line in [x for x in cap.get("log", []) if "Translation not found" not in x][-25:]:
-                print("  | " + line)
-        if not cap.get("crash"):
+        cap = capture(bytes(rom), out / core, SHOTS, core, args.timeout, walk_after=SHOTS[1])
+        if not cap.get("crash") and len(cap.get("shots", [])) == len(SHOTS):
             break
-    (out / "boot.z64").unlink(missing_ok=True)
 
     shots = [Path(s["file"]) for s in cap.get("shots", [])]
     print(f"smoke: {len(shots)} screenshot(s)")
@@ -196,20 +215,16 @@ def main():
                 except Exception as e:  # diagnostics only
                     print(f"smoke:   could not read them ({e})")
     if not ok and not args.no_boot_flag:
-        # Control run: the same ROM booting normally (N64 logo, title screen). Pictures there but not in the level
-        # means the level boot is at fault; none there either means the emulator setup is.
-        print("smoke: control run without the boot flag:")
-        (out / "control.z64").write_bytes(args.rom.read_bytes())
-        p = subprocess.run(["node", str(HERE / "smoke_capture.mjs"), "--rom", str(out / "control.z64"), "--out",
-                            str(out / "control"), "--frames", "300,700", "--walk-after", "99999", "--timeout", "240"],
-                           capture_output=True, text=True)
-        print((p.stdout + p.stderr).rstrip())
-        (out / "control.z64").unlink(missing_ok=True)
-        for f in sorted((out / "control").glob("shot-*.png")):
-            img = Image.open(f).convert("RGB")
-            colors = len(img.resize((160, 120)).getcolors(160 * 120) or [])
-            print(f"smoke: control {f.name} mean={tuple(round(c) for c in ImageStat.Stat(img).mean)} colors={colors}")
-            print(f"smoke-thumb control-{f.stem} 48x27 " + img.resize((48, 27), Image.BILINEAR).tobytes().hex())
+        # Controls: the same quick boot into Hyrule Field, and a normal boot (N64 logo, title screen). If those
+        # show pictures and the new level does not, the level is at fault.
+        print("smoke: control 1: the same quick boot into Hyrule Field")
+        hf = bytearray(args.rom.read_bytes())
+        set_boot_flag(hf, BOOT_HYRULE_FIELD)
+        describe("control-hyrule-field", capture(bytes(hf), out / "control-hyrule-field", [400, 900],
+                                                 "mupen64plus_next", 240))
+        print("smoke: control 2: normal boot")
+        describe("control-normal", capture(args.rom.read_bytes(), out / "control-normal", [300, 700],
+                                           "mupen64plus_next", 240))
     for f in out.rglob("state-*.bin"):
         f.unlink()
     print("smoke: PASS" if ok else "smoke: FAIL")

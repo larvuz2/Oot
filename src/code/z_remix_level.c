@@ -113,6 +113,8 @@ s32 RemixBoot_IsRequested(void) {
  * in the morning.
  */
 void RemixBoot_Start(GameState* gameState) {
+    s32 mode = gRemixBootConfig.mode;
+
     gRemixBootConfig.mode = 0;
 
     gSaveContext.fileNum = 0xFF;
@@ -134,7 +136,8 @@ void RemixBoot_Start(GameState* gameState) {
     gSaveContext.forceRisingButtonAlphas = gSaveContext.nextHudVisibilityMode = gSaveContext.hudVisibilityMode =
         gSaveContext.hudVisibilityModeTimer = 0;
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0);
-    gSaveContext.save.entranceIndex = ENTR_REMIX_ANCIENT_0;
+    // Mode 2 (Hyrule Field) is for tests: the same quick boot into a level of the original game.
+    gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0 : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;

@@ -95,10 +95,21 @@ try {
 
     const t0 = Date.now();
     let walking = false;
+    let lastFrame = -2;
+    let lastChange = Date.now();
     for (const target of frames) {
         for (;;) {
             const n = await frameNum();
             result.frames = Math.max(result.frames, n);
+            if (n !== lastFrame) {
+                lastFrame = n;
+                lastChange = Date.now();
+            } else if (n > 0 && Date.now() - lastChange > 45000) {
+                result.crash = `the emulator stopped at frame ${n} (no new frame for 45 s)`;
+                console.log(`capture: ${result.crash}`);
+                clearTimeout(watchdog);
+                await finish(1);
+            }
             const c = await crashed();
             if (c) {
                 result.crash = c;

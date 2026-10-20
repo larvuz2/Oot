@@ -39,10 +39,10 @@ GEO_RE = re.compile(r"gsSP(Set|Clear|Load)GeometryMode\(([^)]*)\)")
 TEXLOAD_RE = re.compile(r"gsDPLoadTextureBlock(?:_4b)?\(\s*(\w+)\s*,")
 MULTI_RE = re.compile(r"gsDPLoadMultiBlock(?:_4b)?\(\s*(\w+)\s*,\s*\w+\s*,\s*(\w+)\s*,")
 SETTIMG_RE = re.compile(r"gsDPSetTextureImage\([^,]+,[^,]+,[^,]+,\s*(\w+)\s*\)")
-VERTEX_RE = re.compile(r"gsSPVertex\(\s*&?(\w+)(?:\[(\d+)\])?\s*,\s*(\d+)\s*,\s*(\d+)\s*\)")
+VERTEX_RE = re.compile(r"gsSPVertex\((.*)\)")
 TRI1_RE = re.compile(r"gsSP1Triangle\(\s*(\d+),\s*(\d+),\s*(\d+)")
 TRI2_RE = re.compile(r"gsSP2Triangles\(\s*(\d+),\s*(\d+),\s*(\d+),\s*\d+,\s*(\d+),\s*(\d+),\s*(\d+)")
-LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(\s*(\w+)\s*,\s*(\w+)\s*\)")
+LIGHTS_CMD_RE = re.compile(r"SCENE_CMD_ENV_LIGHT_SETTINGS\(([^\n]*),[ \t]*&?\(?[ \t]*(\w+)[^,\n]*\)")
 
 
 GEO2_RE = re.compile(r"gsSPGeometryMode\(([^,]*),([^)]*)\)")
@@ -55,6 +55,26 @@ TEX_SIZE = (32, 32)  # the level's grass, dirt and rock materials (tools/remix/m
 
 def num(s):
     return int(s, 0)
+
+
+def expr(s: str) -> int:
+    """Value of a small integer expression from the extracted sources (`12`, `0x1E`, `3 * 32`...)."""
+    s = s.strip()
+    if not re.fullmatch(r"[0-9a-fA-FxX+\-*/() ]+", s):
+        raise ValueError(s)
+    return int(eval(re.sub(r"\b0[xX][0-9a-fA-F]+\b", lambda m: str(int(m.group(0), 16)), s).replace("/", "//")))
+
+
+def parse_vertex(args: str):
+    """`&sym[index], count, v0` (or `sym`, `sym + index`) -> (sym, index, count, v0), or None."""
+    parts = [p.strip() for p in args.split(",")]
+    if len(parts) != 3:
+        return None
+    m = re.fullmatch(r"&?\s*\(?\s*(\w+)\s*(?:\[([^\]]+)\])?\s*(?:\+\s*([^)]+))?\)?", parts[0])
+    try:
+        return m.group(1), expr(m.group(2) or m.group(3) or "0"), expr(parts[1]), expr(parts[2])
+    except (AttributeError, ValueError, SyntaxError):
+        return None
 
 
 class Field:
@@ -178,12 +198,18 @@ def texture_usage(field: Field, arrays, stats=None):
                 continue
             m = VERTEX_RE.search(line)
             if m:
-                arr = arrays.get(m.group(1))
+                v = parse_vertex(m.group(1))
+                if v is None:
+                    count("vertex loads not understood")
+                    stats.setdefault("samples", []).append(line.strip()[:120])
+                    st.slots = [None] * 64
+                    continue
+                vsym, start, n, v0 = v
+                arr = arrays.get(vsym)
                 count("vertex loads")
                 if arr is None:
                     count("vertex loads from unknown arrays")
-                start = int(m.group(2) or 0)
-                n, v0 = int(m.group(3)), int(m.group(4))
+                    stats.setdefault("samples", []).append(line.strip()[:120])
                 for k in range(n):
                     if v0 + k < len(st.slots):
                         ok = arr is not None and start + k < len(arr[0])
@@ -331,8 +357,11 @@ def main():
     for t, _ in field.defs.values():
         types[t] = types.get(t, 0) + 1
     macros = stats.pop("macros", {})
+    samples = stats.pop("samples", [])
     print(f"link_level_assets: definitions by type: {types}; {len(arrays)} vertex arrays read")
     print(f"link_level_assets: replay: {stats}; {len(usage)} textures drawn on triangles")
+    for line in samples[:3]:
+        print(f"link_level_assets:   e.g. {line}")
     print("link_level_assets: display list commands: "
           + ", ".join(f"{k} {v}" for k, v in sorted(macros.items(), key=lambda kv: -kv[1])))
     cands = candidates(field, usage)
@@ -346,6 +375,10 @@ def main():
     lights = find_lights(field)
     n_cmds = len(field.of_type("SceneCmd"))
     n_light_cmds = sum(len(LIGHTS_CMD_RE.findall(field.text(c))) for c in field.of_type("SceneCmd"))
+    if not n_light_cmds:
+        for c in field.of_type("SceneCmd")[:2]:
+            lines = [ln.strip()[:100] for ln in field.text(c).splitlines() if "LIGHT" in ln]
+            print(f"link_level_assets:   {c} ({field.defs[c][1]}, {len(field.text(c))} chars): {lines[:2]}")
     print(f"link_level_assets: {n_cmds} command lists, {n_light_cmds} light settings commands, "
           f"{len(field.of_type('EnvLightSettings'))} light lists defined")
 
