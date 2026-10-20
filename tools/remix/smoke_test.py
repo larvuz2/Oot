@@ -145,7 +145,7 @@ def report_threads(state_path: Path, rom: bytes, elf: Path):
         state, flags = u32(t + 0x10) >> 16, u32(t + 0x10) & 0xFFFF
         ctx = t + 0x20
         pc, cause, bad = u32(ctx + 0xFC), u32(ctx + 0x100), u32(ctx + 0x104)
-        ra, sp = u32(ctx + 0xE0 + 4), u32(ctx + 0xD0 + 4)
+        ra = u32(ctx + 0xE0 + 4)
         exc = (cause >> 2) & 0x1F
         fault = bool(flags & 2) or (exc not in (0,) and state == 1)
         crashed |= fault
@@ -154,6 +154,27 @@ def report_threads(state_path: Path, rom: bytes, elf: Path):
               + (f"  CRASHED: {EXC.get(exc, exc)} at 0x{bad:08X}" if fault else ""))
         t = u32(t + 0xC)
     print("smoke:   a thread crashed" if crashed else "smoke:   no crashed thread")
+    for name, label in (("sZeldaArena", "actor memory (Zelda arena)"), ("gSystemArena", "system heap")):
+        arena = syms.get(name)
+        if not arena:
+            continue
+        # N64 layout (include/libc64/os_malloc.h): Arena { head, start, size, allocFailures }, nodes of 0x30
+        node, free, used, largest, n = u32(arena), 0, 0, 0, 0
+        while 0x80000000 <= node < 0x80800000 and n < 4000:
+            magic_free = u32(node)
+            size = u32(node + 4)
+            if (magic_free >> 16) != 0x7373:
+                break
+            if magic_free & 0xFFFF:
+                free += size
+                largest = max(largest, size)
+            else:
+                used += size
+            node = u32(node + 8)
+            n += 1
+        fails = ram[(arena + 0xC) & 0x7FFFFF]
+        print(f"smoke:   {label}: {used // 1024} KB used, {free // 1024} KB free (largest block {largest // 1024} KB), "
+              f"{n} blocks, {fails} failed allocations")
 
 
 def main():
@@ -214,14 +235,23 @@ def main():
                     report_threads(Path(shot["state"]), bytes(rom), args.elf)
                 except Exception as e:  # diagnostics only
                     print(f"smoke:   could not read them ({e})")
-    if not ok and not args.no_boot_flag:
-        # Controls: the same quick boot into Hyrule Field, and a normal boot (N64 logo, title screen). If those
-        # show pictures and the new level does not, the level is at fault.
-        print("smoke: control 1: the same quick boot into Hyrule Field")
+    if not args.no_boot_flag:
+        # Control: the same quick boot into Hyrule Field (memory to compare with; and if it shows pictures while
+        # the new level does not, the level is at fault).
+        print("smoke: control: the same quick boot into Hyrule Field")
         hf = bytearray(args.rom.read_bytes())
         set_boot_flag(hf, BOOT_HYRULE_FIELD)
-        describe("control-hyrule-field", capture(bytes(hf), out / "control-hyrule-field", [400, 900],
-                                                 "mupen64plus_next", 240))
+        hcap = capture(bytes(hf), out / "control-hyrule-field", [400, 900], "mupen64plus_next", 240)
+        describe("control-hyrule-field", hcap)
+        last = [s for s in hcap.get("shots", []) if s.get("state")]
+        if args.elf and args.elf.exists() and last:
+            print(f"smoke: Hyrule Field at frame {last[-1]['frame']}:")
+            try:
+                report_threads(Path(last[-1]["state"]), bytes(hf), args.elf)
+            except Exception as e:  # diagnostics only
+                print(f"smoke:   could not read them ({e})")
+    if not ok and not args.no_boot_flag:
+        # The game booting normally (N64 logo, title screen): no pictures there either means the emulator setup.
         print("smoke: control 2: normal boot")
         describe("control-normal", capture(args.rom.read_bytes(), out / "control-normal", [300, 700],
                                            "mupen64plus_next", 240))

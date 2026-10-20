@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>loading</title>
+<style>html,body{margin:0;background:#9fb7c9;overflow:hidden}#labels div{position:absolute;font:bold 15px sans-serif;color:#fff;
+background:rgba(0,0,0,.7);padding:1px 4px;border-radius:3px;transform:translate(-50%,-50%)}</style></head>
+<body><div id="labels"></div>
+<!-- Renders one room of tools/remix/survey_scenes.py: index.html?file=X.json&entry=all|N&mode=top|iso -->
+<script src="three.min.js"></script>
+<script>window.THREE || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');</script>
+<script>
+const P = new URLSearchParams(location.search);
+const W = 960, H = 720;
+fetch(P.get("file")).then(r => r.json()).then(data => {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(W, H);
+  document.body.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fb7c9);
+  const texCache = {};
+  const tex = (sym, size) => {
+    const t = data.textures[sym];
+    if (!t) return null;
+    if (!texCache[sym]) {
+      const tx = new THREE.TextureLoader().load(t.url);
+      tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+      tx.magFilter = THREE.NearestFilter;
+      texCache[sym] = tx;
+    }
+    return texCache[sym];
+  };
+  const pick = P.get("entry") === "all" ? data.entries : data.entries.filter(e => String(e.index) === P.get("entry"));
+  const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  const light = new THREE.Vector3(0.4, 0.8, 0.45).normalize();
+  for (const e of pick) {
+    if (!e.measure) continue;
+    for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], e.measure.lo[k]); hi[k] = Math.max(hi[k], e.measure.hi[k]); }
+    for (const g of e.groups) {
+      const n = g.pos.length / 3;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(g.pos, 3));
+      const t = data.textures[g.tex];
+      const uv = new Float32Array(n * 2), col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        uv[i * 2] = t ? g.st[i * 2] / 32 / t.w : 0;
+        uv[i * 2 + 1] = t ? 1 - g.st[i * 2 + 1] / 32 / t.h : 0;
+        let r = g.col[i * 4] / 255, gg = g.col[i * 4 + 1] / 255, b = g.col[i * 4 + 2] / 255;
+        if (g.lit) {
+          const s = v => (v > 127 ? v - 256 : v) / 127;
+          const nrm = new THREE.Vector3(s(g.col[i * 4]), s(g.col[i * 4 + 1]), s(g.col[i * 4 + 2])).normalize();
+          const l = 0.45 + 0.55 * Math.max(0, nrm.dot(light));
+          r = gg = b = l;
+        }
+        col[i * 3] = r; col[i * 3 + 1] = gg; col[i * 3 + 2] = b;
+      }
+      geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      const map = tex(g.tex);
+      const mat = new THREE.MeshBasicMaterial({ vertexColors: true, map, side: THREE.DoubleSide,
+        transparent: !!g.xlu, opacity: g.xlu ? 0.75 : 1, alphaTest: g.xlu ? 0 : 0.4,
+        color: g.tex && g.tex.startsWith("seg:") ? 0xff40ff : (map || !g.tex ? 0xffffff : 0x8080ff) });
+      scene.add(new THREE.Mesh(geo, mat));
+    }
+  }
+  const c = lo.map((v, k) => (v + hi[k]) / 2), ext = Math.max(hi[0] - lo[0], hi[2] - lo[2], 200);
+  let cam;
+  if (P.get("mode") === "top") {
+    const half = ext * 0.55;
+    cam = new THREE.OrthographicCamera(-half * W / H, half * W / H, half, -half, 1, 100000);
+    cam.position.set(c[0], hi[1] + 5000, c[2]);
+    cam.up.set(0, 0, -1);
+    cam.lookAt(c[0], c[1], c[2]);
+  } else {
+    cam = new THREE.PerspectiveCamera(45, W / H, 10, 200000);
+    const size = Math.max(ext, hi[1] - lo[1]);
+    cam.position.set(c[0] + size * 0.9, c[1] + size * 0.75, c[2] + size * 1.1);
+    cam.lookAt(c[0], c[1], c[2]);
+  }
+  const done = () => {
+    renderer.render(scene, cam);
+    if (P.get("mode") === "top" && P.get("entry") === "all") {
+      for (const e of data.entries) {
+        if (!e.measure) continue;
+        const m = e.measure, p = new THREE.Vector3((m.lo[0] + m.hi[0]) / 2, m.hi[1], (m.lo[2] + m.hi[2]) / 2).project(cam);
+        const d = document.createElement("div");
+        d.textContent = e.index;
+        d.style.left = ((p.x + 1) / 2 * W) + "px";
+        d.style.top = ((1 - p.y) / 2 * H) + "px";
+        document.getElementById("labels").append(d);
+      }
+    }
+    document.title = "ready";
+  };
+  THREE.DefaultLoadingManager.onLoad = done;
+  setTimeout(done, 4000);
+}).catch(e => { document.title = "error " + e; });
+</script></body></html>

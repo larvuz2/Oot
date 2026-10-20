@@ -33,6 +33,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import town_plan  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 ART = REPO / "tools/remix/biome_art/ancient"
 OUT = REPO / "assets/scenes/remix/ancient"
@@ -161,6 +166,10 @@ def height(x, z):
     z = np.asarray(z, float)
     r = np.hypot(x, z)
     hills = 75 * fbm(N1, x / 1500, z / 1500, 4) + 30 * fbm(N2, x / 520 + 11, z / 520 + 7, 2)
+    # the town (tools/remix/town_plan.py) sits on gentle terraces: most of the hills are smoothed away there
+    t0, t1 = town_plan.TOWN_FLAT_R
+    town = smoothstep(t0 - 150, t0 + 100, r) * (1 - smoothstep(t1 - 100, t1 + 200, r))
+    hills = hills * (1 - 0.8 * town)
     h = hills * smoothstep(1050, 1800, r)
     h = h + 170 * smoothstep(1800, 3700, r)
     pf = (1 - smoothstep(100, 280, path_dist(x, z))) * smoothstep(950, 1300, r)
@@ -851,6 +860,8 @@ def build_pillars():
             side = np.array([math.cos(ang), 0, -math.sin(ang)])
             s = s if k % 2 == 0 else -s
             c = fwd * r + side * s * off
+            if town_plan.near_plot(c[0], c[2], 120):
+                continue  # a house stands here
             # keep the view from Link's start point to the Spire clear
             to_c = np.array([c[0] - SPAWN[0], c[2] - SPAWN[1]])
             to_spire = np.array([-SPAWN[0], -SPAWN[1]], float)
@@ -906,11 +917,6 @@ def actors():
             a = PATH_ANGLES[k] + s * 0.205
             x, z = math.sin(a) * 845, math.cos(a) * 845
             add("ACTOR_OBJ_SYOKUDAI", x, PLAZA_Y, z, 0, "0x043F")
-    # dormant guardians: two Armos statues that wake up, two that only sleep
-    for k in range(4):
-        a = math.pi / 4 + k * math.pi / 2
-        x, z = math.sin(a) * 600, math.cos(a) * 600
-        add("ACTOR_EN_AM", x, PLAZA_Y, z, yaw_to(0, 0, x, z), "ARMOS_ENEMY" if k % 2 == 0 else "ARMOS_STATUE")
     # Gossip Stones guarding the Spire's south steps
     for s in (-1, 1):
         add("ACTOR_EN_GS", s * 200, PLAZA_Y, 370, 0, "0x3F05")
@@ -931,6 +937,8 @@ def actors():
         x, z = math.sin(a) * r, math.cos(a) * r
         if float(path_dist(x, z)) < 220 or math.hypot(x - SPAWN[0], z - SPAWN[1]) < 300:
             continue
+        if town_plan.near_plot(x, z, 140):
+            continue
         if any(math.hypot(x - fx, z - fz) < 170 for fx, fz in free):
             continue
         if float(normal_at(x, z)[1]) < 0.85:
@@ -948,13 +956,83 @@ def actors():
         elif i < 56:
             add("ACTOR_EN_ISHI", x, y, z, int(rng.random() * 0x10000), "ROCK_LARGE")
         elif i < 59:
-            add("ACTOR_OBJ_BOMBIWA", x, y, z, int(rng.random() * 0x10000), f"0x{0x30 + i - 56:04X}")
+            add("ACTOR_EN_ISHI", x, y, z, 0, "ROCK_SMALL")
         else:
             add("ACTOR_EN_BUTTE", x, y + 60, z, 0, "0x0000")
+    town_people(add, yaw_to)
     return out
 
 
-OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_AM", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02", "OBJECT_BOMBIWA"]
+OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
+           # the town's people and animals (town_people)
+           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_MU", "OBJECT_DOG", "OBJECT_NIW", "OBJECT_ANI",
+           "OBJECT_TSUBO"]
+# With gameplay_keep, field_keep and Link these take about 920 KB of the scene's 940 KB object space
+# (REMIX_ANCIENT_OBJECT_SPACE, include/remix_level.h); the rest of the play heap is actor memory for the town.
+
+TOWN_PATH_R = 1110  # the walk around the plaza, between its edge and the monoliths (dogs and strollers follow it)
+
+
+def town_path():
+    pts = []
+    for k in range(16):
+        a = 2 * math.pi * k / 16 + math.pi / 16
+        x, z = math.sin(a) * TOWN_PATH_R, math.cos(a) * TOWN_PATH_R
+        pts.append((round(x), round(mesh_height(x, z)), round(z)))
+    return pts
+
+
+def town_people(add, yaw_to):
+    """The townspeople and animals (see tools/remix/town_plan.py for the buildings). Params from the actors' code:
+    En_Hy townspeople have no gravity, so they stand exactly on the ground; path index 0 is town_path()."""
+
+    def hy(kind, x, z, y=None, face=None, path=0xF):
+        y = mesh_height(x, z) if y is None else y
+        add("ACTOR_EN_HY", x, y, z, yaw_to(x, z, *(face or (0, 0))), f"({kind} | ({path} << 7))")
+
+    def at(r, deg):
+        a = math.radians(deg)
+        return math.sin(a) * r, math.cos(a) * r
+
+    # on the plaza, around the Spire (between the Armos at 45-degree points and the stairs at the paths)
+    x, z = at(720, 20)
+    add("ACTOR_EN_MU", x, PLAZA_Y, z, yaw_to(x, z, *at(720, 30)), "0")  # a haggling pair
+    x2, z2 = at(720, 30)
+    add("ACTOR_EN_MU", x2, PLAZA_Y, z2, yaw_to(x2, z2, x, z), "1")
+    x, z = at(700, 112)
+    add("ACTOR_EN_TG", x, PLAZA_Y, z, 0, "0")  # the dancing couple
+    hy("ENHY_TYPE_MAN_1_BOWL_CUT_PURPLE_SHIRT", *at(720, 200), y=PLAZA_Y)
+    hy("ENHY_TYPE_BEGGAR", *at(720, 250), y=PLAZA_Y)  # sits; buys bottled fish, bugs and blue fire
+    hy("ENHY_TYPE_MAN_1_BEARD", *at(720, 292), y=PLAZA_Y)
+    hy("ENHY_TYPE_MAN_2_MUSTACHE_RED_SHIRT", *at(720, 338), y=PLAZA_Y)
+    # strolling around the plaza, and the town's two dogs
+    hy("ENHY_TYPE_MAN_2_BALD", *at(TOWN_PATH_R, 11.25), path=0)
+    for k, params in enumerate(("0x0000", "0x0101")):  # dog ids 1 and 2, path 0, cream and brown
+        x, z = at(TOWN_PATH_R, 101.25 + 180 * k)
+        add("ACTOR_EN_DOG", x, mesh_height(x, z) + 5, z, 0, params)
+    # in front of the houses, talking toward the plaza
+    for (kind, plot) in (("ENHY_TYPE_MAN_2_MUSTACHE_BLUE_SHIRT", 0), ("ENHY_TYPE_MAN_1_SHAVED_BLACK_SHIRT", 1),
+                         ("ENHY_TYPE_MAN_2_ALT_MUSTACHE", 5), ("ENHY_TYPE_MAN_1_SHAVED_GREEN_SHIRT", 6),
+                         ("ENHY_TYPE_MAN_2_MUSTACHE_WHITE_SHIRT", 10), ("ENHY_TYPE_MAN_2_BEARD", 16)):
+        p = town_plan.PLOTS[plot]
+        d = p["r"] + 90
+        x, z = p["x"] + math.sin(p["face"]) * d, p["z"] + math.cos(p["face"]) * d
+        hy(kind, x, z)
+    # cuccos around the barn and the houses
+    for k in range(5):
+        p = town_plan.PLOTS[(2, 3, 8, 13, 17)[k]]
+        a = p["face"] + 1.9 + 0.5 * k
+        x, z = p["x"] + math.sin(a) * (p["r"] + 70), p["z"] + math.cos(a) * (p["r"] + 70)
+        add("ACTOR_EN_NIW", x, mesh_height(x, z) + 10, z, int(rng.random() * 0x10000), "0x0000")
+    # pots with rupees inside the houses (each with its own collectible flag, so every one pays once)
+    flag = 1
+    for plot in (0, 1, 5, 6, 15):
+        p = town_plan.PLOTS[plot]
+        for k, item in enumerate(("ITEM00_RUPEE_BLUE", "ITEM00_RUPEE_RED" if plot in (1, 15) else "ITEM00_RUPEE_GREEN")):
+            a = p["face"] + math.pi / 2 + k * math.pi
+            x, z = p["x"] + math.sin(a) * 70, p["z"] + math.cos(a) * 70
+            add("ACTOR_OBJ_TSUBO", x, mesh_height(x, z), z, 0, f"(0x0100 | {item} | ({flag} << 9))")
+            flag += 1
 
 
 # ---------------------------------------------------------------- textures
@@ -1292,9 +1370,11 @@ def write_sources():
               f"// Height of the Spire's floating ring and crystal (animated by z_remix_level.c)\n"
               f"#define ANCIENT_RING_Y {RING_Y}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
-    lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
+    lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
-             '#include "src/overlays/actors/ovl_En_Am/z_en_am.h"\n#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n\n']
+             '#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n'
+             '#include "src/overlays/actors/ovl_En_Hy/z_en_hy.h"\n#include "z_en_item00.h"\n\n']
+    lines.append("#ifndef ANCIENT_TOWN_ACTOR_COUNT\n#define ANCIENT_TOWN_ACTOR_COUNT 0\n#endif\n\n")
     lines.append(f"SceneCmd {ROOM}Commands[] = {{\n"
                  "    SCENE_CMD_ECHO_SETTINGS(0),\n"
                  "    SCENE_CMD_ROOM_BEHAVIOR(ROOM_TYPE_NORMAL, ROOM_ENV_DEFAULT, false, false),\n"
@@ -1302,14 +1382,19 @@ def write_sources():
                  "    SCENE_CMD_TIME_SETTINGS(0xFF, 0xFF, 10),\n"
                  f"    SCENE_CMD_ROOM_SHAPE(&{ROOM}RoomShape),\n"
                  f"    SCENE_CMD_OBJECT_LIST({len(OBJECTS)}, {ROOM}ObjectList),\n"
-                 f"    SCENE_CMD_ACTOR_LIST({len(acts)}, {ROOM}ActorList),\n"
+                 f"    SCENE_CMD_ACTOR_LIST({len(acts)} + ANCIENT_TOWN_ACTOR_COUNT, {ROOM}ActorList),\n"
                  "    SCENE_CMD_END(),\n};\n\n")
     lines.append(f"s16 {ROOM}ObjectList[] = {{\n" + "".join(f"    {o},\n" for o in OBJECTS) + "};\n\n")
     lines.append(f"ActorEntry {ROOM}ActorList[] = {{\n" +
                  "".join(f"    {{ {a[0]}, {{ {a[1]}, {a[2]}, {a[3]} }}, {{ {a[4]}, 0x{a[5]:04X}, {a[6]} }}, {a[7]} }},\n"
-                         for a in acts) + "};\n\n")
+                         for a in acts) +
+                 "#ifdef ANCIENT_TOWN_ACTORS  // placed on the borrowed buildings (tools/remix/make_town.py)\n"
+                 "#include ANCIENT_TOWN_ACTORS\n#endif\n};\n\n")
+    # The town's buildings, borrowed from the game's towns at build time (tools/remix/make_town.py)
+    lines.append("#ifdef ANCIENT_TOWN_ROOM\n#include ANCIENT_TOWN_ROOM\n#endif\n\n")
     lines.append(f"RoomShapeCullableEntry {ROOM}RoomShapeEntries[] = {{\n" +
-                 "".join(f"    {{ {{ {c[0]}, {c[1]}, {c[2]} }}, {r}, {o}, {x} }},\n" for c, r, o, x in entries) + "};\n\n")
+                 "".join(f"    {{ {{ {c[0]}, {c[1]}, {c[2]} }}, {r}, {o}, {x} }},\n" for c, r, o, x in entries) +
+                 "#ifdef ANCIENT_TOWN_ENTRIES\n#include ANCIENT_TOWN_ENTRIES\n#endif\n};\n\n")
     lines.append(f"RoomShapeCullable {ROOM}RoomShape = {{\n    {{ ROOM_SHAPE_TYPE_CULLABLE }},\n"
                  f"    ARRAY_COUNT({ROOM}RoomShapeEntries),\n    {ROOM}RoomShapeEntries,\n"
                  f"    {ROOM}RoomShapeEntries + ARRAY_COUNT({ROOM}RoomShapeEntries),\n}};\n\n")
@@ -1322,6 +1407,11 @@ def write_sources():
         "// lights. With a ROM, tools/remix/link_level_assets.py writes build/VERSION/assets/scenes/remix/ancient/ancient_hf.h\n"
         "// (found first on the include path), which points them at Hyrule Field's own.\n"
         "#ifndef ANCIENT_HF_H\n#define ANCIENT_HF_H\n#endif\n")
+    (OUT / "ancient_town.h").write_text(
+        hdr + "// Builds without the ROM's assets use this empty version: no town buildings. With a ROM,\n"
+        "// tools/remix/make_town.py writes build/VERSION/assets/scenes/remix/ancient/ancient_town.h (found first on the\n"
+        "// include path) with the buildings it borrows from the game's towns.\n"
+        "#ifndef ANCIENT_TOWN_H\n#define ANCIENT_TOWN_H\n#endif\n")
     (OUT / f"{ROOM}.c").write_text("".join(lines))
 
     # ----- scene
@@ -1330,15 +1420,18 @@ def write_sources():
     sx, sz = SPAWN
     sy = int(math.ceil(mesh_height(sx, sz))) + 2
     scene_h = (hdr + f"#ifndef {SCENE.upper()}_H\n#define {SCENE.upper()}_H\n\n#include \"ultra64.h\"\n#include \"scene.h\"\n"
-               f"#include \"bgcheck.h\"\n#include \"romfile.h\"\n\nextern SceneCmd {SCENE}Commands[];\n"
+               f"#include \"bgcheck.h\"\n#include \"romfile.h\"\n#include \"path.h\"\n\nextern SceneCmd {SCENE}Commands[];\n"
                f"extern CollisionHeader {SCENE}CollisionHeader;\nextern RomFile {SCENE}RoomList[];\n"
                f"extern Spawn {SCENE}SpawnList[];\nextern ActorEntry {SCENE}PlayerEntryList[];\n"
+               f"extern Path {SCENE}PathList[];\n"
                f"extern EnvLightSettings {SCENE}LightSettings[];\n\n"
                f"// Collision memory for BgCheck_Allocate ({len(polys)} polys, {nodes} lookup nodes)\n"
-               f"#define ANCIENT_SCENE_BGCHECK_MEMSIZE 0x{memsize:X}\n\n#endif\n")
-    s = [hdr, f'#include "{SCENE}.h"\n#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n', '#include "array_count.h"\n#include "actor.h"\n#include "actor_profile.h"\n#include "camera.h"\n'
+               f"#include \"{INC}/ancient_town.h\"\n#ifdef ANCIENT_TOWN_BGCHECK_MEMSIZE  // the town's collision needs more\n"
+               "#define ANCIENT_SCENE_BGCHECK_MEMSIZE ANCIENT_TOWN_BGCHECK_MEMSIZE\n#else\n"
+               f"#define ANCIENT_SCENE_BGCHECK_MEMSIZE 0x{memsize:X}\n#endif\n\n#endif\n")
+    s = [hdr, f'#include "{SCENE}.h"\n#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "array_count.h"\n#include "actor.h"\n#include "actor_profile.h"\n#include "camera.h"\n'
          '#include "environment.h"\n#include "object.h"\n#include "player.h"\n#include "save.h"\n#include "segment_symbols.h"\n'
-         '#include "sequence.h"\n#include "skybox.h"\n\n']
+         '#include "sequence.h"\n#include "skybox.h"\n#include "path.h"\n\n']
     # The commands must come first: the game reads them from the start of the scene file.
     s.append("// Hyrule Field's light settings when the ROM's assets are linked in (tools/remix/link_level_assets.py)\n"
              "#ifdef ANCIENT_HF_LIGHTS\n#define ANCIENT_LIGHTS_COUNT ANCIENT_HF_LIGHTS_COUNT\n#else\n"
@@ -1350,27 +1443,37 @@ def write_sources():
              f"    SCENE_CMD_COL_HEADER(&{SCENE}CollisionHeader),\n"
              f"    SCENE_CMD_SPAWN_LIST({SCENE}SpawnList),\n"
              "    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_OVERWORLD, OBJECT_GAMEPLAY_FIELD_KEEP),\n"
+             f"    SCENE_CMD_PATH_LIST({SCENE}PathList),\n"
              f"    SCENE_CMD_PLAYER_ENTRY_LIST(1, {SCENE}PlayerEntryList),\n"
              "    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NORMAL_SKY, 0, LIGHT_MODE_TIME),\n"
              f"    SCENE_CMD_ENV_LIGHT_SETTINGS(ANCIENT_LIGHTS_COUNT, {SCENE}LightSettings),\n"
              "    SCENE_CMD_END(),\n};\n\n")
     s.append(f"RomFile {SCENE}RoomList[] = {{\n    ROM_FILE({ROOM}),\n}};\n\n")
+    path = town_path()
+    s.append(f"// the walk around the plaza (path 0: the dogs and a stroller follow it)\nVec3s {SCENE}PathPoints0[] = {{\n"
+             + "".join(f"    {{ {x}, {y}, {z} }},\n" for x, y, z in path) + "};\n\n"
+             f"Path {SCENE}PathList[] = {{\n    {{ ARRAY_COUNT({SCENE}PathPoints0), {SCENE}PathPoints0 }},\n}};\n\n")
     s.append(f"Spawn {SCENE}SpawnList[] = {{\n    {{ 0, 0 }},\n}};\n\n")
     s.append(f"ActorEntry {SCENE}PlayerEntryList[] = {{\n    {{ ACTOR_PLAYER, {{ {sx}, {sy}, {sz} }}, {{ 0, 0x{SPAWN_YAW:04X}, 0 }}, "
              "PLAYER_PARAMS(PLAYER_START_MODE_MOVE_FORWARD_SLOW, PLAYER_START_BG_CAM_DEFAULT) },\n};\n\n")
     s.append(light_settings())
-    s.append(f"Vec3s {SCENE}CollisionVtx[] = {{\n" + "".join(f"    {{ {v[0]}, {v[1]}, {v[2]} }},\n" for v in verts) + "};\n\n")
+    # (the town's collision, borrowed at build time, is appended to each array: tools/remix/make_town.py)
+    s.append(f"Vec3s {SCENE}CollisionVtx[] = {{\n" + "".join(f"    {{ {v[0]}, {v[1]}, {v[2]} }},\n" for v in verts) +
+             "#ifdef ANCIENT_TOWN_COL_VTX\n#include ANCIENT_TOWN_COL_VTX\n#endif\n};\n\n")
     s.append(f"CollisionPoly {SCENE}CollisionPolys[] = {{\n" +
              "".join(f"    {{ {surf}, {{ COLPOLY_VTX({ids[0]}, {('COLPOLY_IGNORE_CAMERA' if flags else '0')}), COLPOLY_VTX({ids[1]}, 0), "
                      f"{ids[2]} }}, {{ {n[0]}, {n[1]}, {n[2]} }}, {dist} }},\n"
-                     for surf, ids, n, dist, flags in polys) + "};\n\n")
+                     for surf, ids, n, dist, flags in polys) +
+             "#ifdef ANCIENT_TOWN_COL_POLYS\n#include ANCIENT_TOWN_COL_POLYS\n#endif\n};\n\n")
     s.append(f"SurfaceType {SCENE}SurfaceTypes[] = {{\n" +
              "".join(f"    {{ {{ SURFACETYPE0(0, 0, FLOOR_TYPE_0, 0, WALL_TYPE_0, FLOOR_PROPERTY_0, false, {hb}), "
                      f"SURFACETYPE1({m}, FLOOR_EFFECT_0, 0, 0, {hk}, CONVEYOR_SPEED_DISABLED, 0, false) }} }},\n"
-                     for m, hk, hb in SURFACES) + "};\n\n")
+                     for m, hk, hb in SURFACES) +
+             "#ifdef ANCIENT_TOWN_COL_SURFACES\n#include ANCIENT_TOWN_COL_SURFACES\n#endif\n};\n\n")
     s.append(f"BgCamInfo {SCENE}BgCamList[] = {{\n    {{ CAM_SET_NORMAL0, 0, NULL }},\n}};\n\n")
     s.append(f"CollisionHeader {SCENE}CollisionHeader = {{\n    {{ {lo[0]}, {lo[1]}, {lo[2]} }},\n    {{ {hi[0]}, {hi[1]}, {hi[2]} }},\n"
-             f"    {len(verts)},\n    {SCENE}CollisionVtx,\n    {len(polys)},\n    {SCENE}CollisionPolys,\n"
+             f"    ARRAY_COUNT({SCENE}CollisionVtx),\n    {SCENE}CollisionVtx,\n    ARRAY_COUNT({SCENE}CollisionPolys),\n"
+             f"    {SCENE}CollisionPolys,\n"
              f"    {SCENE}SurfaceTypes,\n    {SCENE}BgCamList,\n    0,\n    NULL,\n}};\n")
     (OUT / f"{SCENE}.h").write_text(scene_h)
     (OUT / f"{SCENE}.c").write_text("".join(s))

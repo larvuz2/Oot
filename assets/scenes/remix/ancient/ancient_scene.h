@@ -6,15 +6,22 @@
 #include "scene.h"
 #include "bgcheck.h"
 #include "romfile.h"
+#include "path.h"
 
 extern SceneCmd ancient_sceneCommands[];
 extern CollisionHeader ancient_sceneCollisionHeader;
 extern RomFile ancient_sceneRoomList[];
 extern Spawn ancient_sceneSpawnList[];
 extern ActorEntry ancient_scenePlayerEntryList[];
+extern Path ancient_scenePathList[];
 extern EnvLightSettings ancient_sceneLightSettings[];
 
-// Collision memory for BgCheck_Allocate (1644 polys, 5255 lookup nodes)
+// Collision memory for BgCheck_Allocate (1644 polys, 5261 lookup nodes)
+#include "assets/scenes/remix/ancient/ancient_town.h"
+#ifdef ANCIENT_TOWN_BGCHECK_MEMSIZE // the town's collision needs more
+#define ANCIENT_SCENE_BGCHECK_MEMSIZE ANCIENT_TOWN_BGCHECK_MEMSIZE
+#else
 #define ANCIENT_SCENE_BGCHECK_MEMSIZE 0xDF00
+#endif
 
 #endif
