@@ -99,6 +99,8 @@ def survey_scene(name: str, ext: Path, rel: str, work: Path, report: list):
     for room in rooms:
         entries = field.room_entries(room)
         report.append(f"### {room}: {len(entries)} entries\n")
+        if not entries:
+            report.append(f"(shape: {field.room_shape_sample(room)})\n")
         report.append("| # | center | radius | tris | box min | box max | floor | wall | roof | textures | segments |")
         report.append("|---|---|---|---|---|---|---|---|---|---|---|")
         data = dict(scene=name, room=room, entries=[], textures={})

@@ -162,19 +162,38 @@ class Field:
         """The room's shape entries: dicts with center (or None), radius, opa and xlu display list symbols."""
         out = []
         for sym, (ctype, _) in self.defs.items():
-            if self.owner.get(sym) != room:
+            if self.owner.get(sym) != room or ctype not in ("RoomShapeCullableEntry", "RoomShapeDListsEntry"):
                 continue
-            if ctype == "RoomShapeCullableEntry":
-                for m in re.finditer(r"\{\s*\{\s*(-?\w+),\s*(-?\w+),\s*(-?\w+)\s*\},\s*(-?\w+),\s*&?(\w+),\s*&?(\w+)\s*\}",
-                                     self.text(sym)):
-                    out.append(dict(center=(num(m.group(1)), num(m.group(2)), num(m.group(3))), radius=num(m.group(4)),
-                                    opa=None if m.group(5) == "NULL" else m.group(5),
-                                    xlu=None if m.group(6) == "NULL" else m.group(6)))
-            elif ctype == "RoomShapeDListsEntry":
-                for m in re.finditer(r"\{\s*&?(\w+),\s*&?(\w+)\s*\}", self.text(sym)):
-                    out.append(dict(center=None, radius=None, opa=None if m.group(1) == "NULL" else m.group(1),
-                                    xlu=None if m.group(2) == "NULL" else m.group(2)))
+            for item in brace_items(uncomment(self.text(sym))):
+                inner = brace_items(item)
+                if ctype == "RoomShapeCullableEntry" and inner:
+                    try:
+                        center = tuple(expr(v) for v in split_args(inner[0])[:3])
+                    except (ValueError, SyntaxError):
+                        continue
+                    rest = split_args(item[item.rindex("}") + 1 :].strip().lstrip(","))
+                    if len(rest) < 3:
+                        continue
+                    try:
+                        radius = expr(rest[0])
+                    except (ValueError, SyntaxError):
+                        radius = None
+                    dls = rest[1:3]
+                else:
+                    center, radius, dls = None, None, split_args(item)[:2]
+                dls = [d.strip().lstrip("&").strip() for d in dls] + [None, None]
+                out.append(dict(center=center, radius=radius,
+                                opa=None if dls[0] in (None, "NULL", "0") else dls[0],
+                                xlu=None if dls[1] in (None, "NULL", "0") else dls[1]))
         return out
+
+    def room_shape_sample(self, room: str):
+        """Start of the room's shape entries file, to fix the parser if a format is not understood."""
+        for sym, (ctype, _) in self.defs.items():
+            if self.owner.get(sym) == room and ctype.startswith("RoomShape"):
+                return f"{ctype} {sym}: " + " ".join(self.text(sym).split())[:300]
+        types = sorted({t for s, (t, _) in self.defs.items() if self.owner.get(s) == room})
+        return f"no RoomShape definition; types in {room}: {types}"
 
 
 class State:
@@ -184,6 +203,8 @@ class State:
         self.tex = None
         self.tex_fmt = None
         self.tex_size = None
+        self.tex_tile = None  # (cms, cmt, masks, maskt, shifts, shiftt) of the render tile
+        self.tex_scale = (0xFFFF, 0xFFFF)
         self.tlut = None
         self.lit = False
         self.prim = None
@@ -192,7 +213,8 @@ class State:
         self.slots = [None] * 64
 
     def snapshot(self):
-        return dict(tex=self.tex, fmt=self.tex_fmt, size=self.tex_size, tlut=self.tlut, lit=self.lit,
+        return dict(tex=self.tex, fmt=self.tex_fmt, size=self.tex_size, tile=self.tex_tile, scale=self.tex_scale,
+                    tlut=self.tlut, lit=self.lit,
                     prim=None if self.prim is None else tuple(self.prim), env=None if self.env is None else tuple(self.env),
                     xlu=self.xlu)
 
@@ -258,8 +280,17 @@ def replay(field: Field, dl: str, on_triangle, stats=None, state=None, depth=0):
                 a = [a[0]] + a[3:]
             if four:
                 _set_texture(st, stats, a[0], a[1], a[2], a[3], "G_IM_SIZ_4b")
+                st.tex_tile = tuple(a[5:11]) if len(a) >= 11 else None
             else:
                 _set_texture(st, stats, a[0], a[1], a[3], a[4], a[2])
+                st.tex_tile = tuple(a[6:12]) if len(a) >= 12 else None
+            continue
+        if line.startswith("gsSPTexture("):
+            a = split_args(line[len("gsSPTexture(") : -1])
+            try:
+                st.tex_scale = (expr(a[0]), expr(a[1]))
+            except (ValueError, SyntaxError, IndexError):
+                pass
             continue
         m = SETTIMG_RE.match(line)
         if m and "TLUT" not in m.group(3):
@@ -327,3 +358,72 @@ def references(field: Field, sym: str, seen=None):
             if name in field.defs:
                 references(field, name, seen)
     return seen
+
+
+def uncomment(text: str) -> str:
+    return re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
+
+
+def macro_calls(text: str, name: str):
+    """The argument text of each call of a macro, with nested parentheses."""
+    out = []
+    for m in re.finditer(r"\b" + name + r"\(", text):
+        depth, i = 1, m.end()
+        while i < len(text) and depth:
+            depth += {"(": 1, ")": -1}.get(text[i], 0)
+            i += 1
+        out.append(text[m.end() : i - 1])
+    return out
+
+
+def brace_items(text: str):
+    """Contents of each top-level {...} group in text (an array's elements, a struct's fields)."""
+    out, depth, start = [], 0, None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i + 1
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                out.append(text[start:i])
+    return out
+
+
+def collision(field: Field):
+    """The scene's collision: (vertices Nx3, polys [(type, (i0, i1, i2), flags_text)], surface types
+    [(args of SURFACETYPE0, args of SURFACETYPE1)]), or None. Normals and distances are left out: they are
+    recomputed after moving the polygons."""
+    hdrs = field.of_type("CollisionHeader")
+    if not hdrs:
+        return None
+    # the arrays the (first) collision header points at
+    names = re.findall(r"\b[A-Za-z_]\w*\b", field.text(hdrs[0]))
+    pick = lambda t: next((n for n in names if field.defs.get(n, ("",))[0] == t), None) or next(iter(field.of_type(t)), None)
+    vsym, psym, ssym = pick("Vec3s"), pick("CollisionPoly"), pick("SurfaceType")
+    if not (vsym and psym and ssym):
+        return None
+    verts = np.array([[num(a), num(b), num(c)] for a, b, c in
+                      re.findall(r"\{\s*(-?\w+),\s*(-?\w+),\s*(-?\w+)\s*,?\s*\}", uncomment(field.text(vsym)))], float)
+    polys = []
+    for item in brace_items(uncomment(field.text(psym))):
+        parts = brace_items(item)  # { vertex ids }, { normal }
+        head = item.split("{", 1)[0]
+        tm = re.match(r"\s*(\w+)", head)
+        if not parts or tm is None:
+            continue
+        vs, flags = [], []
+        for arg in split_args(parts[0]):
+            mm = re.match(r"COLPOLY_VTX\(\s*(\w+)\s*,\s*(.*)\)$", arg)
+            if mm:
+                vs.append(num(mm.group(1)))
+                flags.append(mm.group(2).strip())
+            elif re.fullmatch(r"\w+", arg):
+                vs.append(num(arg))
+        if len(vs) >= 3:
+            polys.append((num(tm.group(1)), tuple(vs[:3]), flags[0] if flags else "0"))
+    s0 = [" ".join(x.split()) for x in macro_calls(uncomment(field.text(ssym)), "SURFACETYPE0")]
+    s1 = [" ".join(x.split()) for x in macro_calls(uncomment(field.text(ssym)), "SURFACETYPE1")]
+    surfaces = [(split_args(a), split_args(b)) for a, b in zip(s0, s1)]
+    return verts, polys, surfaces
