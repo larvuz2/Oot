@@ -92,3 +92,17 @@ jobs:
           dup=$(comm -12 <(mips-linux-gnu-nm --defined-only -g $B/overworld/spot00/*.o | awk '{print $3}' | sort -u) \
                          <(mips-linux-gnu-nm --defined-only -g $B/remix/tundra/*.o | awk '{print $3}' | sort -u))
           if [ -n "$dup" ]; then echo "Symbols defined in both Hyrule Field and its copy:"; echo "$dup"; exit 1; fi
+
+      - name: New level with Hyrule Field's textures and lights (stand-in, no ROM) compiles
+        run: |
+          V=${{ matrix.version }}
+          python3 tools/remix/test_link_level_assets.py
+          python3 tools/remix/test_link_level_assets.py --fixture extracted/$V
+          python3 tools/remix/link_level_assets.py --version $V
+          for m in GRASS DIRT ROCK LIGHTS; do grep -q "ANCIENT_HF_$m" build/$V/assets/scenes/remix/ancient/ancient_hf.h; done
+          rm -f build/$V/assets/scenes/remix/ancient/ancient_scene.o build/$V/assets/scenes/remix/ancient/ancient_room_0.o
+          make -j"$(nproc)" VERSION=$V \
+            build/$V/assets/scenes/remix/ancient/ancient_scene.o \
+            build/$V/assets/scenes/remix/ancient/ancient_room_0.o
+          # 16 light settings of 22 bytes come from the stand-in field
+          mips-linux-gnu-nm -S build/$V/assets/scenes/remix/ancient/ancient_scene.o | grep -q " 00000160 D ancient_sceneLightSettings"

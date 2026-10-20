@@ -12,9 +12,9 @@ extern CollisionHeader ancient_sceneCollisionHeader;
 extern RomFile ancient_sceneRoomList[];
 extern Spawn ancient_sceneSpawnList[];
 extern ActorEntry ancient_scenePlayerEntryList[];
-extern EnvLightSettings ancient_sceneLightSettings[16];
+extern EnvLightSettings ancient_sceneLightSettings[];
 
-// Collision memory for BgCheck_Allocate (2575 polys, at most 8082 lookup nodes)
-#define ANCIENT_SCENE_BGCHECK_MEMSIZE 0x12A00
+// Collision memory for BgCheck_Allocate (1644 polys, 5255 lookup nodes)
+#define ANCIENT_SCENE_BGCHECK_MEMSIZE 0xDF00
 
 #endif

@@ -198,8 +198,7 @@ class Mat:
 
 GRASS = Mat("grass", "grass", "rgba16", (32, 32), repeat=150)
 DIRT = Mat("dirt", "dirt", "rgba16", (32, 32), repeat=150)
-ROCK = Mat("rock", "rock", "ci4", (64, 64), repeat=900)
-SNOW = Mat("snow", "snow", "rgba16", (32, 32), repeat=300)
+ROCK = Mat("rock", "rock", "rgba16", (32, 32), repeat=330)
 PLAZA = Mat("plaza", "plaza", "ci4", (64, 64), repeat=380)
 TECH = Mat("tech", "techstone", "ci4", (64, 64), repeat=200)
 TECHROCK = Mat("techrock", "techrock", "ci4", (64, 64), repeat=240)
@@ -211,15 +210,18 @@ GLOW_ORANGE = Mat("glow_orange", "glow", "i8", (32, 32), lit=False, xlu=True, pr
                   repeat=150, clamp_t=True)
 EYE = Mat("eye", "eye", "i8", (64, 64), lit=False, xlu=True, prim_seg=0x0C)
 
+# Textures that come from Hyrule Field itself when the ROM's assets are there (tools/remix/link_level_assets.py
+# writes ancient_hf.h at build time); the files here are look-alike fallbacks for builds without a ROM.
+HF_TEXTURES = {"grass": "ANCIENT_HF_GRASS", "dirt": "ANCIENT_HF_DIRT", "rock": "ANCIENT_HF_ROCK"}
+
 TEXTURES = {  # key: (file stem, format, size)
     "grass": ("ancient_grass", "rgba16", (32, 32)),
     "dirt": ("ancient_dirt", "rgba16", (32, 32)),
-    "rock": ("ancient_rock", "ci4", (64, 64)),
+    "rock": ("ancient_rock", "rgba16", (32, 32)),
     "plaza": ("ancient_plaza", "ci4", (64, 64)),
     "techstone": ("ancient_techstone", "ci4", (64, 64)),
     "techrock": ("ancient_techrock", "ci4", (64, 64)),
     "runes": ("ancient_runes", "ci4", (64, 64)),
-    "snow": ("ancient_snow", "rgba16", (32, 32)),
     "glow": ("ancient_glow", "i8", (32, 32)),
     "eye": ("ancient_eye", "i8", (64, 64)),
 }
@@ -313,7 +315,7 @@ def planar_uv(mat, p):
 # ---------------------------------------------------------------- terrain
 
 GRID_HALF = 7200
-GRID_N = 44
+GRID_N = 30
 CHUNKS = 6
 
 
@@ -372,9 +374,7 @@ def build_terrain():
                 r = math.hypot(cen[0], cen[2])
                 slope = 1 - fn[1]
                 pd = float(path_dist(cen[0], cen[2]))
-                if cen[1] > 2050 + 250 * float(N1(cen[0] / 900, cen[2] / 900)):
-                    mat = SNOW
-                elif slope > 0.36 or (r > 3650 and slope > 0.2) or cen[1] > 1000:
+                if slope > 0.34 or (r > 3650 and slope > 0.24):
                     mat = ROCK
                 else:
                     mat = GRASS
@@ -396,7 +396,7 @@ def build_terrain():
                 else:
                     e.tri(mat, [V(pts[k], uvs[k], nrm[k]) for k in range(3)])
                 if r < 4500:
-                    surf = SURF_DIRT if on_path else SURF_STONE if mat in (ROCK, SNOW) else SURF_GRASS
+                    surf = SURF_DIRT if on_path else SURF_STONE if mat is ROCK else SURF_GRASS
                     add_col(pts[0], pts[1], pts[2], surf)
 
 
@@ -874,31 +874,6 @@ def build_pillars():
                 strip(es[k], GLOW_ORANGE, pts2, nr, 9, lift=1.2, closed=True)
 
 
-BOULDERS = []
-
-
-def build_boulders():
-    es = [new_entry(f"boulders_{k}") for k in range(4)]
-    placed = 0
-    tries = 0
-    while placed < 12 and tries < 2000:
-        tries += 1
-        r = 1500 + rng.random() * 1900
-        a = rng.random() * 2 * math.pi
-        x, z = math.sin(a) * r, math.cos(a) * r
-        if float(path_dist(x, z)) < 330 or math.hypot(x - SPAWN[0], z - SPAWN[1]) < 500:
-            continue
-        if any(math.hypot(x - bx, z - bz) < 450 for bx, bz, _ in BOULDERS):
-            continue
-        rad = 60 + rng.random() * 110
-        gy = float(height(x, z))
-        quadrant = (0 if x >= 0 else 1) + (0 if z >= 0 else 2)
-        noisy_rock(es[quadrant], TECHROCK, (x, gy, z), rad, squash=0.75 + rng.random() * 0.3, seed=500 + placed,
-                   sink=0.35, col=SURF_TECH if rad > 85 else None)
-        BOULDERS.append((x, z, rad))
-        placed += 1
-
-
 def build_boundary():
     """Invisible wall that keeps Link out of the mountains (ignored by the camera)."""
     n, r = 48, 4300
@@ -949,34 +924,37 @@ def actors():
     # trees, bushes, rocks and butterflies in the field
     free = []
     tries = 0
-    while len(free) < 64 and tries < 5000:
+    while len(free) < 66 and tries < 6000:
         tries += 1
         r = 1500 + rng.random() * 2100
         a = rng.random() * 2 * math.pi
         x, z = math.sin(a) * r, math.cos(a) * r
         if float(path_dist(x, z)) < 220 or math.hypot(x - SPAWN[0], z - SPAWN[1]) < 300:
             continue
-        if any(math.hypot(x - bx, z - bz) < br + 120 for bx, bz, br in BOULDERS):
-            continue
         if any(math.hypot(x - fx, z - fz) < 170 for fx, fz in free):
             continue
         if float(normal_at(x, z)[1]) < 0.85:
             continue
         free.append((x, z))
+    # the same props as Hyrule Field: its trees, bushes, liftable rocks, silver boulders and bomb boulders
     for i, (x, z) in enumerate(free):
         y = mesh_height(x, z)
-        if i < 22:
+        if i < 20:
             add("ACTOR_EN_WOOD02", x, y, z, int(rng.random() * 0x10000), "0xFF05" if i % 3 else "0xFF00")
-        elif i < 44:
+        elif i < 38:
             add("ACTOR_EN_KUSA", x, y, z, 0, "0x0000")
+        elif i < 52:
+            add("ACTOR_EN_ISHI", x, y, z, 0, "ROCK_SMALL")
         elif i < 56:
-            add("ACTOR_EN_ISHI", x, y, z, 0, "0x0000")
+            add("ACTOR_EN_ISHI", x, y, z, int(rng.random() * 0x10000), "ROCK_LARGE")
+        elif i < 59:
+            add("ACTOR_OBJ_BOMBIWA", x, y, z, int(rng.random() * 0x10000), f"0x{0x30 + i - 56:04X}")
         else:
             add("ACTOR_EN_BUTTE", x, y + 60, z, 0, "0x0000")
     return out
 
 
-OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_AM", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02"]
+OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_AM", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02", "OBJECT_BOMBIWA"]
 
 
 # ---------------------------------------------------------------- textures
@@ -1004,9 +982,6 @@ def make_textures():
             img = glow_texture(w, h)
             Image.fromarray(img, "L").save(OUT / f"{stem}.i8.png")
             continue
-        if key == "snow":
-            Image.fromarray(snow_texture(w, h), "RGBA").save(OUT / f"{stem}.rgba16.png")
-            continue
         if key == "eye":
             Image.fromarray(eye_texture(w), "L").save(OUT / f"{stem}.i8.png")
             continue
@@ -1024,17 +999,6 @@ def make_textures():
                 pal = np.vstack([pal, np.zeros((16 - len(pal), 3), np.uint8)])
             write_indexed_png(OUT / f"{stem}.ci4.png", np.array(q), pal)
     title_card()
-
-
-def snow_texture(w, h):
-    pn = Perlin(77)
-    yy, xx = np.mgrid[0:h, 0:w]
-    # tileable noise: sample on a torus
-    a, b = xx / w * 2 * np.pi, yy / h * 2 * np.pi
-    n = fbm(pn, np.cos(a) * 1.5 + np.sin(b) * 0.7, np.sin(a) * 1.5 + np.cos(b) * 0.7, 3)
-    v = np.clip(0.86 + n * 0.35, 0, 1)
-    rgb = np.stack([v * 228, v * 236, v * 250], -1)
-    return np.concatenate([rgb, np.full((h, w, 1), 255)], -1).astype(np.uint8)
 
 
 def glow_texture(w, h):
@@ -1256,6 +1220,25 @@ def emit_collision():
     return verts, polys, arr.min(0), arr.max(0)
 
 
+def tri_box_overlap(tri, bmin, bmax):
+    """Separating-axis test: does the triangle touch the box?"""
+    c = (bmin + bmax) / 2
+    h = (bmax - bmin) / 2
+    v = tri - c
+    e = [v[1] - v[0], v[2] - v[1], v[0] - v[2]]
+    axes = [np.array(a, float) for a in ((1, 0, 0), (0, 1, 0), (0, 0, 1))]
+    n = np.cross(e[0], e[1])
+    tests = axes + [n] + [np.cross(a, ed) for a in axes for ed in e]
+    for ax in tests:
+        if not ax.any():
+            continue
+        p = v @ ax
+        r = np.abs(ax) @ h
+        if p.min() > r or p.max() < -r:
+            return False
+    return True
+
+
 def bgcheck_memsize(verts, polys, lo, hi):
     """Collision memory this scene needs (see BgCheck_Allocate): fixed part plus one SSNode per poly per
     subdivision its bounding box touches (an upper bound on what the game allocates)."""
@@ -1268,14 +1251,20 @@ def bgcheck_memsize(verts, polys, lo, hi):
     for _, ids, _, _, _ in polys:
         pts = np.array([verts[i] for i in ids], float)
         mn, mx = pts.min(0) - 50, pts.max(0) + 50
-        cnt = 1
+        rng_ = []
         for a in range(3):
             s0 = min(max(int((mn[a] - lo[a]) / length[a]), 0), amt[a] - 1)
             s1 = min(max(int((mx[a] - lo[a]) / length[a]), 0), amt[a] - 1)
-            cnt *= s1 - s0 + 1
-        nodes += cnt
+            rng_.append(range(s0, s1 + 1))
+        for sx in rng_[0]:
+            for sy in rng_[1]:
+                for sz in rng_[2]:
+                    bmin = np.array([lo[0] + sx * length[0], lo[1] + sy * length[1], lo[2] + sz * length[2]]) - 50
+                    bmax = bmin + np.array(length) + 100
+                    if tri_box_overlap(pts, bmin, bmax):
+                        nodes += 1
     fixed = 16 * 4 * 16 * 6 + len(polys) + 1000 * 4 + 512 * 16 + 512 * 6 + 0x2000
-    return (int((fixed + nodes * 4) * 1.15) + 0x800 + 0xFF) & ~0xFF, nodes
+    return (int(fixed + nodes * 4 * 1.12) + 0x800 + 0xFF) & ~0xFF, nodes
 
 
 def write_sources():
@@ -1290,7 +1279,12 @@ def write_sources():
             tex_decl.append(f"extern u64 {tlut_symbol(key)}[];")
             tex_defs.append(f"u64 {tlut_symbol(key)}[] = {{\n#include \"{INC}/{stem}.tlut.rgba16.inc.c\"\n}};\n")
         tex_decl.append(f"extern u64 {tex_symbol(key)}[];")
-        tex_defs.append(f"u64 {tex_symbol(key)}[] = {{\n#include \"{INC}/{stem}.{fmt}.inc.c\"\n}};\n")
+        own = f'#include "{INC}/{stem}.{fmt}.inc.c"'
+        if key in HF_TEXTURES:
+            m = HF_TEXTURES[key]
+            tex_defs.append(f"u64 {tex_symbol(key)}[] = {{\n#ifdef {m}\n#include {m}\n#else\n{own}\n#endif\n}};\n")
+        else:
+            tex_defs.append(f"u64 {tex_symbol(key)}[] = {{\n{own}\n}};\n")
     room_h = (hdr + f"#ifndef {ROOM.upper()}_H\n#define {ROOM.upper()}_H\n\n#include \"ultra64.h\"\n#include \"scene.h\"\n"
               f"#include \"room.h\"\n\nextern SceneCmd {ROOM}Commands[];\nextern s16 {ROOM}ObjectList[];\n"
               f"extern ActorEntry {ROOM}ActorList[];\nextern RoomShapeCullable {ROOM}RoomShape;\n"
@@ -1298,9 +1292,9 @@ def write_sources():
               f"// Height of the Spire's floating ring and crystal (animated by z_remix_level.c)\n"
               f"#define ANCIENT_RING_Y {RING_Y}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
-    lines = [hdr, f'#include "{ROOM}.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
+    lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
-             '#include "src/overlays/actors/ovl_En_Am/z_en_am.h"\n\n']
+             '#include "src/overlays/actors/ovl_En_Am/z_en_am.h"\n#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n\n']
     lines.append(f"SceneCmd {ROOM}Commands[] = {{\n"
                  "    SCENE_CMD_ECHO_SETTINGS(0),\n"
                  "    SCENE_CMD_ROOM_BEHAVIOR(ROOM_TYPE_NORMAL, ROOM_ENV_DEFAULT, false, false),\n"
@@ -1323,6 +1317,11 @@ def write_sources():
     lines += [v + "\n" for v in vtx_out]
     lines += [d + "\n" for d in dl_out]
     (OUT / f"{ROOM}.h").write_text(room_h)
+    (OUT / "ancient_hf.h").write_text(
+        hdr + "// Builds without the ROM's assets use this empty version: the level then uses its own look-alike textures and\n"
+        "// lights. With a ROM, tools/remix/link_level_assets.py writes build/VERSION/assets/scenes/remix/ancient/ancient_hf.h\n"
+        "// (found first on the include path), which points them at Hyrule Field's own.\n"
+        "#ifndef ANCIENT_HF_H\n#define ANCIENT_HF_H\n#endif\n")
     (OUT / f"{ROOM}.c").write_text("".join(lines))
 
     # ----- scene
@@ -1334,12 +1333,13 @@ def write_sources():
                f"#include \"bgcheck.h\"\n#include \"romfile.h\"\n\nextern SceneCmd {SCENE}Commands[];\n"
                f"extern CollisionHeader {SCENE}CollisionHeader;\nextern RomFile {SCENE}RoomList[];\n"
                f"extern Spawn {SCENE}SpawnList[];\nextern ActorEntry {SCENE}PlayerEntryList[];\n"
-               f"extern EnvLightSettings {SCENE}LightSettings[16];\n\n"
-               f"// Collision memory for BgCheck_Allocate ({len(polys)} polys, at most {nodes} lookup nodes)\n"
+               f"extern EnvLightSettings {SCENE}LightSettings[];\n\n"
+               f"// Collision memory for BgCheck_Allocate ({len(polys)} polys, {nodes} lookup nodes)\n"
                f"#define ANCIENT_SCENE_BGCHECK_MEMSIZE 0x{memsize:X}\n\n#endif\n")
-    s = [hdr, f'#include "{SCENE}.h"\n#include "{ROOM}.h"\n', '#include "actor.h"\n#include "actor_profile.h"\n#include "camera.h"\n'
+    s = [hdr, f'#include "{SCENE}.h"\n#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n', '#include "array_count.h"\n#include "actor.h"\n#include "actor_profile.h"\n#include "camera.h"\n'
          '#include "environment.h"\n#include "object.h"\n#include "player.h"\n#include "save.h"\n#include "segment_symbols.h"\n'
          '#include "sequence.h"\n#include "skybox.h"\n\n']
+    s.append(light_settings())  # before the commands: they take its ARRAY_COUNT
     s.append(f"SceneCmd {SCENE}Commands[] = {{\n"
              "    SCENE_CMD_SOUND_SETTINGS(0, NATURE_ID_KOKIRI_REGION, NA_BGM_SHEIK),\n"
              f"    SCENE_CMD_ROOM_LIST(1, {SCENE}RoomList),\n"
@@ -1349,13 +1349,12 @@ def write_sources():
              "    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_OVERWORLD, OBJECT_GAMEPLAY_FIELD_KEEP),\n"
              f"    SCENE_CMD_PLAYER_ENTRY_LIST(1, {SCENE}PlayerEntryList),\n"
              "    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NORMAL_SKY, 0, LIGHT_MODE_TIME),\n"
-             f"    SCENE_CMD_ENV_LIGHT_SETTINGS(16, {SCENE}LightSettings),\n"
+             f"    SCENE_CMD_ENV_LIGHT_SETTINGS(ARRAY_COUNT({SCENE}LightSettings), {SCENE}LightSettings),\n"
              "    SCENE_CMD_END(),\n};\n\n")
     s.append(f"RomFile {SCENE}RoomList[] = {{\n    ROM_FILE({ROOM}),\n}};\n\n")
     s.append(f"Spawn {SCENE}SpawnList[] = {{\n    {{ 0, 0 }},\n}};\n\n")
     s.append(f"ActorEntry {SCENE}PlayerEntryList[] = {{\n    {{ ACTOR_PLAYER, {{ {sx}, {sy}, {sz} }}, {{ 0, 0x{SPAWN_YAW:04X}, 0 }}, "
              "PLAYER_PARAMS(PLAYER_START_MODE_MOVE_FORWARD_SLOW, PLAYER_START_BG_CAM_DEFAULT) },\n};\n\n")
-    s.append(light_settings())
     s.append(f"Vec3s {SCENE}CollisionVtx[] = {{\n" + "".join(f"    {{ {v[0]}, {v[1]}, {v[2]} }},\n" for v in verts) + "};\n\n")
     s.append(f"CollisionPoly {SCENE}CollisionPolys[] = {{\n" +
              "".join(f"    {{ {surf}, {{ COLPOLY_VTX({ids[0]}, {('COLPOLY_IGNORE_CAMERA' if flags else '0')}), COLPOLY_VTX({ids[1]}, 0), "
@@ -1400,12 +1399,13 @@ def light_settings():
         for amb, l1, l2, fog, near in day:
             g = lambda c: tuple(int(min(255, (v * k + (sum(c) / 3) * (1 - k)) * (1 if cfg == 0 else 0.92))) for v in c)
             rows.append((g(amb), g(l1), g(l2), g(fog), near))
-    out = f"EnvLightSettings {SCENE}LightSettings[16] = {{\n"
+    out = (f"// Hyrule Field's own light settings (time of day, fog) when the ROM's assets are there\n"
+           f"EnvLightSettings {SCENE}LightSettings[] = {{\n#ifdef ANCIENT_HF_LIGHTS\n#include ANCIENT_HF_LIGHTS\n#else\n")
     for amb, l1, l2, fog, near in rows:
         out += (f"    {{ {{ {amb[0]}, {amb[1]}, {amb[2]} }}, {{ 73, 73, 73 }}, {{ {l1[0]}, {l1[1]}, {l1[2]} }}, "
                 f"{{ -73, -73, -73 }}, {{ {l2[0]}, {l2[1]}, {l2[2]} }}, {{ {fog[0]}, {fog[1]}, {fog[2]} }}, "
-                f"BLEND_RATE_AND_FOG_NEAR(4, {near}), 14000 }},\n")
-    return out + "};\n\n"
+                f"BLEND_RATE_AND_FOG_NEAR(4, {near}), 12800 }},\n")
+    return out + "#endif\n};\n\n"
 
 
 def export_preview(path):
@@ -1459,7 +1459,6 @@ def main():
     build_floating()
     build_monoliths()
     build_pillars()
-    build_boulders()
     build_boundary()
     npolys, nverts, entries, acts = write_sources()
     actors_cache[:] = [[a[0], a[1], a[2], a[3]] for a in acts]

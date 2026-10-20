@@ -50,8 +50,8 @@ fetch("level.json").then(r => r.json()).then(data => {
     scene.add(new THREE.Mesh(g, mat));
   }
   // actor markers (the game draws real models here)
-  const markerCols = { ACTOR_OBJ_SYOKUDAI: 0xffb040, ACTOR_EN_AM: 0x8a7a6a, ACTOR_EN_GS: 0x9a9aa8, ACTOR_EN_VM: 0x5a5a66, ACTOR_EN_WOOD02: 0x2f7a2a, ACTOR_EN_KUSA: 0x3f9a35, ACTOR_EN_ISHI: 0x9a948a, ACTOR_EN_BUTTE: 0xffffff };
-  const markerSize = { ACTOR_OBJ_SYOKUDAI: [14, 90], ACTOR_EN_AM: [28, 90], ACTOR_EN_GS: [26, 70], ACTOR_EN_VM: [30, 120], ACTOR_EN_WOOD02: [70, 300], ACTOR_EN_KUSA: [26, 28], ACTOR_EN_ISHI: [18, 16], ACTOR_EN_BUTTE: [4, 4] };
+  const markerCols = { ACTOR_OBJ_SYOKUDAI: 0xffb040, ACTOR_EN_AM: 0x8a7a6a, ACTOR_EN_GS: 0x9a9aa8, ACTOR_EN_VM: 0x5a5a66, ACTOR_EN_WOOD02: 0x2f7a2a, ACTOR_EN_KUSA: 0x3f9a35, ACTOR_EN_ISHI: 0x9a948a, ACTOR_EN_BUTTE: 0xffffff, ACTOR_OBJ_BOMBIWA: 0x6a5a4a };
+  const markerSize = { ACTOR_OBJ_SYOKUDAI: [14, 90], ACTOR_EN_AM: [28, 90], ACTOR_EN_GS: [26, 70], ACTOR_EN_VM: [30, 120], ACTOR_EN_WOOD02: [70, 300], ACTOR_EN_KUSA: [26, 28], ACTOR_EN_ISHI: [18, 16], ACTOR_EN_BUTTE: [4, 4], ACTOR_OBJ_BOMBIWA: [40, 55] };
   if (params.get("markers") !== "0") for (const [id, x, y, z] of data.actors) {
     const [r, h] = markerSize[id] || [10, 30];
     const geo = id === "ACTOR_EN_WOOD02" ? new THREE.ConeGeometry(r, h, 8) : new THREE.CylinderGeometry(r * 0.8, r, h, 8);
