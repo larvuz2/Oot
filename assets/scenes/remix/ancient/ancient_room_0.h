@@ -27,6 +27,47 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_VIEW_POOL_Y 41.0f
 #define ANCIENT_VIEW_POOL_Z -2270.4f
 #define ANCIENT_VIEW_POOL_YAW 0x760B
+// Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
+#define ANCIENT_DECOR_SECTORS 51
+#define ANCIENT_DECOR_DRAW_DIST 1500
+#define ANCIENT_DECOR_SECTOR_LIST                                                                                 \
+    {                                                                                                             \
+        { 442, -4049, 120, 1 }, { 806, -3030, 290, 1 }, { 806, -3588, 606, 1 }, { 542, -4182, 195, 1 },           \
+            { -835, -835, 276, 0 }, { -489, -1531, 604, 0 }, { -477, -2427, 575, 0 }, { -314, -3298, 493, 0 },    \
+            { -835, 835, 276, 0 }, { -375, 1531, 635, 0 }, { -425, 2431, 615, 0 }, { -1531, -407, 619, 0 },       \
+            { -1172, -1302, 120, 0 }, { -1506, -2564, 484, 0 }, { -1531, 339, 656, 0 }, { -1369, 1507, 462, 0 },  \
+            { -1465, 2595, 496, 0 }, { -2474, -446, 575, 0 }, { -2606, -1477, 499, 0 }, { -2189, -2189, 234, 0 }, \
+            { -2446, 438, 604, 0 }, { -2575, 1481, 459, 0 }, { -2189, 2189, 234, 0 }, { -3312, -579, 553, 0 },    \
+            { -3145, 451, 540, 0 }, { -3108, 1646, 120, 0 }, { 835, -835, 276, 0 }, { 458, -1531, 595, 0 },       \
+            { 263, -2443, 444, 0 }, { 468, -3534, 120, 0 }, { 835, 835, 276, 0 }, { 484, 1531, 585, 0 },          \
+            { 494, 2437, 556, 0 }, { 717, 3490, 120, 0 }, { 1531, -407, 619, 0 }, { 1669, -1324, 461, 0 },        \
+            { 1486, -2640, 524, 0 }, { 1133, -3246, 120, 0 }, { 1531, 332, 661, 0 }, { 1388, 2624, 502, 0 },      \
+            { 1678, 3157, 120, 0 }, { 2623, -434, 535, 0 }, { 2627, -1593, 574, 0 }, { 2304, -2207, 339, 0 },     \
+            { 2414, 454, 602, 0 }, { 2556, 1362, 536, 0 }, { 2337, 2473, 556, 0 }, { 3319, -355, 429, 0 },        \
+            { 3174, -1264, 266, 0 }, { 3094, 134, 120, 0 }, {                                                     \
+            3170, 1087, 120, 0                                                                                    \
+        }                                                                                                         \
+    }
+#define ANCIENT_DECOR_SECTOR_DLS                                                                                    \
+    {                                                                                                               \
+        ancient_room_0DL_decor_s0, ancient_room_0DL_decor_s1, ancient_room_0DL_decor_s2, ancient_room_0DL_decor_s3, \
+            ancient_room_0DL_decor_s4, ancient_room_0DL_decor_s5, ancient_room_0DL_decor_s6,                        \
+            ancient_room_0DL_decor_s7, ancient_room_0DL_decor_s8, ancient_room_0DL_decor_s9,                        \
+            ancient_room_0DL_decor_s10, ancient_room_0DL_decor_s11, ancient_room_0DL_decor_s12,                     \
+            ancient_room_0DL_decor_s13, ancient_room_0DL_decor_s14, ancient_room_0DL_decor_s15,                     \
+            ancient_room_0DL_decor_s16, ancient_room_0DL_decor_s17, ancient_room_0DL_decor_s18,                     \
+            ancient_room_0DL_decor_s19, ancient_room_0DL_decor_s20, ancient_room_0DL_decor_s21,                     \
+            ancient_room_0DL_decor_s22, ancient_room_0DL_decor_s23, ancient_room_0DL_decor_s24,                     \
+            ancient_room_0DL_decor_s25, ancient_room_0DL_decor_s26, ancient_room_0DL_decor_s27,                     \
+            ancient_room_0DL_decor_s28, ancient_room_0DL_decor_s29, ancient_room_0DL_decor_s30,                     \
+            ancient_room_0DL_decor_s31, ancient_room_0DL_decor_s32, ancient_room_0DL_decor_s33,                     \
+            ancient_room_0DL_decor_s34, ancient_room_0DL_decor_s35, ancient_room_0DL_decor_s36,                     \
+            ancient_room_0DL_decor_s37, ancient_room_0DL_decor_s38, ancient_room_0DL_decor_s39,                     \
+            ancient_room_0DL_decor_s40, ancient_room_0DL_decor_s41, ancient_room_0DL_decor_s42,                     \
+            ancient_room_0DL_decor_s43, ancient_room_0DL_decor_s44, ancient_room_0DL_decor_s45,                     \
+            ancient_room_0DL_decor_s46, ancient_room_0DL_decor_s47, ancient_room_0DL_decor_s48,                     \
+            ancient_room_0DL_decor_s49, ancient_room_0DL_decor_s50                                                  \
+    }
 
 extern u64 ancient_room_0Tex_grass[];
 extern u64 ancient_room_0Tex_dirt[];
@@ -168,6 +209,57 @@ extern Vtx ancient_room_0Vtx_entrance_opa[324];
 extern Gfx ancient_room_0DL_entrance_opa[];
 extern Vtx ancient_room_0Vtx_entrance_xlu[106];
 extern Gfx ancient_room_0DL_entrance_xlu[];
+extern Gfx ancient_room_0DL_decor_s0[];
+extern Gfx ancient_room_0DL_decor_s1[];
+extern Gfx ancient_room_0DL_decor_s2[];
+extern Gfx ancient_room_0DL_decor_s3[];
+extern Gfx ancient_room_0DL_decor_s4[];
+extern Gfx ancient_room_0DL_decor_s5[];
+extern Gfx ancient_room_0DL_decor_s6[];
+extern Gfx ancient_room_0DL_decor_s7[];
+extern Gfx ancient_room_0DL_decor_s8[];
+extern Gfx ancient_room_0DL_decor_s9[];
+extern Gfx ancient_room_0DL_decor_s10[];
+extern Gfx ancient_room_0DL_decor_s11[];
+extern Gfx ancient_room_0DL_decor_s12[];
+extern Gfx ancient_room_0DL_decor_s13[];
+extern Gfx ancient_room_0DL_decor_s14[];
+extern Gfx ancient_room_0DL_decor_s15[];
+extern Gfx ancient_room_0DL_decor_s16[];
+extern Gfx ancient_room_0DL_decor_s17[];
+extern Gfx ancient_room_0DL_decor_s18[];
+extern Gfx ancient_room_0DL_decor_s19[];
+extern Gfx ancient_room_0DL_decor_s20[];
+extern Gfx ancient_room_0DL_decor_s21[];
+extern Gfx ancient_room_0DL_decor_s22[];
+extern Gfx ancient_room_0DL_decor_s23[];
+extern Gfx ancient_room_0DL_decor_s24[];
+extern Gfx ancient_room_0DL_decor_s25[];
+extern Gfx ancient_room_0DL_decor_s26[];
+extern Gfx ancient_room_0DL_decor_s27[];
+extern Gfx ancient_room_0DL_decor_s28[];
+extern Gfx ancient_room_0DL_decor_s29[];
+extern Gfx ancient_room_0DL_decor_s30[];
+extern Gfx ancient_room_0DL_decor_s31[];
+extern Gfx ancient_room_0DL_decor_s32[];
+extern Gfx ancient_room_0DL_decor_s33[];
+extern Gfx ancient_room_0DL_decor_s34[];
+extern Gfx ancient_room_0DL_decor_s35[];
+extern Gfx ancient_room_0DL_decor_s36[];
+extern Gfx ancient_room_0DL_decor_s37[];
+extern Gfx ancient_room_0DL_decor_s38[];
+extern Gfx ancient_room_0DL_decor_s39[];
+extern Gfx ancient_room_0DL_decor_s40[];
+extern Gfx ancient_room_0DL_decor_s41[];
+extern Gfx ancient_room_0DL_decor_s42[];
+extern Gfx ancient_room_0DL_decor_s43[];
+extern Gfx ancient_room_0DL_decor_s44[];
+extern Gfx ancient_room_0DL_decor_s45[];
+extern Gfx ancient_room_0DL_decor_s46[];
+extern Gfx ancient_room_0DL_decor_s47[];
+extern Gfx ancient_room_0DL_decor_s48[];
+extern Gfx ancient_room_0DL_decor_s49[];
+extern Gfx ancient_room_0DL_decor_s50[];
 extern Gfx ancient_room_0DL_decor_0[];
 extern Gfx ancient_room_0DL_decor_1[];
 extern Gfx ancient_room_0DL_decor_2[];

@@ -124,6 +124,8 @@ function renderReady() {
         }),
     );
     select.value = preferredCore() in CORES ? preferredCore() : DEFAULT_CORE;
+    $("perf").checked = perfMode();
+    $("speed-meter").checked = speedMeterOn();
     prepareCloudSave();
     setState("ready");
     $("play").focus();
@@ -272,6 +274,84 @@ function setPreferredCore(c) {
     }
 }
 
+// ---- Performance mode and speed meter -----------------------------------------
+
+// Tablets and phones (iPadOS reports itself as a Mac, but with a touch screen).
+const TOUCH_DEVICE =
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+/** A yes/no setting: ?name=1|0 in the address, else what the player chose last time, else the default. */
+function flag(name, key, def) {
+    const q = params.get(name);
+    if (q === "1" || q === "0") return q === "1";
+    try {
+        const v = localStorage.getItem(key);
+        if (v === "1" || v === "0") return v === "1";
+    } catch {
+        /* storage blocked */
+    }
+    return def;
+}
+function setFlag(key, on) {
+    try {
+        localStorage.setItem(key, on ? "1" : "0");
+    } catch {
+        /* storage blocked */
+    }
+}
+const perfMode = () => flag("perf", "oot.perf", TOUCH_DEVICE);
+const speedMeterOn = () => flag("speed", "oot.speed", TOUCH_DEVICE);
+
+// Performance mode: the emulator draws at the console's own resolution (320x240 instead of 640x480, a quarter of
+// the pixels) and skips work the game barely needs: copying the depth buffer back to the console's memory in
+// software (only the sun's lens flare looks at it) and texture level-of-detail. Frame duplication keeps the
+// picture steady when a frame comes late. Options the player changes in the emulator's menu still win.
+const PERF_OPTIONS = {
+    mupen64plus_next: {
+        "mupen64plus-43screensize": "320x240",
+        "mupen64plus-EnableCopyDepthToRDRAM": "Off",
+        "mupen64plus-EnableLODEmulation": "False",
+        "mupen64plus-MultiSampling": "0",
+        "mupen64plus-FrameDuping": "True",
+    },
+    parallel_n64: {
+        "parallel-n64-screensize": "320x240",
+        "parallel-n64-framerate": "original",
+    },
+};
+
+// Speed meter: frames the emulator ran in the last second against the console's 60 per second. Below 100% the
+// game and its music slow down.
+let speedTimer = 0;
+function startSpeedMeter() {
+    const el = $("speed");
+    clearInterval(speedTimer);
+    el.hidden = !speedMeterOn();
+    let last = null;
+    speedTimer = setInterval(() => {
+        const e = window.EJS_emulator;
+        if (el.hidden || !e || !e.started || e.paused || document.hidden) {
+            last = null;
+            return;
+        }
+        let n;
+        try {
+            n = e.gameManager.functions.getFrameNum();
+        } catch {
+            return;
+        }
+        const now = performance.now();
+        if (last && now > last.t) {
+            const fps = ((n - last.n) * 1000) / (now - last.t);
+            const pct = Math.min(999, Math.round((fps / 60) * 100));
+            el.textContent = `${pct}% · ${Math.round(fps)} fps${session?.perf ? " · perf" : ""}`;
+            el.className = `speed${pct >= 95 ? "" : pct >= 80 ? " ok" : " slow"}`;
+            if (session) session.speed = pct;
+        }
+        last = { n, t: now };
+    }, 1000);
+}
+
 // Browsers may start audio suspended; resume it on any interaction so the
 // emulator's sound output never waits on a context that can't play.
 const audioContexts = new Set();
@@ -328,6 +408,7 @@ function diagnostics() {
         `Emulator core: ${session?.core}`,
         `Build: ${session?.mode} · ${session?.version}`,
         `Frames run: ${frames}`,
+        `Speed: ${session?.speed ?? "?"}%${session?.perf ? " (performance mode)" : ""}`,
         `Audio: ${[...audioContexts].map((c) => c.state).join(", ") || "none"}`,
         `Browser: ${navigator.userAgent}`,
         `Page: ${location.href}`,
@@ -368,13 +449,15 @@ function watchFrames() {
 }
 
 function startEmulator(bytes, gameName, meta = {}) {
+    const core = meta.core || preferredCore();
+    const perf = perfMode();
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
     const p0 = {};
     for (const [id, [value, value2]] of Object.entries(KEYS)) p0[id] = { value, value2 };
 
     Object.assign(window, {
         EJS_player: "#game",
-        EJS_core: meta.core || preferredCore(),
+        EJS_core: core,
         EJS_pathtodata: new URL("emulatorjs/data/", document.baseURI).pathname,
         EJS_gameUrl: url,
         EJS_gameName: gameName,
@@ -386,10 +469,12 @@ function startEmulator(bytes, gameName, meta = {}) {
         EJS_defaultOptions: {
             "save-save-interval": "30",
             "save-state-location": "browser",
+            ...(perf ? PERF_OPTIONS[core] : {}),
         },
     });
-    session = { core: meta.core || preferredCore(), mode: meta.mode || "test", version: meta.version || "test ROM" };
+    session = { core, perf, mode: meta.mode || "test", version: meta.version || "test ROM" };
     watchFrames();
+    startSpeedMeter();
     setState("playing");
     const s = document.createElement("script");
     s.src = "emulatorjs/data/loader.js";
@@ -478,6 +563,12 @@ $("cloud-copy").addEventListener("click", async () => {
     } catch {
         $("cloud-link").select();
     }
+});
+$("perf").addEventListener("change", (e) => setFlag("oot.perf", e.target.checked));
+$("speed-meter").addEventListener("change", (e) => setFlag("oot.speed", e.target.checked));
+$("speed").addEventListener("click", () => {
+    $("speed").hidden = true;
+    setFlag("oot.speed", false);
 });
 $("play").addEventListener("click", () => play());
 $("play-level").addEventListener("click", () => play("remix", { newLevel: true }));

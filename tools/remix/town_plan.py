@@ -90,3 +90,16 @@ def bridge_ends():
     a = (ISLAND["x"] + ux * (ISLAND["r"] - 20), ISLAND["top"], ISLAND["z"] + uz * (ISLAND["r"] - 20))
     b = (ISLET["x"] - ux * (ISLET["r"] - 20), ISLET["top"], ISLET["z"] - uz * (ISLET["r"] - 20))
     return a, b
+
+
+# ---------------------------------------------------------------- scenery models (gameplay_field_keep)
+# kind -> (display list in gameplay_field_keep, scale its actors draw it at, recolored to glow). link_level_assets.py
+# splits each into a setup list (texture, render mode: once per group) and a geometry list (drawn per copy); make_level.py
+# places them (ANCIENT_DECOR_<KIND>_SETUP / _GEOM).
+DECOR_SOURCES = {
+    "bush": ("gFieldBushDL", 0.4, True),
+    "green_bush": ("gFieldBushDL", 0.4, False),
+    "pebble": ("gFieldKakeraDL", 0.1, False),
+    "rock": ("gSilverRockDL", 0.4, False),
+    "flower": ("gHanaDL", 0.01, False),
+}

@@ -157,7 +157,7 @@ def write_borrowed(ext: Path):
         "VTX(60, 90, 0, 1024, 0, 0x00, 0x7F, 0x00, 0xFF),\nVTX(-60, 90, 0, 0, 0, 0x00, 0x7F, 0x00, 0xFF),\n")
     (keep / "gFieldBushDL.inc.c").write_text(
         "gsDPPipeSync(),\ngsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),\n"
-        "gsDPLoadTextureBlock(gFieldBushTex, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP, "
+        "gsDPLoadTextureBlock(gFieldBushTex, G_IM_FMT_RGBA, G_IM_SIZ_16b, gFieldBushTex_WIDTH, gFieldBushTex_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP, "
         "G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),\ngsSPVertex(gFieldBushVtx, 4, 0),\n"
         "gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),\ngsSPEndDisplayList(),\n")
     for _, folder, sym, _ in link_level_assets.BORROWED:
@@ -215,18 +215,32 @@ def main():
               re.search(r"spot00_room_0Tex_001900: i4 16x16 .* color \(110, 81, 51\)", p.stdout) is not None
               and "spot00_room_0Tex_grey:" not in p.stdout)
 
-        check("town ground, Zora water and the glowing bush linked",
-              all(m in h for m in ("#define ANCIENT_TOWN_GROUND", "#define ANCIENT_ZORA_WATER", "#define ANCIENT_GLOW_BUSH")))
-        gb = out.parent / "glow_bush.inc.c"
-        text = gb.read_text() if gb.exists() else ""
-        check("glowing bush: copied geometry, unlit, its own recolored texture",
-              "gsSP2Triangles" in text and "G_LIGHTING" not in text and "ancient_glow_bush_tex_0" in text
-              and "#define ANCIENT_GLOW_BUSH_DL ancient_glow_bush_dl" in text)
-        words = [int(x, 16) for x in re.findall(r"0x([0-9A-F]{16})", text.split("Vtx")[0])]
+        check("town ground, Zora water and the scenery models linked",
+              all(m in h for m in ("#define ANCIENT_TOWN_GROUND", "#define ANCIENT_ZORA_WATER", "#define ANCIENT_DECOR_MODELS")))
+        dm = out.parent / "decor_models.inc.c"
+        text = dm.read_text() if dm.exists() else ""
+
+        def dl(name):
+            m = re.search(r"Gfx " + name + r"\[\] = \{(.*?)\};", text, re.S)
+            return m.group(1) if m else ""
+
+        glow_setup, glow_geom = dl("ancient_decor_bush_setup"), dl("ancient_decor_bush_geom")
+        check("glowing bush: unlit, its texture loaded in the setup list, triangles in the geometry list",
+              "ancient_decor_bush_tex_0" in glow_setup and "G_LIGHTING" not in glow_setup and "gsSP2Triangles" not in glow_setup
+              and "gsSPVertex(&ancient_decor_bush_vtx" in glow_geom and "LoadTextureBlock" not in glow_geom)
+        words = [int(x, 16) for x in re.findall(r"0x([0-9A-F]{16})", text.split("Vtx ancient_decor_bush_vtx")[0])]
         t = np.array([(w >> sh) & 0xFFFF for w in words for sh in (48, 32, 16, 0)], np.uint32)
         lit = t[(t & 1) == 1]
         check("glowing bush texture is blue-cyan and keeps its holes",
               len(t) == 1024 and 0 < len(lit) < 1024 and ((lit >> 1) & 31).mean() > ((lit >> 11) & 31).mean() + 4)
+        green_setup, green_geom = dl("ancient_decor_green_bush_setup"), dl("ancient_decor_green_bush_geom")
+        check("green bush: the game's own data split at its first vertices (by reference)",
+              "gsDPLoadTextureBlock(gFieldBushTex" in green_setup and "gsSPVertex(gFieldBushVtx" in green_geom
+              and "gsSP2Triangles" in green_geom and "extern Vtx gFieldBushVtx[];" in text
+              and "#define gFieldBushTex_WIDTH 32" in text and "#define gFieldBushTex_HEIGHT 32" in text
+              and "#define ANCIENT_DECOR_GREEN_BUSH_SETUP ancient_decor_green_bush_setup" in text)
+        check("models the stand-in lacks are drawn whole",
+              "#define ANCIENT_DECOR_PEBBLE_GEOM gFieldKakeraDL" in text and "#define ANCIENT_DECOR_PEBBLE_SETUP ancient_decor_none" in text)
 
         g = out.parent / "hf_grass.rgba16.inc.c"
         if g.exists():

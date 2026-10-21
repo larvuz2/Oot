@@ -246,6 +246,8 @@ jobs:
                   "ovl_En_Kusa", "ovl_Obj_Kibako2"]
           print("Candidates: " + ", ".join(f"{n} {size(n)}" for n in cand if f"_{n}SegmentRomStart" in syms))
           PY
+          # what a frame asks of the emulator, next to some of the game's own areas
+          python3 tools/remix/frame_cost.py --version "$V" || true
 
       - name: Build Floating IPS
         if: steps.gate.outputs.enabled == 'true'
