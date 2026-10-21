@@ -195,3 +195,10 @@ footer p { margin: 0 0 6px; }
     .card { padding: 18px; }
     #game { max-height: none; }
 }
+
+.cloud { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--card-edge); border-radius: 12px; background: rgba(255, 255, 255, .02); }
+.cloud p { margin: 0 0 8px; }
+.cloud-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.cloud-row[hidden], .cloud input[hidden] { display: none; }
+.cloud input { flex: 1 1 200px; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--card-edge); background: #0f1f17; color: var(--text); }
+.cloud input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }

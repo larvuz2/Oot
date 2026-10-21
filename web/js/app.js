@@ -2,6 +2,7 @@ import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
 import { setBootMode, BOOT_ANCIENT_PLATEAU } from "./boot.js";
+import { cloudInfo, uploadRom, downloadRom } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
 const setState = (s) => (document.body.dataset.state = s);
@@ -123,6 +124,7 @@ function renderReady() {
         }),
     );
     select.value = preferredCore() in CORES ? preferredCore() : DEFAULT_CORE;
+    prepareCloudSave();
     setState("ready");
     $("play").focus();
 }
@@ -153,6 +155,66 @@ async function onFile(file) {
         await ingest(bytes, name, true);
     } catch (err) {
         fail(err);
+    }
+}
+
+// ---- Cloud copy (any device) ------------------------------------------------
+
+const cloudLink = (pass) => `${location.origin}${location.pathname}#cloud=${encodeURIComponent(pass)}`;
+
+async function prepareCloudSave() {
+    $("cloud-save-msg").textContent = "";
+    $("cloud-link-box").hidden = true;
+    try {
+        const info = await cloudInfo();
+        $("cloud-site-pass").hidden = !info.passwordRequired;
+        $("cloud-site-pass").required = !!info.passwordRequired;
+    } catch {
+        $("cloud-save-msg").textContent = "Cloud saving isn't available on this copy of the site.";
+    }
+}
+
+async function saveToCloud(e) {
+    e.preventDefault();
+    const pass = $("cloud-save-pass").value;
+    const msg = $("cloud-save-msg");
+    if (pass.trim().length < 8) {
+        msg.textContent = "Use at least 8 characters.";
+        return;
+    }
+    const button = e.submitter || $("cloud-save").querySelector("button[type=submit]");
+    button.disabled = true;
+    try {
+        msg.textContent = "Encrypting…";
+        await uploadRom(pass, rom.name, rom.original, {
+            sitePassword: $("cloud-site-pass").value,
+            onProgress: (f) => (msg.textContent = `Saving to the cloud… ${Math.round(f * 100)}%`),
+        });
+        msg.textContent = "Saved. On another device, open this site and enter your passphrase, or open this link there " +
+            "(it contains your passphrase, so keep it to yourself):";
+        $("cloud-link").value = cloudLink(pass);
+        $("cloud-link-box").hidden = false;
+    } catch (err) {
+        msg.textContent = `Couldn't save: ${err.message}`;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function loadFromCloud(pass) {
+    const msg = $("cloud-load-msg");
+    try {
+        busy("Finding your ROM in the cloud…");
+        const got = await downloadRom(pass, { onProgress: (f) => busy(`Loading your ROM from the cloud… ${Math.round(f * 100)}%`) });
+        if (!got) {
+            setState("empty");
+            msg.textContent = "No ROM is saved with that passphrase.";
+            return;
+        }
+        await ingest(got.bytes, got.name, true);
+    } catch (err) {
+        setState("empty");
+        msg.textContent = err.name === "OperationError" ? "That passphrase doesn't open the saved ROM." : `Couldn't load: ${err.message}`;
     }
 }
 
@@ -403,6 +465,20 @@ $("forget").addEventListener("click", async () => {
     $("file").value = "";
     setState("empty");
 });
+$("cloud-save").addEventListener("submit", saveToCloud);
+$("cloud-load").addEventListener("submit", (e) => {
+    e.preventDefault();
+    $("cloud-load-msg").textContent = "";
+    loadFromCloud($("cloud-load-pass").value);
+});
+$("cloud-copy").addEventListener("click", async () => {
+    try {
+        await navigator.clipboard.writeText($("cloud-link").value);
+        $("cloud-copy").textContent = "Copied!";
+    } catch {
+        $("cloud-link").select();
+    }
+});
 $("play").addEventListener("click", () => play());
 $("play-level").addEventListener("click", () => play("remix", { newLevel: true }));
 $("crash-restart").addEventListener("click", () => restart(session.core));
@@ -433,6 +509,15 @@ $("back").addEventListener("click", () => location.reload());
         } catch (err) {
             fail(err);
         }
+        return;
+    }
+
+    // A cloud link (#cloud=passphrase, made by "Save to cloud"): load that ROM on this device. The passphrase is
+    // in the fragment, which browsers never send to the server.
+    const cloud = new URLSearchParams(location.hash.slice(1)).get("cloud");
+    if (cloud) {
+        history.replaceState(null, "", location.pathname + location.search);
+        await loadFromCloud(cloud);
         return;
     }
 

@@ -161,6 +161,17 @@ The remix build also checks the level:
   Hyrule Field the same quick way, and the game normally, to tell a level problem from a boot problem. The
   screenshots are attached to the run (`smoke-screenshots`).
 
+## Play on any device: your ROM in the cloud
+
+Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
+Blobs), locked with a passphrase you choose. The ROM is encrypted in your browser first (AES-GCM, with a key made
+from the passphrase), and stored under a name also made from it, so the site only ever holds bytes nobody can read
+without the passphrase. On another device, open the site and type the passphrase under **Load from cloud**, or open
+the link the site gives you after saving (it carries the passphrase after a `#`, which browsers never send to the
+server). The ROM is then remembered on that device too. Saving asks for the site password (`STUDIO_PASSWORD`, the
+Character Studio's) when one is set, so only you can use the storage. Files: `web/js/cloud.js`,
+`web/netlify/functions/rom.mjs`.
+
 ## Character Studio: make your own character
 
 `studio.html` on the site (linked from the top of the player) turns a few words into a character
