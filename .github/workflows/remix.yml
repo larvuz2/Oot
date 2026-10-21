@@ -106,6 +106,9 @@ jobs:
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium-headless-shell >/dev/null
           NODE_PATH="$RUNNER_TEMP/pw/node_modules" python3 tools/remix/survey_scenes.py --version "$V" \
             --out "$RUNNER_TEMP/survey" --render > "$RUNNER_TEMP/survey.log" 2>&1 || true
+          python3 tools/remix/survey_scenes.py --version "$V" --out "$RUNNER_TEMP/survey" \
+            --ground kakariko,graveyard,castle,sacred_meadow,lost_woods,kokiri,lon_lon,zora_river,zora_domain,zora_fountain,lake,gerudo_valley,fortress,wasteland,colossus,death_mountain,crater,goron_city,hyrule_field \
+            >> "$RUNNER_TEMP/survey.log" 2>&1 || true
           tail -5 "$RUNNER_TEMP/survey.log"
 
       - name: Upload survey

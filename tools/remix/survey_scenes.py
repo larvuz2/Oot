@@ -44,6 +44,14 @@ SCENES = {
     "colossus": "assets/scenes/overworld/spot11",
     "fortress": "assets/scenes/overworld/spot12",
     "death_mountain": "assets/scenes/overworld/spot16",
+    "sacred_meadow": "assets/scenes/overworld/spot05",
+    "lost_woods": "assets/scenes/overworld/spot10",
+    "zora_domain": "assets/scenes/overworld/spot07",
+    "zora_fountain": "assets/scenes/overworld/spot08",
+    "wasteland": "assets/scenes/overworld/spot13",
+    "crater": "assets/scenes/overworld/spot17",
+    "goron_city": "assets/scenes/overworld/spot18",
+    "hyrule_field": "assets/scenes/overworld/spot00",
 }
 # The scenes a branch test build surveys (the first five were surveyed for the first town)
 SURVEY_DEFAULT = "graveyard,zora_river,lake,gerudo_valley,colossus,fortress,death_mountain"
@@ -145,6 +153,68 @@ def survey_scene(name: str, ext: Path, rel: str, work: Path, report: list):
     return jobs
 
 
+def ground_textures(ext: Path, names, out: Path, per_scene=5):
+    """A sheet of the textures each scene covers the most floor with (tiled, tinted the way the scene draws them),
+    to choose ground textures from."""
+    tiles, labels = [], []
+    work = Path(tempfile.mkdtemp(prefix="ground-"))
+    for name in names:
+        src = ext / SCENES.get(name, name)
+        if not src.is_dir():
+            continue
+        field = Field(ext, src)
+        area = {}
+        for room in field.rooms():
+            for e in field.room_entries(room):
+                for dl in (e["opa"], e["xlu"]):
+                    if dl is None:
+                        continue
+
+                    def on_tri(v, st):
+                        if not st["tex"] or st["tex"].startswith("seg:"):
+                            return
+                        p = v[:, :3]
+                        n = np.cross(p[1] - p[0], p[2] - p[0])
+                        a = np.linalg.norm(n) / 2
+                        if a < 1 or n[1] / (2 * a) < 0.75:
+                            return
+                        rec = area.setdefault(st["tex"], [0.0, np.zeros(3), 0.0])
+                        rec[0] += a
+                        if not st["lit"]:
+                            rec[1] += v[:, 5:8].mean(0) * a
+                            rec[2] += a
+
+                    replay(field, dl, on_tri, {})
+        ranked = sorted(area.items(), key=lambda kv: -kv[1][0])
+        print(f"ground: {name}: {len(field.rooms())} rooms, {len(ranked)} floor textures: "
+              + ", ".join(f"{s} {a / 1e3:.0f}k" for s, (a, _, _) in ranked[:per_scene]))
+        rank = 0
+        for sym, (a, col, w) in ranked:
+            got = field.texture(sym)
+            if got is None:
+                continue
+            fmt, img = got
+            arr = np.array(img).astype(float)
+            if fmt.startswith(("i4", "i8", "ia")) and w > 0:
+                arr[..., :3] *= (col / w / 255.0)
+            tile = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)).convert("RGB")
+            big = Image.new("RGB", (tile.size[0] * 4, tile.size[1] * 4))
+            for i in range(4):
+                for j in range(4):
+                    big.paste(tile, (i * tile.size[0], j * tile.size[1]))
+            f = work / f"{name}-{rank}.png"
+            big.resize((360, 270), Image.NEAREST).save(f)
+            tiles.append(f)
+            labels.append(f"{name} #{rank} {sym}\n{fmt} {img.size[0]}x{img.size[1]} floor {a / 1e3:.0f}k")
+            rank += 1
+            if rank >= per_scene:
+                break
+    if tiles:
+        for page in range(0, len(tiles), 40):
+            contact_sheet(tiles[page:page + 40], labels[page:page + 40], out / f"ground-textures-{page // 40 + 1}.png")
+    shutil.rmtree(work, ignore_errors=True)
+
+
 def contact_sheet(shots, labels, out: Path, cols=5, tile=(360, 270)):
     rows = (len(shots) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * tile[0], rows * (tile[1] + 34)), (24, 24, 28))
@@ -165,9 +235,14 @@ def main():
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--scenes", default=SURVEY_DEFAULT, help="comma-separated: " + ", ".join(SCENES))
     ap.add_argument("--render", action="store_true")
+    ap.add_argument("--ground", help="comma-separated scenes: a sheet of their main floor textures, nothing else")
     args = ap.parse_args()
     ext = args.extracted or HERE.parents[1] / "extracted" / args.version
     args.out.mkdir(parents=True, exist_ok=True)
+    if args.ground:
+        ground_textures(ext, args.ground.split(","), args.out)
+        print(f"survey: wrote {args.out}")
+        return
     work = Path(tempfile.mkdtemp(prefix="survey-"))
     report = ["# Town scenes survey\n", "Sizes in world units (Link is about 50 tall). Areas in thousands of square "
               "units. Floor: faces up; wall: vertical; roof: in between.\n"]
