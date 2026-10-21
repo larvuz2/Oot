@@ -429,8 +429,19 @@ def split_model(field: Field, sym: str, name: str):
     if any(not c.startswith(GEOMETRY_CMDS) for c in post) or any(c.startswith(("gsSPDisplayList", "gsSPBranchList")) for c in pre):
         print(f"link_level_assets: {name}: {sym} changes material inside its geometry; drawn whole")
         return None
-    used = sorted({w for c in pre + post for w in IDENT_RE.findall(c) if w in field.defs and w != sym})
+    words = {w for c in pre + post for w in IDENT_RE.findall(c)}
+    used = sorted(w for w in words if w in field.defs and w != sym)
     externs = "".join(f"extern {field.defs[w][0]} {w}[];\n" for w in used)
+    # texture sizes by name (gFieldBushTex_WIDTH): the object's header defines them; here they come from the image
+    for w in sorted(words):
+        m = re.fullmatch(r"(\w+)_(WIDTH|HEIGHT)", w)
+        tex = field.texture(m.group(1)) if m and m.group(1) in field.defs else None
+        if m and tex is None:
+            print(f"link_level_assets: {name}: no size for {w}; drawn whole")
+            return None
+        if m:
+            size = tex[1].size[0 if m.group(2) == "WIDTH" else 1]
+            externs += f"#ifndef {w}\n#define {w} {size}\n#endif\n"
     print(f"link_level_assets: {name}: {sym} split: {len(pre)} setup commands, {len(post)} geometry commands")
     return externs, pre, post
 
