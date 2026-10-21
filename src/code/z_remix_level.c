@@ -60,8 +60,8 @@ static Gfx* RemixLevel_AncientTable(PlayState* play, Gfx* water) {
         f32 dx = eyeX - sDecorSectors[i][0];
         f32 dz = eyeZ - sDecorSectors[i][1];
         // the floating island stands out against the sky: its bushes stay a little further
-        f32 reach = (sDecorSectors[i][3] ? ANCIENT_DECOR_DRAW_DIST * 3 / 2 : ANCIENT_DECOR_DRAW_DIST) +
-                    sDecorSectors[i][2];
+        f32 reach =
+            (sDecorSectors[i][3] ? ANCIENT_DECOR_DRAW_DIST * 3 / 2 : ANCIENT_DECOR_DRAW_DIST) + sDecorSectors[i][2];
 
         if (SQ(dx) + SQ(dz) < SQ(reach)) {
             gSPBranchList(&table[1 + i], sDecorSectorDLs[i]);
