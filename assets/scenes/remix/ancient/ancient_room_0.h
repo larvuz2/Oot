@@ -16,8 +16,17 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_RING_Y 1330
 // Center of the floating island (its circling rocks turn around it)
 #define ANCIENT_ISLAND_X 806
-#define ANCIENT_ISLAND_Y 820
+#define ANCIENT_ISLAND_Y 960
 #define ANCIENT_ISLAND_Z -3231
+// Where the test boots put Link (z_remix_level.c)
+#define ANCIENT_VIEW_ISLAND_X 1043.0f
+#define ANCIENT_VIEW_ISLAND_Y 962.0f
+#define ANCIENT_VIEW_ISLAND_Z -3115.6f
+#define ANCIENT_VIEW_ISLAND_YAW 0xAD8D
+#define ANCIENT_VIEW_POOL_X 566.1f
+#define ANCIENT_VIEW_POOL_Y 41.0f
+#define ANCIENT_VIEW_POOL_Z -2270.4f
+#define ANCIENT_VIEW_POOL_YAW 0x760B
 
 extern u64 ancient_room_0Tex_grass[];
 extern u64 ancient_room_0Tex_dirt[];
@@ -149,9 +158,9 @@ extern Vtx ancient_room_0Vtx_pillars_3_opa[56];
 extern Gfx ancient_room_0DL_pillars_3_opa[];
 extern Vtx ancient_room_0Vtx_pillars_3_xlu[36];
 extern Gfx ancient_room_0DL_pillars_3_xlu[];
-extern Vtx ancient_room_0Vtx_island_opa[537];
+extern Vtx ancient_room_0Vtx_island_opa[480];
 extern Gfx ancient_room_0DL_island_opa[];
-extern Vtx ancient_room_0Vtx_island_xlu[42];
+extern Vtx ancient_room_0Vtx_island_xlu[19];
 extern Gfx ancient_room_0DL_island_xlu[];
 extern Gfx ancient_room_0DL_island_orbit_opa[];
 extern Gfx ancient_room_0DL_sky_steps_opa[];

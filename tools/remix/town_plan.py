@@ -76,7 +76,7 @@ def ring_road():
 # Zora's River's rope bridge between the island and the islet beyond it.
 
 ISLAND_A = math.radians(166)  # direction from the Spire
-ISLAND = dict(x=math.sin(ISLAND_A) * 3330, z=math.cos(ISLAND_A) * 3330, top=820, r=330)
+ISLAND = dict(x=math.sin(ISLAND_A) * 3330, z=math.cos(ISLAND_A) * 3330, top=960, r=330)
 _ISLET_D = 920  # from the island's center, further out
 ISLET = dict(x=ISLAND["x"] + math.sin(ISLAND_A + 0.55) * _ISLET_D, z=ISLAND["z"] + math.cos(ISLAND_A + 0.55) * _ISLET_D,
              top=ISLAND["top"] + 40, r=170)

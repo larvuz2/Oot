@@ -1063,45 +1063,25 @@ def waterfall_spot():
 
 
 def pool_center():
+    """The pool on the field under the waterfall (its foam spreads up to 260 out from the foot)."""
     rim, d = waterfall_spot()
-    p = rim + d * 70
+    p = rim + d * 150
     return float(p[0]), float(p[2])
 
 
-POOL_R = 210
+POOL_R = 260
 
 
 def build_sky():
     e = new_entry("island")
     float_rock(e, ISLAND["x"], ISLAND["z"], ISLAND["top"], ISLAND["r"], 560, 901, n=12, band=95, rough=0.06)
     float_rock(e, ISLET["x"], ISLET["z"], ISLET["top"], ISLET["r"], 300, 902, n=8, band=60, rough=0.08)
-    # a Sheikah eye on a stone pad in the middle of the island
-    pad = np.array([ISLAND["x"], ISLAND["top"], ISLAND["z"]])
-    prism(e, TECH, 70, 64, ISLAND["top"] - 4, ISLAND["top"] + 12, 8, center=(pad[0], pad[2]), col=SURF_TECH, cap=True,
-          cap_mat=PLAZA)
     up = np.array([0.0, 1.0, 0.0])
-    side, fwd = np.array([1.0, 0, 0]), np.array([0, 0, 1.0])
-    c = pad + [0, 14, 0]
-    h = 52
-    quad(e, EYE_CYAN, [c - side * h + fwd * h, c + side * h + fwd * h, c + side * h - fwd * h, c - side * h - fwd * h],
-         [(0, 0), (64, 0), (64, 64), (0, 64)], [(255, 255, 255, 255)] * 4, up)
-    # the stream across the island and the waterfall over its edge, into a pool on the field
-    rim, d = waterfall_spot()
-    s_ = np.array([d[2], 0, -d[0]])
-    spring = pad + d * 110
-    stream = [spring + d * t + s_ * 18 * math.sin(t / 60) for t in np.linspace(0, float(np.linalg.norm((rim - spring) * [1, 0, 1])), 6)]
-    strip(e, WATER, stream, [up] * len(stream), 64, lift=3.0)
+    # the waterfall over the island's edge is Zora's River's own (Bg_Spot03_Taki, placed in actors()); it pours
+    # into a pool of Zora's River's water on the field
     px, pz = pool_center()
     gy = float(mesh_height(px, pz))
     surf = gy + 12
-    w = 54
-    top_c = rim + d * 4 + [0, 2, 0]
-    bot_c = np.array([px, surf + 4, pz]) - d * 40
-    su, sv = tex_scale(WATER)
-    length = float(np.linalg.norm(top_c - bot_c))
-    for facing in (d, -d):
-        quad(e, WATER, [bot_c - s_ * w * 1.3, bot_c + s_ * w * 1.3, top_c + s_ * w, top_c - s_ * w],
-             [(0, length * sv), (2 * w * su, length * sv), (2 * w * su, 0), (0, 0)], [(255, 255, 255, 255)] * 4, facing)
     # the pool: a low stone rim (Link steps over it) and the water
     n = 18
     outer = [np.array([px + math.sin(2 * math.pi * k / n) * POOL_R, 0, pz + math.cos(2 * math.pi * k / n) * POOL_R]) for k in range(n)]
@@ -1116,12 +1096,12 @@ def build_sky():
         ob1 = outer[k2] + [0, float(mesh_height(outer[k2][0], outer[k2][2])) - 12, 0]
         ib0, ib1 = inner[k] + [0, gy - 20, 0], inner[k2] + [0, gy - 20, 0]
         out = unit(((o0 + o1) / 2 - np.array([px, rim_y, pz])) * [1, 0, 1])
-        quad(e, TECH, [o0, o1, i1, i0], [planar_uv(TECH, q) for q in (o0, o1, i1, i0)], [tuple(up)] * 4, up, SURF_STONE)
+        quad(e, ROCK, [o0, o1, i1, i0], [planar_uv(ROCK, q) for q in (o0, o1, i1, i0)], [tuple(up)] * 4, up, SURF_STONE)
         wq = float(np.linalg.norm(o1 - o0))
-        quad(e, TECH, [ob0, ob1, o1, o0], [(0, 30 * tex_scale(TECH)[1]), (wq * tex_scale(TECH)[0], 30 * tex_scale(TECH)[1]),
-                                          (wq * tex_scale(TECH)[0], 0), (0, 0)], [tuple(out)] * 4, out)
-        quad(e, TECH, [ib0, ib1, i1, i0], [(0, 30 * tex_scale(TECH)[1]), (wq * tex_scale(TECH)[0], 30 * tex_scale(TECH)[1]),
-                                          (wq * tex_scale(TECH)[0], 0), (0, 0)], [tuple(-out)] * 4, -out)
+        quad(e, ROCK, [ob0, ob1, o1, o0], [(0, 30 * tex_scale(ROCK)[1]), (wq * tex_scale(ROCK)[0], 30 * tex_scale(ROCK)[1]),
+                                          (wq * tex_scale(ROCK)[0], 0), (0, 0)], [tuple(out)] * 4, out)
+        quad(e, ROCK, [ib0, ib1, i1, i0], [(0, 30 * tex_scale(ROCK)[1]), (wq * tex_scale(ROCK)[0], 30 * tex_scale(ROCK)[1]),
+                                          (wq * tex_scale(ROCK)[0], 0), (0, 0)], [tuple(-out)] * 4, -out)
         wt = facing_tri(i0 + [0, surf - rim_y, 0], i1 + [0, surf - rim_y, 0], np.array([px, surf, pz]), up)
         e.tri(WATER, [V(q, planar_uv(WATER, q), (200, 235, 255, 255)) for q in wt])
     WATERBOXES.append((px, surf, pz, (POOL_R - 34) * 0.7))
@@ -1251,13 +1231,6 @@ def actors():
     # Gossip Stones guarding the Spire's south steps
     for s in (-1, 1):
         add("ACTOR_EN_GS", s * 200, PLAZA_Y, 370, 0, "0x3F05")
-    # Beamos watchtowers on the hills
-    for a in (0.72, 0.72 + math.pi, 2.45):
-        x, z = math.sin(a) * 2500, math.cos(a) * 2500
-        if float(path_dist(x, z)) < 400:
-            a += 0.35
-            x, z = math.sin(a) * 2500, math.cos(a) * 2500
-        add("ACTOR_EN_VM", x, mesh_height(x, z), z, 0, "0x1400")
     # trees, bushes and butterflies in the field (its rocks are static scenery: build_decor)
     for i, (x, z) in enumerate(field_spots()):
         y = mesh_height(x, z)
@@ -1280,17 +1253,81 @@ def actors():
             x = math.sin(ang) * r + math.cos(ang) * sgn * 150
             z = math.cos(ang) * r - math.sin(ang) * sgn * 150
             add("ACTOR_OBJ_SYOKUDAI", x, mesh_height(x, z), z, 0, "0x043F")
+    island_actors(add, yaw_to)
     # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
     add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
     return out
 
 
-OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
+def island_actors(add, yaw_to):
+    """The floating island's actors, all from the game: a big chest with Biggoron's Sword, Hyrule Field's trees,
+    Zora's River's waterfall pouring over the edge and a Zora in the pool below."""
+    ix, iz, top = ISLAND["x"], ISLAND["z"], ISLAND["top"]
+    steps = stepping_rocks()
+    lx, lz, _ = steps[-1]
+    arrive = math.atan2(lx - ix, lz - iz)  # where Link climbs onto the island
+    # the chest in the middle, opening toward where Link arrives (chest flag 1)
+    cx, cz = ix - math.sin(arrive) * 40, iz - math.cos(arrive) * 40
+    add("ACTOR_EN_BOX", cx, top, cz, int(arrive / (2 * math.pi) * 0x10000),
+        "((ENBOX_TYPE_BIG_DEFAULT << 12) | (GI_SWORD_BIGGORON << 5) | 1)")
+    # Hyrule Field's trees under the island, and on it behind the chest
+    rim, d = waterfall_spot()
+    for k, da in enumerate((1.6, 2.4, 3.9, 4.7)):
+        tx = ix + math.sin(math.atan2(d[0], d[2]) + da) * (ISLAND["r"] + 500)
+        tz = iz + math.cos(math.atan2(d[0], d[2]) + da) * (ISLAND["r"] + 500)
+        add("ACTOR_EN_WOOD02", tx, mesh_height(tx, tz), tz, int(k * 0x3000), "0xFF05" if k % 2 else "0xFF00")
+    for k, da in enumerate((2.5, 3.6)):
+        tx, tz = ix + math.sin(arrive + da) * ISLAND["r"] * 0.55, iz + math.cos(arrive + da) * ISLAND["r"] * 0.55
+        add("ACTOR_EN_WOOD02", tx, top, tz, int(k * 0x5000), "0xFF00" if k == 0 else "0xFF05")
+    # Zora's River's waterfall over the island's edge (switch flag 0x3E is never set, so it never parts). Its model
+    # is a curtain 835 tall and 400 wide in its YZ plane, 80 deep along +X, with the splash foam spreading
+    # toward -X from its foot: -X points where the water pours (away from the island).
+    rim, d = waterfall_spot()
+    wx, wy, wz = taki_origin()
+    yaw = int(round(math.atan2(d[2], -d[0]) / (2 * math.pi) * 0x10000)) & 0xFFFF
+    add("ACTOR_BG_SPOT03_TAKI", wx, wy, wz, yaw, "0x003E")
+    # a Zora in the pool it falls into
+    px, pz = pool_center()
+    zx, zz = px + d[0] * 60 + d[2] * 70, pz + d[2] * 60 - d[0] * 70
+    add("ACTOR_EN_ZO", zx, mesh_height(zx, zz), zz, yaw_to(zx, zz, wx, wz), "0x0000")
+
+
+def view_defines():
+    """Where the test boots put Link (src/code/z_remix_level.c, tools/remix/smoke_test.py): on the island where
+    the stepping rocks arrive, facing the chest; and on the field in front of the pool, facing the waterfall."""
+    ix, iz, top = ISLAND["x"], ISLAND["z"], ISLAND["top"]
+    lx, lz, _ = stepping_rocks()[-1]
+    a = math.atan2(lx - ix, lz - iz)
+    vx, vz = ix + math.sin(a) * ISLAND["r"] * 0.8, iz + math.cos(a) * ISLAND["r"] * 0.8
+    vyaw = int(math.atan2(ix - vx, iz - vz) / (2 * math.pi) * 0x10000) & 0xFFFF
+    px, pz = pool_center()
+    rim, d = waterfall_spot()
+    qx, qz = px + d[0] * (POOL_R + 260), pz + d[2] * (POOL_R + 260)
+    qyaw = int(math.atan2(px - qx, pz - qz) / (2 * math.pi) * 0x10000) & 0xFFFF
+    return (f"// Where the test boots put Link (z_remix_level.c)\n"
+            f"#define ANCIENT_VIEW_ISLAND_X {vx:.1f}f\n#define ANCIENT_VIEW_ISLAND_Y {top + 2:.1f}f\n"
+            f"#define ANCIENT_VIEW_ISLAND_Z {vz:.1f}f\n#define ANCIENT_VIEW_ISLAND_YAW 0x{vyaw:04X}\n"
+            f"#define ANCIENT_VIEW_POOL_X {qx:.1f}f\n#define ANCIENT_VIEW_POOL_Y {float(mesh_height(qx, qz)) + 2:.1f}f\n"
+            f"#define ANCIENT_VIEW_POOL_Z {qz:.1f}f\n#define ANCIENT_VIEW_POOL_YAW 0x{qyaw:04X}\n")
+
+
+TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
+
+
+def taki_origin():
+    """Foot of the waterfall: just outside the island's rim, its top at the island's top."""
+    rim, d = waterfall_spot()
+    return float(rim[0] + d[0] * 15), float(ISLAND["top"] - TAKI_HEIGHT), float(rim[2] + d[2] * 15)
+
+
+OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_WOOD02",
            # the town's people and animals (town_people)
-           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_DOG", "OBJECT_NIW", "OBJECT_ANI",
-           "OBJECT_TSUBO"]
-# With gameplay_keep, field_keep and Link these take about 870 KB of the scene's 880 KB object space
+           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_DOG",
+           "OBJECT_TSUBO",
+           # the floating island: the big chest, Zora's River's waterfall, a Zora (island_actors)
+           "OBJECT_BOX", "OBJECT_SPOT03_OBJECT", "OBJECT_ZO"]
+# With gameplay_keep, field_keep and Link these take about 893 KB of the scene's 900 KB object space
 # (REMIX_ANCIENT_OBJECT_SPACE, include/remix_level.h); the rest of the play heap is actor memory for the town.
 
 TOWN_PATH_R = town_plan.RING_ROAD_R  # the ring road around the plaza (dogs and strollers follow it)
@@ -1339,6 +1376,7 @@ DECOR_KINDS = {
     "pebble": ("gFieldKakeraDL", 0.1),
     "rock": ("gSilverRockDL", 0.4),
     "flower": ("gHanaDL", 0.01),
+    "green_bush": ("gFieldBushDL", 0.4),  # the game's bush as it is (the floating island)
 }
 # Groups of models drawn with one matrix (so hundreds of bushes cost little memory): (kind, dx, dz, size, yaw)
 PATTERNS = {
@@ -1348,8 +1386,13 @@ PATTERNS = {
     "flower_bed": [("flower", 0, 0, 1.0, 0.0), ("flower", 24, 15, 1.0, 1.0), ("flower", -22, 17, 1.0, 2.0), ("flower", 6, -24, 1.0, 3.0)],
     "pebbles": [("pebble", 0, 0, 1.3, 0.0), ("pebble", 28, 11, 0.8, 1.5), ("pebble", -13, 26, 1.0, 3.0)],
     "rock": [("rock", 0, 0, 1.0, 0.0)],
+    "green_row": [("green_bush", -84, 5, 0.95, 0.3), ("green_bush", -28, -6, 1.1, 1.9), ("green_bush", 28, 7, 1.0, 4.1),
+                  ("green_bush", 84, -4, 0.9, 5.2)],
+    "green_clump": [("green_bush", 0, 0, 1.2, 0.0), ("green_bush", 36, 24, 0.85, 2.0), ("green_bush", -32, 28, 0.9, 4.0),
+                    ("green_bush", 8, -34, 0.8, 5.0), ("flower", 50, -20, 1.0, 1.0), ("flower", -46, -18, 1.0, 2.5)],
 }
-PATTERN_R = {"bush": 32, "bush_row": 112, "bush_clump": 60, "flower_bed": 40, "pebbles": 40, "rock": 50}
+PATTERN_R = {"bush": 32, "bush_row": 112, "bush_clump": 60, "flower_bed": 40, "pebbles": 40, "rock": 50, "green_row": 112,
+             "green_clump": 70}
 DECOR = []  # (pattern, x, y, z, yaw radians, size)
 
 
@@ -1440,18 +1483,19 @@ def build_decor():
             elif put("rock", x, z, size=0.9 + drng.random() * 0.4):
                 xx, y, zz = DECOR[-1][1:4]
                 prism_col((xx, y, zz), 46, y - 20, y + 60, 8, SURF_STONE)
-    # the floating island and the islet
+    # the floating island and the islet: the game's own green bushes, flowers and stones around the edge (the chest
+    # and trees stand in the middle: island_actors())
     rim, d = waterfall_spot()
     wf = math.atan2(d[0], d[2])
-    for k in range(10):
-        a = wf + 0.5 + k * (2 * math.pi - 1.0) / 9
-        rr = ISLAND["r"] * 0.78
-        put("bush_clump" if k % 2 else "bush_row", ISLAND["x"] + math.sin(a) * rr, ISLAND["z"] + math.cos(a) * rr,
-            yaw=a + math.pi / 2, y=ISLAND["top"], check=False)
+    for k in range(12):
+        a = wf + 0.45 + k * (2 * math.pi - 0.9) / 11
+        rr = ISLAND["r"] * (0.8 if k % 2 else 0.62)
+        put(("green_clump", "green_row", "pebbles", "green_clump")[k % 4], ISLAND["x"] + math.sin(a) * rr,
+            ISLAND["z"] + math.cos(a) * rr, yaw=a + math.pi / 2, y=ISLAND["top"], check=False)
     for k in range(4):
         a = k * math.pi / 2 + 0.6
-        put("bush_clump", ISLET["x"] + math.sin(a) * ISLET["r"] * 0.65, ISLET["z"] + math.cos(a) * ISLET["r"] * 0.65,
-            y=ISLET["top"], check=False, size=0.8)
+        put("green_clump", ISLET["x"] + math.sin(a) * ISLET["r"] * 0.62, ISLET["z"] + math.cos(a) * ISLET["r"] * 0.62,
+            y=ISLET["top"], check=False, size=0.85)
 
 
 def decor_mtx(x, y, z, yaw, scale, scale_y=None):
@@ -1539,8 +1583,6 @@ def town_people(add, yaw_to):
     x2, z2 = at(720, 30)
     hy("ENHY_TYPE_MAN_1_BOWL_CUT_GREEN_SHIRT", x, z, y=PLAZA_Y, face=(x2, z2))
     hy("ENHY_TYPE_MAN_2_BALD", x2, z2, y=PLAZA_Y, face=(x, z))
-    x, z = at(700, 112)
-    add("ACTOR_EN_TG", x, PLAZA_Y, z, 0, "0")  # the dancing couple
     hy("ENHY_TYPE_MAN_1_BOWL_CUT_PURPLE_SHIRT", *at(720, 200), y=PLAZA_Y)
     hy("ENHY_TYPE_BEGGAR", *at(720, 250), y=PLAZA_Y)  # sits; buys bottled fish, bugs and blue fire
     hy("ENHY_TYPE_MAN_1_BEARD", *at(720, 292), y=PLAZA_Y)
@@ -1558,12 +1600,6 @@ def town_people(add, yaw_to):
         d = p["r"] + 90
         x, z = p["x"] + math.sin(p["face"]) * d, p["z"] + math.cos(p["face"]) * d
         hy(kind, x, z)
-    # cuccos around the barn and the houses
-    for k in range(5):
-        p = town_plan.PLOTS[(2, 3, 8, 13, 17)[k]]
-        a = p["face"] + 1.9 + 0.5 * k
-        x, z = p["x"] + math.sin(a) * (p["r"] + 70), p["z"] + math.cos(a) * (p["r"] + 70)
-        add("ACTOR_EN_NIW", x, mesh_height(x, z) + 10, z, int(rng.random() * 0x10000), "0x0000")
     # pots with rupees inside the houses (each with its own collectible flag, so every one pays once)
     flag = 1
     for plot in (0, 1, 5, 6, 15):
@@ -1957,12 +1993,15 @@ def write_sources():
               f"#define ANCIENT_RING_Y {RING_Y}\n"
               f"// Center of the floating island (its circling rocks turn around it)\n"
               f"#define ANCIENT_ISLAND_X {round(ISLAND['x'])}\n#define ANCIENT_ISLAND_Y {ISLAND['top']}\n"
-              f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
+              f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n"
+              + view_defines() + "\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
     lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
              '#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"\n'
-             '#include "src/overlays/actors/ovl_En_Hy/z_en_hy.h"\n#include "z_en_item00.h"\n\n']
+             '#include "src/overlays/actors/ovl_En_Hy/z_en_hy.h"\n#include "z_en_item00.h"\n'
+             '#include "src/overlays/actors/ovl_En_Box/z_en_box.h"\n'
+             '#include "item.h"\n\n']
     lines.append("#ifndef ANCIENT_TOWN_ACTOR_COUNT\n#define ANCIENT_TOWN_ACTOR_COUNT 0\n#endif\n\n")
     lines.append(f"SceneCmd {ROOM}Commands[] = {{\n"
                  "    SCENE_CMD_ECHO_SETTINGS(0),\n"

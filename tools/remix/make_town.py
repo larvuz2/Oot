@@ -64,9 +64,8 @@ TEXTURE_CLASSES = {
 
 
 def _kak(name, x0, x1, z0, z1, y0, y1, plot):
-    # the man who lies on a Kakariko roof (En_Ani) gets the first house with a roof he can stand on
     return dict(name=name, scene="kakariko", room="spot01_room_0", entries=KAK_ALL,
-                crop=((x0, y0, z0), (x1, y1, z1)), plot=plot, drop_ground=True, roof_actor="ACTOR_EN_ANI")
+                crop=((x0, y0, z0), (x1, y1, z1)), plot=plot, drop_ground=True)
 
 
 def _ll(name, entries, plot, **kw):

@@ -88,13 +88,14 @@ cliff textures, its sky and its time-of-day lighting and fog, and the field's ow
 butterflies. What is new is the layout, the monument, the town and the sky island.
 
 - **The field**: rolling grass with winding dirt paths, broken stone pillars with glowing bands, Hyrule Field's
-  trees and rocks, clumps of glowing bushes, and three Beamos watching from the hills.
+  trees and rocks and clumps of glowing bushes.
 - **The arrival**: the road where Link arrives runs under the Desert Colossus's stone arch (restyled), between
   Sheikah obelisks and torches, past a giant rock with a glowing Sheikah eye watching over it.
-- **The sky island**: north of the town, a floating island (with a stream, a Sheikah eye and rocks circling
-  it) pours a waterfall into a pool on the field. Floating rocks spiral up to it: hop across the small gaps
-  (run off the edge) and climb the ledges. From the island, Zora's River's rope bridge leads to an islet with
-  a Heart Piece. More rocks drift high over the town.
+- **The sky island**: north of the town, a floating island with rocks circling it. Zora's River's own waterfall
+  (Bg_Spot03_Taki, with its sound) pours over its edge into a pool on the field, where a Zora waits. On top:
+  a big chest with Biggoron's Sword, Hyrule Field's trees, and the game's bushes, flowers and stones. Floating
+  rocks spiral up to it: hop across the small gaps (run off the edge) and climb the ledges. From the island,
+  Zora's River's rope bridge leads to an islet with a Heart Piece. More rocks drift high over the town.
 - **The mountains**: a ring of cliffs, in Hyrule Field's rock, that closes the valley.
 - **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
   emblems, golden torches at each staircase and eight glowing monoliths around it.
@@ -105,9 +106,8 @@ butterflies. What is new is the layout, the monument, the town and the sky islan
   circles the plaza, a main street (with a torch at the corner) runs into each quarter and lanes lead to every
   front door. Inside the town the ground is the Lost Woods' mossy stone; hedges of glowing blue bushes (the
   game's bush, recolored) line every street, road and house, with flower beds, pebbles and rocks. Townspeople
-  from the Market and Kakariko on the plaza and at their doors, the Market's dancing couple, a stroller and two dogs
-  on the walk around the plaza, cuccos, rupees in the pots inside the houses, and Kakariko's man on a roof (who
-  still has his Heart Piece).
+  from the Market and Kakariko on the plaza and at their doors, a stroller and two dogs on the walk around the
+  plaza, and rupees in the pots inside the houses.
 - **The Ancient Spire**: a stepped pedestal and an engraved obelisk with glowing rune panels and orange light
   slits, crowned by a ring that spins around a hovering crystal, with rock shards orbiting it. Two Gossip Stones
   stand at its feet.
@@ -144,7 +144,7 @@ copies the chosen ones onto the plots of `tools/remix/town_plan.py`, turned to f
 collision, and restyles every texture they use (`tools/remix/restyle.py`: same size and detail, the Plateau's
 colors). It writes `build/VERSION/assets/scenes/remix/ancient/ancient_town.h` and the data it points to; the
 remix build uploads pictures of the result (`town-preview`). Without a ROM the plaza stands alone. Memory: the
-Plateau keeps 880 KB for objects instead of 1000 KB (its objects take about 870 KB), which leaves room in
+Plateau keeps 900 KB for objects instead of 1000 KB (its objects take about 893 KB), which leaves room in
 actor memory for the townspeople. The bushes, flowers and rocks are drawn by the room itself (Hyrule Field's
 models; each hedge, clump or flower bed is one matrix), and so are the floating rocks (one shared model), so
 they cost no actor memory; the bushes can't be cut nor the rocks lifted. The child Market

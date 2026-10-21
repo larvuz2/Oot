@@ -29,7 +29,7 @@ MAGIC = b"RMXBOOT1"
 SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 
-BOOT_ANCIENT, BOOT_HYRULE_FIELD = 1, 2  # include/remix_level.h
+BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW = 1, 2, 3, 4  # include/remix_level.h
 
 
 def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
@@ -233,6 +233,24 @@ def main():
                 print(f"smoke: game threads at frame {shot['frame']}:")
                 try:
                     report_threads(Path(shot["state"]), bytes(rom), args.elf)
+                except Exception as e:  # diagnostics only
+                    print(f"smoke:   could not read them ({e})")
+    if not args.no_boot_flag and ok:
+        # Views of the floating island (on top of it, and at the pool under its waterfall): pictures to look at,
+        # and the same crash and memory checks.
+        for name, mode in (("island-view", BOOT_ISLAND_VIEW), ("pool-view", BOOT_POOL_VIEW)):
+            print(f"smoke: {name}")
+            vrom = bytearray(args.rom.read_bytes())
+            set_boot_flag(vrom, mode)
+            vcap = capture(bytes(vrom), out / name, [400, 700], "mupen64plus_next", 240)
+            describe(name, vcap)
+            last = [s for s in vcap.get("shots", []) if s.get("state")]
+            if vcap.get("crash"):
+                ok = False
+            if args.elf and args.elf.exists() and last:
+                print(f"smoke: {name} at frame {last[-1]['frame']}:")
+                try:
+                    report_threads(Path(last[-1]["state"]), bytes(vrom), args.elf)
                 except Exception as e:  # diagnostics only
                     print(f"smoke:   could not read them ({e})")
     if not args.no_boot_flag:
