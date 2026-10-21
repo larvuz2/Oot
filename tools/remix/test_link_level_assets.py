@@ -134,6 +134,38 @@ def write_fixture(ext: Path):
         "spot00_scene_header01Commands.inc.c",
         "SCENE_CMD_ENV_LIGHT_SETTINGS(4, spot00_scene_header01_LightSettings),\nSCENE_CMD_END(),\n",
     )
+    write_borrowed(ext)
+
+
+def write_borrowed(ext: Path):
+    """Stand-ins for the other assets link_level_assets.py borrows: the bush of gameplay_field_keep (a leafy texture
+    with holes on two triangles), and a ground and a water texture in two other scenes."""
+    rng = np.random.default_rng(4)
+    keep = ext / "assets/objects/gameplay_field_keep"
+    keep.mkdir(parents=True, exist_ok=True)
+    rel = "assets/objects/gameplay_field_keep"
+    leaf = np.zeros((32, 32, 4), np.uint8)
+    leaf[..., 1] = rng.integers(80, 200, (32, 32))
+    leaf[..., 3] = np.where(rng.random((32, 32)) < 0.8, 255, 0)
+    Image.fromarray(leaf, "RGBA").save(keep / "gFieldBushTex.rgba16.png")
+    (keep / "gameplay_field_keep.c").write_text(
+        f'u64 gFieldBushTex[] = {{\n#include "{rel}/gFieldBushTex.rgba16.inc.c"\n}};\n\n'
+        f'Vtx gFieldBushVtx[] = {{\n#include "{rel}/gFieldBushVtx.inc.c"\n}};\n\n'
+        f'Gfx gFieldBushDL[] = {{\n#include "{rel}/gFieldBushDL.inc.c"\n}};\n')
+    (keep / "gFieldBushVtx.inc.c").write_text(
+        "VTX(-60, 0, 0, 0, 1024, 0x00, 0x7F, 0x00, 0xFF),\nVTX(60, 0, 0, 1024, 1024, 0x00, 0x7F, 0x00, 0xFF),\n"
+        "VTX(60, 90, 0, 1024, 0, 0x00, 0x7F, 0x00, 0xFF),\nVTX(-60, 90, 0, 0, 0, 0x00, 0x7F, 0x00, 0xFF),\n")
+    (keep / "gFieldBushDL.inc.c").write_text(
+        "gsDPPipeSync(),\ngsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),\n"
+        "gsDPLoadTextureBlock(gFieldBushTex, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP, "
+        "G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),\ngsSPVertex(gFieldBushVtx, 4, 0),\n"
+        "gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),\ngsSPEndDisplayList(),\n")
+    for _, folder, sym, _ in link_level_assets.BORROWED:
+        d = ext / folder
+        d.mkdir(parents=True, exist_ok=True)
+        stem = Path(folder).name
+        Image.fromarray(rng.integers(40, 160, (32, 32, 3), dtype=np.uint8), "RGB").save(d / f"{sym}.rgba16.png")
+        (d / f"{stem}_scene.c").write_text(f'u64 {sym}[] = {{\n#include "{folder}/{sym}.rgba16.inc.c"\n}};\n')
 
 
 def decode_rgba16_inc(text):
@@ -182,6 +214,19 @@ def main():
         check("grey textures are colored by the primitive color, or skipped when their color is unknown",
               re.search(r"spot00_room_0Tex_001900: i4 16x16 .* color \(110, 81, 51\)", p.stdout) is not None
               and "spot00_room_0Tex_grey:" not in p.stdout)
+
+        check("town ground, Zora water and the glowing bush linked",
+              all(m in h for m in ("#define ANCIENT_TOWN_GROUND", "#define ANCIENT_ZORA_WATER", "#define ANCIENT_GLOW_BUSH")))
+        gb = out.parent / "glow_bush.inc.c"
+        text = gb.read_text() if gb.exists() else ""
+        check("glowing bush: copied geometry, unlit, its own recolored texture",
+              "gsSP2Triangles" in text and "G_LIGHTING" not in text and "ancient_glow_bush_tex_0" in text
+              and "#define ANCIENT_GLOW_BUSH_DL ancient_glow_bush_dl" in text)
+        words = [int(x, 16) for x in re.findall(r"0x([0-9A-F]{16})", text.split("Vtx")[0])]
+        t = np.array([(w >> sh) & 0xFFFF for w in words for sh in (48, 32, 16, 0)], np.uint32)
+        lit = t[(t & 1) == 1]
+        check("glowing bush texture is blue-cyan and keeps its holes",
+              len(t) == 1024 and 0 < len(lit) < 1024 and ((lit >> 1) & 31).mean() > ((lit >> 11) & 31).mean() + 4)
 
         g = out.parent / "hf_grass.rgba16.inc.c"
         if g.exists():

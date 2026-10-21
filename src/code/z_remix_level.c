@@ -10,6 +10,8 @@
  *       0x09  matrix of the ring spinning above the Spire
  *       0x0A  matrix of the rock shards orbiting the Spire
  *       0x0B  matrix of the crystal hovering inside the ring
+ *       0x0E  texture scroll of the floating island's stream and waterfall (falling water)
+ *       0x0F  matrix of the rocks circling the floating island
  *   - Travel to the level from the Remix menu, and the website's "boot straight into the new level" option.
  */
 
@@ -46,6 +48,8 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     Mtx* ringMtx;
     Mtx* shardsMtx;
     Mtx* crystalMtx;
+    Mtx* islandMtx;
+    Gfx* water;
 
     // Glow colors breathe slowly; orange runs half a beat behind cyan.
     gDPPipeSync(cyan);
@@ -57,6 +61,8 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
 
     // Light pulses travel along the strips (32-texel texture, scrolled in quarter texels).
     scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+    // Water falls: its 32-texel texture moves along t, a texel and a half per frame.
+    water = Gfx_TexScroll(gfxCtx, 0, (frames * 6) % 128, 32, 32);
 
     Matrix_Push();
 
@@ -72,6 +78,11 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     Matrix_RotateY(frames * -0.03f, MTXMODE_APPLY);
     crystalMtx = MATRIX_FINALIZE(gfxCtx, "../z_remix_level.c", __LINE__);
 
+    Matrix_Translate(ANCIENT_ISLAND_X, ANCIENT_ISLAND_Y + Math_SinS((s16)(frames * 0x180)) * 18.0f, ANCIENT_ISLAND_Z,
+                     MTXMODE_NEW);
+    Matrix_RotateY(frames * 0.006f, MTXMODE_APPLY);
+    islandMtx = MATRIX_FINALIZE(gfxCtx, "../z_remix_level.c", __LINE__);
+
     Matrix_Pop();
 
     OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
@@ -82,6 +93,8 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     gSPSegment(POLY_OPA_DISP++, 0x09, ringMtx);
     gSPSegment(POLY_OPA_DISP++, 0x0A, shardsMtx);
     gSPSegment(POLY_OPA_DISP++, 0x0B, crystalMtx);
+    gSPSegment(POLY_OPA_DISP++, 0x0E, water);
+    gSPSegment(POLY_OPA_DISP++, 0x0F, islandMtx);
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
 
@@ -91,6 +104,8 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     gSPSegment(POLY_XLU_DISP++, 0x09, ringMtx);
     gSPSegment(POLY_XLU_DISP++, 0x0A, shardsMtx);
     gSPSegment(POLY_XLU_DISP++, 0x0B, crystalMtx);
+    gSPSegment(POLY_XLU_DISP++, 0x0E, water);
+    gSPSegment(POLY_XLU_DISP++, 0x0F, islandMtx);
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
 

@@ -281,6 +281,151 @@ def find_lights(field: Field):
     return sym, field.defs[sym][1], field.text(sym).count("BLEND_RATE_AND_FOG_NEAR(")
 
 
+# Ground for the town and water for the island's waterfall, from other scenes: (macro, scene folder, symbol, else the
+# scene's n-th texture by floor area). Sizes are changed to the level's 32x32.
+BORROWED = [
+    ("ANCIENT_TOWN_GROUND", "assets/scenes/overworld/spot10", "spot10_scene_0000F430_Tex", 2),  # Lost Woods: mossy stones
+    ("ANCIENT_ZORA_WATER", "assets/scenes/overworld/spot03", "spot03_scene_00008D58_Tex", 1),  # Zora's River's water
+]
+
+
+def floor_textures(field: Field):
+    """Texture symbols of a scene by the floor area they cover, most first."""
+    from extracted_scene import replay
+
+    area = {}
+    for room in field.rooms():
+        for e in field.room_entries(room):
+            for dl in (e["opa"], e["xlu"]):
+                if not dl:
+                    continue
+
+                def on_tri(v, st):
+                    if not st["tex"] or st["tex"].startswith("seg:"):
+                        return
+                    p = v[:, :3]
+                    n = np.cross(p[1] - p[0], p[2] - p[0])
+                    a = np.linalg.norm(n) / 2
+                    if a >= 1 and n[1] / (2 * a) > 0.75:
+                        area[st["tex"]] = area.get(st["tex"], 0.0) + a
+
+                replay(field, dl, on_tri, {})
+    return [s for s, _ in sorted(area.items(), key=lambda kv: -kv[1])]
+
+
+def borrow_textures(ext: Path, out_dir: Path, lines: list):
+    for macro, rel, sym, rank in BORROWED:
+        src = ext / rel
+        if not src.is_dir():
+            print(f"link_level_assets: {rel} not found; {macro} keeps the level's own")
+            continue
+        field = Field(ext, src)
+        got = field.texture(sym) if sym in field.defs else None
+        used = sym
+        if got is None:
+            ranked = [t for t in floor_textures(field) if field.texture(t) is not None]
+            if len(ranked) <= rank:
+                print(f"link_level_assets: no texture for {macro}")
+                continue
+            used = ranked[rank]
+            got = field.texture(used)
+        fmt, img = got
+        if img.size != TEX_SIZE:
+            img = img.resize(TEX_SIZE, Image.LANCZOS)
+        a = np.array(img.convert("RGBA"))
+        a[..., 3] = 255
+        name = macro.lower().replace("ancient_", "") + ".rgba16.inc.c"
+        (out_dir / name).write_text(rgba16_inc(a))
+        lines.append(f'#define {macro} "{Path(OUT_REL).parent.as_posix()}/{name}"')
+        print(f"link_level_assets: {macro} = {used} ({fmt}, mean color {tuple(int(v) for v in a[..., :3].reshape(-1, 3).mean(0))})")
+
+
+# The game's bush (the one Hyrule Field's bush actors draw), copied with its texture recolored to glow Sheikah blue
+BUSH_DIR = "assets/objects/gameplay_field_keep"
+BUSH_DL = "gFieldBushDL"
+GLOW = ((24, 120, 150), (80, 215, 240), (210, 255, 255))  # dark, mid, light: bright, it glows
+
+
+def glow_bush(ext: Path, out_dir: Path, lines: list):
+    from extracted_scene import replay
+
+    src = ext / BUSH_DIR
+    if not src.is_dir():
+        print(f"link_level_assets: {BUSH_DIR} not found; the bushes stay green")
+        return
+    field = Field(ext, src)
+    if BUSH_DL not in field.defs:
+        print(f"link_level_assets: {BUSH_DL} not found; the bushes stay green")
+        return
+    tris = []
+    stats = {}
+    replay(field, BUSH_DL, lambda v, st: tris.append((v.copy(), st)), stats)
+    if not tris:
+        print(f"link_level_assets: {BUSH_DL}: no triangles ({stats}); the bushes stay green")
+        return
+    groups = {}
+    for v, st in tris:
+        groups.setdefault((st["tex"], st["tile"], st["scale"]), []).append(v)
+    texts, vtx, dl = [], [], []
+    for gi, ((tex, tile, scale), vs) in enumerate(groups.items()):
+        got = field.texture(tex) if tex and not tex.startswith("seg:") else None
+        if got is None:
+            print(f"link_level_assets: {BUSH_DL}: texture {tex} not readable; the bushes stay green")
+            return
+        fmt, img = got
+        a = np.array(img.convert("RGBA")).astype(float)
+        lum = (a[..., 0] * 0.3 + a[..., 1] * 0.59 + a[..., 2] * 0.11) / 255
+        opaque = a[..., 3] >= 128
+        if opaque.any():
+            lo, hi = np.percentile(lum[opaque], 3), np.percentile(lum[opaque], 97)
+            lum = np.clip((lum - lo) / max(hi - lo, 0.05), 0, 1)
+        dark, mid, light = (np.array(c, float) for c in GLOW)
+        t = lum[..., None]
+        rgb = np.where(t < 0.5, dark + (mid - dark) * t * 2, mid + (light - mid) * (t * 2 - 1))
+        out = np.concatenate([rgb, a[..., 3:4]], -1).round().clip(0, 255).astype(np.uint8)
+        w, h = img.size
+        texts.append(f"u64 ancient_glow_bush_tex_{gi}[] = {{\n{rgba16_inc(out)}}};\n")
+        tile = tile or ("G_TX_NOMIRROR | G_TX_WRAP", "G_TX_NOMIRROR | G_TX_WRAP", str(int(np.log2(w))), str(int(np.log2(h))),
+                        "G_TX_NOLOD", "G_TX_NOLOD")
+        sc = scale or (0xFFFF, 0xFFFF)
+        dl.append(f"gsSPTexture(0x{sc[0]:04X}, 0x{sc[1]:04X}, 0, G_TX_RENDERTILE, G_ON)")
+        dl.append(f"gsDPLoadTextureBlock(ancient_glow_bush_tex_{gi}, G_IM_FMT_RGBA, G_IM_SIZ_16b, {w}, {h}, 0, "
+                  + ", ".join(tile) + ")")
+        ys = np.concatenate([v[:, 1] for v in vs])
+        y0, y1 = float(ys.min()), float(ys.max())
+        for k in range(0, len(vs), 10):  # 10 triangles = 30 vertices per load (fits the 32-vertex buffer)
+            chunk = vs[k:k + 10]
+            base = len(vtx)
+            for v in chunk:
+                for row in v:
+                    b = 0.8 + 0.2 * (row[1] - y0) / max(y1 - y0, 1)  # brighter toward the top
+                    c = int(round(255 * b))
+                    vtx.append(f"    VTX({int(row[0])}, {int(row[1])}, {int(row[2])}, {int(row[3])}, {int(row[4])}, "
+                               f"0x{c:02X}, 0x{c:02X}, 0x{c:02X}, 0xFF),")
+            dl.append(f"gsSPVertex(&ancient_glow_bush_vtx[{base}], {3 * len(chunk)}, 0)")
+            for i in range(0, len(chunk) - 1, 2):
+                dl.append(f"gsSP2Triangles({3 * i}, {3 * i + 1}, {3 * i + 2}, 0, {3 * i + 3}, {3 * i + 4}, {3 * i + 5}, 0)")
+            if len(chunk) % 2:
+                i = len(chunk) - 1
+                dl.append(f"gsSP1Triangle({3 * i}, {3 * i + 1}, {3 * i + 2}, 0)")
+    setup = ["gsDPPipeSync()",
+             "gsDPSetOtherMode(G_AD_NOISE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
+             "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | "
+             "G_RM_AA_ZB_TEX_EDGE2)",
+             # unlit, so it glows the same day and night; both sides of the leaves
+             "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_FOG | G_SHADING_SMOOTH)",
+             "gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, 0, 0, 0, TEXEL0, COMBINED, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED)",
+             "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]
+    body = ("// Generated by tools/remix/link_level_assets.py: the game's bush (gFieldBushDL), recolored to glow.\n"
+            + "".join(texts) + "Vtx ancient_glow_bush_vtx[] = {\n" + "\n".join(vtx) + "\n};\n"
+            + "Gfx ancient_glow_bush_dl[] = {\n" + "".join(f"    {c},\n" for c in setup + dl)
+            + "    gsSPEndDisplayList(),\n};\n#define ANCIENT_GLOW_BUSH_DL ancient_glow_bush_dl\n")
+    (out_dir / "glow_bush.inc.c").write_text(body)
+    lines.append(f'#define ANCIENT_GLOW_BUSH "{Path(OUT_REL).parent.as_posix()}/glow_bush.inc.c"')
+    print(f"link_level_assets: glowing bush = {BUSH_DL}: {len(tris)} triangles, {len(groups)} texture(s): "
+          + ", ".join(f"{k[0]} tile {k[1]}" for k in groups))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", default="ntsc-1.2")
@@ -346,6 +491,8 @@ def main():
         print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")
+    borrow_textures(ext, out.parent, lines)
+    glow_bush(ext, out.parent, lines)
     lines += ["", "#endif", ""]
     out.write_text("\n".join(lines))
     print(f"link_level_assets: wrote {out}")

@@ -17,6 +17,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import town_plan  # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 D = "assets/scenes/overworld/spot01"
@@ -127,10 +130,17 @@ PLAN = dict(buildings=[
 ])
 
 
-def run(ext: Path, out: Path):
+# a house stands in for a bridge: hung between the floating island and the islet, in its own colors
+PLAN_BRIDGE = dict(buildings=[
+    dict(name="test_bridge", scene="kakariko", room="spot01_room_0", entries=[0, 1],
+         crop=[[780, 60, 780], [1220, 700, 1220]], plot=None, at="island_bridge", style="keep"),
+])
+
+
+def run(ext: Path, out: Path, plan_data=None):
     plan = out.parent / "plan.json"
     out.mkdir(parents=True, exist_ok=True)
-    plan.write_text(json.dumps(PLAN))
+    plan.write_text(json.dumps(plan_data or PLAN))
     return subprocess.run([sys.executable, str(HERE / "make_town.py"), "--extracted", str(ext), "--out", str(out),
                            "--plan", str(plan)], capture_output=True, text=True)
 
@@ -183,6 +193,16 @@ def main():
         check("collision memory computed", re.search(r"BGCHECK_MEMSIZE 0x[0-9A-F]+", h) is not None)
         log = p.stdout
         check("wall texture became Sheikah stone (plaster)", re.search(r"00012B50_Tex -> \S+ \(plaster", log) is not None)
+
+        out2 = tmp / "bridge"
+        p = run(tmp / "ext", out2, PLAN_BRIDGE)
+        room = (out2 / "ancient_town_room.inc.c").read_text() if (out2 / "ancient_town_room.inc.c").exists() else ""
+        verts = np.array([[int(v) for v in m] for m in re.findall(r"VTX\((-?\d+), (-?\d+), (-?\d+),", room)], float)
+        a, c = (np.array(e) for e in town_plan.bridge_ends())
+        mid = (verts.min(0) + verts.max(0)) / 2 if len(verts) else np.zeros(3)
+        check("bridge hung between the island and the islet", p.returncode == 0
+              and "bridge deck" in p.stdout and np.hypot(*(mid - (a + c) / 2)[[0, 2]]) < 250)
+        check("bridge keeps its own colors", " (original, " in p.stdout and "(plaster" not in p.stdout)
 
         p = subprocess.run([sys.executable, str(HERE / "make_town.py"), "--extracted", str(tmp / "missing"), "--out",
                             str(tmp / "none")], capture_output=True, text=True)

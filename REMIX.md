@@ -84,11 +84,17 @@ A whole new area, built the way the game's own levels are: an ancient-technology
 with glowing Sheikah machinery.
 
 It sits in the same world as Hyrule Field and reuses as much of it as it can: the field's grass, dirt-path and
-cliff textures, its sky and its time-of-day lighting and fog, and the field's own trees, bushes, liftable rocks,
-butterflies. What is new is the layout, the monument and the town around it.
+cliff textures, its sky and its time-of-day lighting and fog, and the field's own trees, bush and rock models,
+butterflies. What is new is the layout, the monument, the town and the sky island.
 
 - **The field**: rolling grass with winding dirt paths, broken stone pillars with glowing bands, Hyrule Field's
-  trees, bushes and rocks, and three Beamos watching from the hills.
+  trees and rocks, clumps of glowing bushes, and three Beamos watching from the hills.
+- **The arrival**: the road where Link arrives runs under the Desert Colossus's stone arch (restyled), between
+  Sheikah obelisks and torches, past a giant rock with a glowing Sheikah eye watching over it.
+- **The sky island**: north of the town, a floating island (with a stream, a Sheikah eye and rocks circling
+  it) pours a waterfall into a pool on the field. Floating rocks spiral up to it: hop across the small gaps
+  (run off the edge) and climb the ledges. From the island, Zora's River's rope bridge leads to an islet with
+  a Heart Piece. More rocks drift high over the town.
 - **The mountains**: a ring of cliffs, in Hyrule Field's rock, that closes the valley.
 - **The plaza**: a raised stone circle with glowing circuit lines (light pulses flow along them), Sheikah eye
   emblems, golden torches at each staircase and eight glowing monoliths around it.
@@ -97,8 +103,9 @@ butterflies. What is new is the layout, the monument and the town around it.
   watchtower, restyled in the Plateau's stone and teal (roofs of teal slate, windows that glow), around the
   plaza; a Lon Lon arch is the town gate on the road in and a second one spans a street. A dirt ring road
   circles the plaza, a main street (with a torch at the corner) runs into each quarter and lanes lead to every
-  front door; bushes, flower beds, pebbles and rocks from Hyrule Field line the houses and streets. Townspeople from the Market and
-  Kakariko on the plaza and at their doors, the Market's haggling pair and dancing couple, a stroller and two dogs
+  front door. Inside the town the ground is the Lost Woods' mossy stone; hedges of glowing blue bushes (the
+  game's bush, recolored) line every street, road and house, with flower beds, pebbles and rocks. Townspeople
+  from the Market and Kakariko on the plaza and at their doors, the Market's dancing couple, a stroller and two dogs
   on the walk around the plaza, cuccos, rupees in the pots inside the houses, and Kakariko's man on a roof (who
   still has his Heart Piece).
 - **The Ancient Spire**: a stepped pedestal and an engraved obelisk with glowing rune panels and orange light
@@ -117,7 +124,8 @@ How it's made: `tools/remix/make_level.py` builds the whole level procedurally, 
 technology in `tools/remix/biome_art/ancient/` (made with GPT Image): terrain, paths cut into it, mountains, plaza, Spire,
 props, collision, lighting, actors and the title card. It writes `assets/scenes/remix/ancient/`, which is
 committed and compiled like any scene. Moving and glowing parts are animated by the scene's draw config in
-`src/code/z_remix_level.c` (glow colors, flowing light, the ring, crystal and shards). Change the script and run
+`src/code/z_remix_level.c` (glow colors, flowing light and water, the ring, crystal and shards, the rocks
+circling the island). Change the script and run
 `python3 tools/remix/make_level.py` (it needs `numpy`, `pillow` and `shapely`); add `--preview level.json` to
 dump the geometry for a quick three.js look.
 
@@ -125,7 +133,10 @@ Hyrule Field's assets come from your ROM, so they are never committed. After `ma
 `tools/remix/link_level_assets.py` finds the field's grass, dirt and cliff textures (by replaying its display
 lists and measuring what each texture covers), converts them to the level's format and points the level at them
 and at the field's light settings through `build/VERSION/assets/scenes/remix/ancient/ancient_hf.h`. Without it the
-level builds with its own look-alike textures and lights. The remix build runs it for you.
+level builds with its own look-alike textures and lights. The same script borrows the town's ground (the Lost
+Woods) and the waterfall's water (Zora's River), and copies the game's bush (gameplay_field_keep) with its
+texture recolored to glow (without the ROM's assets the bushes are the game's green ones). The remix build runs
+it for you.
 
 The town's buildings come from your ROM too. `tools/remix/survey_scenes.py` lists and pictures every chunk of
 the game's town scenes (that is how the buildings were picked), and at build time `tools/remix/make_town.py`
@@ -133,9 +144,10 @@ copies the chosen ones onto the plots of `tools/remix/town_plan.py`, turned to f
 collision, and restyles every texture they use (`tools/remix/restyle.py`: same size and detail, the Plateau's
 colors). It writes `build/VERSION/assets/scenes/remix/ancient/ancient_town.h` and the data it points to; the
 remix build uploads pictures of the result (`town-preview`). Without a ROM the plaza stands alone. Memory: the
-Plateau keeps 940 KB for objects instead of 1000 KB (its objects take about 920 KB), which leaves room in
-actor memory for the townspeople. The bushes, flowers and rocks in town are drawn by the room itself (Hyrule
-Field's models, one matrix each), so they cost no actor memory; the rocks can't be lifted. The child Market
+Plateau keeps 880 KB for objects instead of 1000 KB (its objects take about 870 KB), which leaves room in
+actor memory for the townspeople. The bushes, flowers and rocks are drawn by the room itself (Hyrule Field's
+models; each hedge, clump or flower bed is one matrix), and so are the floating rocks (one shared model), so
+they cost no actor memory; the bushes can't be cut nor the rocks lifted. The child Market
 has the shops and stalls a market would want, but it is a prerendered background (only a rough, untextured
 floor and wall shape exists as 3D), so none of it can be borrowed.
 
