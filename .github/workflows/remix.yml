@@ -239,6 +239,12 @@ jobs:
           code = {k: size("ovl_" + ovl[k]) for k in kinds if k in ovl and f"_ovl_{ovl[k]}SegmentRomStart" in syms}
           print(f"Actor code: {sum(code.values()) // 1024} KB for {len(code)} kinds: " +
                 ", ".join(f"{k[6:]} {v // 1024}" for k, v in sorted(code.items(), key=lambda kv: -kv[1])))
+          # sizes of things the level could add (to plan memory)
+          cand = ["object_box", "object_spot03_object", "object_spot07_object", "object_of1d_map", "object_zo",
+                  "object_kusa", "object_kibako2", "object_mu", "object_ani", "object_vm", "ovl_En_Box",
+                  "ovl_Bg_Spot03_Taki", "ovl_Bg_Spot07_Taki", "ovl_En_Go2", "ovl_En_Go", "ovl_En_Zo", "ovl_En_Wood02",
+                  "ovl_En_Kusa", "ovl_Obj_Kibako2"]
+          print("Candidates: " + ", ".join(f"{n} {size(n)}" for n in cand if f"_{n}SegmentRomStart" in syms))
           PY
 
       - name: Build Floating IPS
