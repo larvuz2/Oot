@@ -14,10 +14,10 @@ struct PlayState;
 // segments 0x08-0x0F.
 void RemixLevel_DrawConfigAncient(struct PlayState* play);
 
-// Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 870 KB with the keep
+// Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
 // objects and adult Link, so it reserves less than the usual 1000 KB and the rest goes to actor memory (the
 // town's people). The remix build checks that the objects fit (.github/workflows/remix.yml).
-#define REMIX_ANCIENT_OBJECT_SPACE (880 * 1024)
+#define REMIX_ANCIENT_OBJECT_SPACE (900 * 1024)
 
 // Sends Link to the Ancient Plateau from anywhere in the game.
 void RemixLevel_GoToAncient(struct PlayState* play);
