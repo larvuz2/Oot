@@ -275,6 +275,12 @@ def fit_bridge(b, a, c):
                 pts[:, 1].min() - 60 <= q[1] <= pts[:, 1].max() + 60:
             kept.append((p, surf, flags))
     b.col = kept
+    # the deck and its ropes only (the river banks' railings at its ends would hang in the air)
+    def on_deck(v):
+        q = v[:, :3].mean(0)
+        tq, wq = (q[[0, 2]] - mean) @ axis, (q[[0, 2]] - mean) @ side
+        return t.min() - 20 <= tq <= t.max() + 20 and w.min() - 40 <= wq <= w.max() + 40
+    b.tris = [(v, st) for v, st in b.tris if on_deck(v)] or b.tris
     plot = dict(x=(a[0] + c[0]) / 2, z=(a[2] + c[2]) / 2, face=math.atan2(dx, dz))
     print(f"make_town: bridge deck {length:.0f} long and {float(w.max() - w.min()):.0f} wide, scaled by {b.scale:.2f}, "
           f"{len(kept)} collision polys kept")
