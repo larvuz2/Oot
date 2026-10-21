@@ -30,6 +30,19 @@ If a remix build has been published for that version you can choose **Remix** or
 **Original game**. Each keeps its own save file. Controls are listed on the page and can be
 remapped from the emulator's menu; gamepads and touch controls work.
 
+### If the game runs slowly (tablets, phones)
+
+The start screen has two switches, remembered on that device:
+- **Performance mode** (on by default on iPads, iPhones and Android): the emulator draws at the console's own
+  resolution (320x240 instead of 640x480), skips copying the depth buffer back to the console in software (only
+  the sun's lens flare uses it) and texture level-of-detail, and repeats a frame when the next one is late. The
+  picture is a little softer; the game and its music keep up better. Settings you change in the emulator's own
+  menu still win.
+- **Speed meter** (also on by default on tablets and phones): a small box over the game showing the emulation
+  speed (100% = the console's 60 frames a second; below that the game and music slow down). Tap it to hide it.
+
+Both can also be set in the address: `?perf=1` / `?perf=0`, `?speed=1` / `?speed=0`.
+
 ### If the game freezes
 
 Two N64 emulator cores ship with the site: **Standard** (Mupen64Plus-Next, the default) and
@@ -147,7 +160,13 @@ remix build uploads pictures of the result (`town-preview`). Without a ROM the p
 Plateau keeps 900 KB for objects instead of 1000 KB (its objects take about 893 KB), which leaves room in
 actor memory for the townspeople. The bushes, flowers and rocks are drawn by the room itself (Hyrule Field's
 models; each hedge, clump or flower bed is one matrix), and so are the floating rocks (one shared model), so
-they cost no actor memory; the bushes can't be cut nor the rocks lifted. The child Market
+they cost no actor memory; the bushes can't be cut nor the rocks lifted. They are kept cheap to draw: the
+models are split into their material and their shape (`decor_models.inc.c`, from `link_level_assets.py`), so a
+group of copies sets texture and render mode once; the copies are grouped in squares of the valley, and the draw
+config switches each group on only within 1500 units of the camera (segment 0x0E; the game's own bushes, which
+are actors, vanish at 1200). `tools/remix/frame_cost.py` (run by the remix build) counts what a frame asks of the
+emulator: vertices, triangles, texture loads, render-mode changes and matrices, for the whole level, for the
+scenery seen from the plaza and the south gate, and for the game's own areas next to it. The child Market
 has the shops and stalls a market would want, but it is a prerendered background (only a rough, untextured
 floor and wall shape exists as 3D), so none of it can be borrowed.
 
@@ -158,8 +177,9 @@ The remix build also checks the level:
   blank and keeps changing. It also reads the console's memory from the emulator and reports where each of the
   game's threads is and whether one crashed (with the function name), and how much actor memory is left (next to
   Hyrule Field's, booted the same way). If the level shows nothing, it boots
-  Hyrule Field the same quick way, and the game normally, to tell a level problem from a boot problem. The
-  screenshots are attached to the run (`smoke-screenshots`).
+  Hyrule Field the same quick way, and the game normally, to tell a level problem from a boot problem. It also
+  runs the level in the website's performance mode, and prints each run's emulation speed (CI's software GPU is
+  slow, so compare the runs with each other). The screenshots are attached to the run (`smoke-screenshots`).
 
 ## Play on any device: your ROM in the cloud
 

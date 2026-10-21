@@ -10,7 +10,9 @@
  *       0x09  matrix of the ring spinning above the Spire
  *       0x0A  matrix of the rock shards orbiting the Spire
  *       0x0B  matrix of the crystal hovering inside the ring
- *       0x0E  texture scroll of the floating island's stream and waterfall (falling water)
+ *       0x0E  a table: [0] texture scroll of the floating island's stream and waterfall (falling water), then one
+ *             entry per group of scenery (bushes, stones): the group's display list near the camera, nothing
+ *             further away (the fog hides the little models there anyway, and a slow device has less to draw)
  *       0x0F  matrix of the rocks circling the floating island
  *   - Travel to the level from the Remix menu, and the website's "boot straight into the new level" option.
  */
@@ -34,6 +36,42 @@
 #include "assets/scenes/remix/ancient/ancient_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
+
+#if ANCIENT_DECOR_SECTORS > 0
+static const s16 sDecorSectors[ANCIENT_DECOR_SECTORS][4] = ANCIENT_DECOR_SECTOR_LIST; // x, z, radius, on the island
+static Gfx* const sDecorSectorDLs[ANCIENT_DECOR_SECTORS] = ANCIENT_DECOR_SECTOR_DLS;
+#endif
+
+/**
+ * Segment 0x0E's table: the falling water's scroll, then each scenery group's display list or nothing, by how far
+ * the camera is from it.
+ */
+static Gfx* RemixLevel_AncientTable(PlayState* play, Gfx* water) {
+    Gfx* table = GRAPH_ALLOC(play->state.gfxCtx, (1 + ANCIENT_DECOR_SECTORS) * sizeof(Gfx));
+#if ANCIENT_DECOR_SECTORS > 0
+    f32 eyeX = play->view.eye.x;
+    f32 eyeZ = play->view.eye.z;
+    s32 i;
+#endif
+
+    gSPBranchList(&table[0], water);
+#if ANCIENT_DECOR_SECTORS > 0
+    for (i = 0; i < ANCIENT_DECOR_SECTORS; i++) {
+        f32 dx = eyeX - sDecorSectors[i][0];
+        f32 dz = eyeZ - sDecorSectors[i][1];
+        // the floating island stands out against the sky: its bushes stay a little further
+        f32 reach = (sDecorSectors[i][3] ? ANCIENT_DECOR_DRAW_DIST * 3 / 2 : ANCIENT_DECOR_DRAW_DIST) +
+                    sDecorSectors[i][2];
+
+        if (SQ(dx) + SQ(dz) < SQ(reach)) {
+            gSPBranchList(&table[1 + i], sDecorSectorDLs[i]);
+        } else {
+            gSPEndDisplayList(&table[1 + i]);
+        }
+    }
+#endif
+    return table;
+}
 
 RemixBootConfig gRemixBootConfig = { { 'R', 'M', 'X', 'B', 'O', 'O', 'T', '1' }, 0, { 0, 0, 0, 0, 0, 0, 0 } };
 
@@ -63,7 +101,7 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     // Light pulses travel along the strips (32-texel texture, scrolled in quarter texels).
     scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
     // Water falls: its 32-texel texture moves along t, a texel and a half per frame.
-    water = Gfx_TexScroll(gfxCtx, 0, (frames * 6) % 128, 32, 32);
+    water = RemixLevel_AncientTable(play, Gfx_TexScroll(gfxCtx, 0, (frames * 6) % 128, 32, 32));
 
     Matrix_Push();
 

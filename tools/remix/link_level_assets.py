@@ -340,38 +340,40 @@ def borrow_textures(ext: Path, out_dir: Path, lines: list):
         print(f"link_level_assets: {macro} = {used} ({fmt}, mean color {tuple(int(v) for v in a[..., :3].reshape(-1, 3).mean(0))})")
 
 
-# The game's bush (the one Hyrule Field's bush actors draw), copied with its texture recolored to glow Sheikah blue
+# The scenery models (town_plan.DECOR_SOURCES), each split in two so that hundreds of copies share one material:
+# a setup list (texture, render mode) drawn once per group and a geometry list drawn per copy. The bush is also
+# copied with its texture recolored to glow Sheikah blue.
 BUSH_DIR = "assets/objects/gameplay_field_keep"
-BUSH_DL = "gFieldBushDL"
 GLOW = ((24, 120, 150), (80, 215, 240), (210, 255, 255))  # dark, mid, light: bright, it glows
+GEOMETRY_CMDS = ("gsSPVertex", "gsSP1Triangle", "gsSP2Triangles", "gsSP1Quadrangle", "gsSPEndDisplayList", "gsDPPipeSync",
+                 "gsSPCullDisplayList")
+IDENT_RE = re.compile(r"\b[A-Za-z_]\w*\b")
 
 
-def glow_bush(ext: Path, out_dir: Path, lines: list):
+def glow_model(field: Field, sym: str, name: str):
+    """(text, setup cmds, geometry cmds) of a copy of the model with its texture recolored to glow, unlit."""
     from extracted_scene import replay
 
-    src = ext / BUSH_DIR
-    if not src.is_dir():
-        print(f"link_level_assets: {BUSH_DIR} not found; the bushes stay green")
-        return
-    field = Field(ext, src)
-    if BUSH_DL not in field.defs:
-        print(f"link_level_assets: {BUSH_DL} not found; the bushes stay green")
-        return
     tris = []
-    stats = {}
-    replay(field, BUSH_DL, lambda v, st: tris.append((v.copy(), st)), stats)
+    replay(field, sym, lambda v, st: tris.append((v.copy(), st)), {})
     if not tris:
-        print(f"link_level_assets: {BUSH_DL}: no triangles ({stats}); the bushes stay green")
-        return
+        return None
     groups = {}
     for v, st in tris:
         groups.setdefault((st["tex"], st["tile"], st["scale"]), []).append(v)
-    texts, vtx, dl = [], [], []
+    texts, vtx, setup, geom = [], [], [], []
+    setup += ["gsDPPipeSync()",
+              "gsDPSetOtherMode(G_AD_NOISE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
+              "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | "
+              "G_RM_AA_ZB_TEX_EDGE2)",
+              # unlit, so it glows the same day and night; both sides of the leaves
+              "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_FOG | G_SHADING_SMOOTH)",
+              "gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, 0, 0, 0, TEXEL0, COMBINED, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED)",
+              "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]
     for gi, ((tex, tile, scale), vs) in enumerate(groups.items()):
         got = field.texture(tex) if tex and not tex.startswith("seg:") else None
         if got is None:
-            print(f"link_level_assets: {BUSH_DL}: texture {tex} not readable; the bushes stay green")
-            return
+            return None
         fmt, img = got
         a = np.array(img.convert("RGBA")).astype(float)
         lum = (a[..., 0] * 0.3 + a[..., 1] * 0.59 + a[..., 2] * 0.11) / 255
@@ -384,13 +386,13 @@ def glow_bush(ext: Path, out_dir: Path, lines: list):
         rgb = np.where(t < 0.5, dark + (mid - dark) * t * 2, mid + (light - mid) * (t * 2 - 1))
         out = np.concatenate([rgb, a[..., 3:4]], -1).round().clip(0, 255).astype(np.uint8)
         w, h = img.size
-        texts.append(f"u64 ancient_glow_bush_tex_{gi}[] = {{\n{rgba16_inc(out)}}};\n")
+        texts.append(f"u64 {name}_tex_{gi}[] = {{\n{rgba16_inc(out)}}};\n")
         tile = tile or ("G_TX_NOMIRROR | G_TX_WRAP", "G_TX_NOMIRROR | G_TX_WRAP", str(int(np.log2(w))), str(int(np.log2(h))),
                         "G_TX_NOLOD", "G_TX_NOLOD")
         sc = scale or (0xFFFF, 0xFFFF)
-        dl.append(f"gsSPTexture(0x{sc[0]:04X}, 0x{sc[1]:04X}, 0, G_TX_RENDERTILE, G_ON)")
-        dl.append(f"gsDPLoadTextureBlock(ancient_glow_bush_tex_{gi}, G_IM_FMT_RGBA, G_IM_SIZ_16b, {w}, {h}, 0, "
-                  + ", ".join(tile) + ")")
+        mat = [f"gsSPTexture(0x{sc[0]:04X}, 0x{sc[1]:04X}, 0, G_TX_RENDERTILE, G_ON)",
+               f"gsDPLoadTextureBlock({name}_tex_{gi}, G_IM_FMT_RGBA, G_IM_SIZ_16b, {w}, {h}, 0, " + ", ".join(tile) + ")"]
+        (setup if len(groups) == 1 else geom).extend(mat)  # one texture: loaded once per group of copies
         ys = np.concatenate([v[:, 1] for v in vs])
         y0, y1 = float(ys.min()), float(ys.max())
         for k in range(0, len(vs), 10):  # 10 triangles = 30 vertices per load (fits the 32-vertex buffer)
@@ -402,45 +404,70 @@ def glow_bush(ext: Path, out_dir: Path, lines: list):
                     c = int(round(255 * b))
                     vtx.append(f"    VTX({int(row[0])}, {int(row[1])}, {int(row[2])}, {int(row[3])}, {int(row[4])}, "
                                f"0x{c:02X}, 0x{c:02X}, 0x{c:02X}, 0xFF),")
-            dl.append(f"gsSPVertex(&ancient_glow_bush_vtx[{base}], {3 * len(chunk)}, 0)")
+            geom.append(f"gsSPVertex(&{name}_vtx[{base}], {3 * len(chunk)}, 0)")
             for i in range(0, len(chunk) - 1, 2):
-                dl.append(f"gsSP2Triangles({3 * i}, {3 * i + 1}, {3 * i + 2}, 0, {3 * i + 3}, {3 * i + 4}, {3 * i + 5}, 0)")
+                geom.append(f"gsSP2Triangles({3 * i}, {3 * i + 1}, {3 * i + 2}, 0, {3 * i + 3}, {3 * i + 4}, {3 * i + 5}, 0)")
             if len(chunk) % 2:
                 i = len(chunk) - 1
-                dl.append(f"gsSP1Triangle({3 * i}, {3 * i + 1}, {3 * i + 2}, 0)")
-    setup = ["gsDPPipeSync()",
-             "gsDPSetOtherMode(G_AD_NOISE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
-             "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | "
-             "G_RM_AA_ZB_TEX_EDGE2)",
-             # unlit, so it glows the same day and night; both sides of the leaves
-             "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_FOG | G_SHADING_SMOOTH)",
-             "gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, 0, 0, 0, TEXEL0, COMBINED, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED)",
-             "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]
-    body = ("// Generated by tools/remix/link_level_assets.py: the game's bush (gFieldBushDL), recolored to glow.\n"
-            + "".join(texts) + "Vtx ancient_glow_bush_vtx[] = {\n" + "\n".join(vtx) + "\n};\n"
-            + "Gfx ancient_glow_bush_dl[] = {\n" + "".join(f"    {c},\n" for c in setup + dl)
-            + "    gsSPEndDisplayList(),\n};\n#define ANCIENT_GLOW_BUSH_DL ancient_glow_bush_dl\n")
-    (out_dir / "glow_bush.inc.c").write_text(body)
-    lines.append(f'#define ANCIENT_GLOW_BUSH "{Path(OUT_REL).parent.as_posix()}/glow_bush.inc.c"')
-    print(f"link_level_assets: glowing bush = {BUSH_DL}: {len(tris)} triangles, {len(groups)} texture(s): "
-          + ", ".join(f"{k[0]} tile {k[1]}" for k in groups))
+                geom.append(f"gsSP1Triangle({3 * i}, {3 * i + 1}, {3 * i + 2}, 0)")
+    text = "".join(texts) + f"Vtx {name}_vtx[] = {{\n" + "\n".join(vtx) + "\n};\n"
+    print(f"link_level_assets: {name}: {sym} recolored to glow, {len(tris)} triangles, {len(groups)} texture(s)")
+    return text, setup, geom
 
 
-def report_objects(ext: Path):
-    """Print the size of game models the level places as actors (to fit them), e.g. Zora's River's waterfall."""
-    for rel in ("assets/objects/object_spot03_object", "assets/objects/object_box", "assets/objects/object_spot07_object"):
-        src = ext / rel
-        if not src.is_dir():
+def split_model(field: Field, sym: str, name: str):
+    """(externs, setup cmds, geometry cmds) of the game's model split where its geometry starts (the same data, by
+    reference), or None when it changes material after that (then it is drawn whole)."""
+    from extracted_scene import commands
+
+    cmds = commands(field.text(sym))
+    first = next((i for i, c in enumerate(cmds) if c.startswith("gsSPVertex")), None)
+    if first is None:
+        return None
+    pre = [c for c in cmds[:first] if not c.startswith("gsSPEndDisplayList")]
+    post = [c for c in cmds[first:] if not c.startswith("gsSPEndDisplayList")]
+    if any(not c.startswith(GEOMETRY_CMDS) for c in post) or any(c.startswith(("gsSPDisplayList", "gsSPBranchList")) for c in pre):
+        print(f"link_level_assets: {name}: {sym} changes material inside its geometry; drawn whole")
+        return None
+    used = sorted({w for c in pre + post for w in IDENT_RE.findall(c) if w in field.defs and w != sym})
+    externs = "".join(f"extern {field.defs[w][0]} {w}[];\n" for w in used)
+    print(f"link_level_assets: {name}: {sym} split: {len(pre)} setup commands, {len(post)} geometry commands")
+    return externs, pre, post
+
+
+def decor_models(ext: Path, out_dir: Path, lines: list):
+    import town_plan
+
+    src = ext / BUSH_DIR
+    if not src.is_dir():
+        print(f"link_level_assets: {BUSH_DIR} not found; the scenery is drawn the plain way")
+        return
+    field = Field(ext, src)
+    body = ["// Generated by tools/remix/link_level_assets.py: the scenery models, each as a setup list and a geometry",
+            "// list (make_level.py draws the setup once per group of copies), from gameplay_field_keep.",
+            "Gfx ancient_decor_none[] = { gsSPEndDisplayList() };"]
+    defines = []
+    for kind, (sym, _, glow) in town_plan.DECOR_SOURCES.items():
+        name = f"ancient_decor_{kind}"
+        macro = f"ANCIENT_DECOR_{kind.upper()}"
+        got = None
+        if sym in field.defs:
+            if glow:
+                g = glow_model(field, sym, name)
+                got = (g[0], g[1], g[2]) if g else None
+            else:
+                got = split_model(field, sym, name)
+        if got is None:  # drawn whole, as the game does
+            body.append(f"extern Gfx {sym}[];")
+            defines += [f"#define {macro}_SETUP ancient_decor_none", f"#define {macro}_GEOM {sym}"]
             continue
-        field = Field(ext, src)
-        for sym in field.of_type("Vtx"):
-            v = field.vertices(sym)
-            if v is not None and len(v):
-                print(f"link_level_assets: {Path(rel).name} {sym}: {len(v)} vertices, min {v[:, :3].min(0).astype(int).tolist()} "
-                      f"max {v[:, :3].max(0).astype(int).tolist()}")
-        for sym in field.of_type("Gfx"):
-            print(f"link_level_assets: {Path(rel).name} {sym}: " + " ".join(
-                ln.strip()[:60] for ln in field.text(sym).splitlines() if "Vertex" in ln or "Texture" in ln)[:400])
+        text, setup, geom = got
+        body.append(text)
+        body.append(f"Gfx {name}_setup[] = {{\n" + "".join(f"    {c},\n" for c in setup) + "    gsSPEndDisplayList(),\n};")
+        body.append(f"Gfx {name}_geom[] = {{\n" + "".join(f"    {c},\n" for c in geom) + "    gsSPEndDisplayList(),\n};")
+        defines += [f"#define {macro}_SETUP {name}_setup", f"#define {macro}_GEOM {name}_geom"]
+    (out_dir / "decor_models.inc.c").write_text("\n".join(body + defines) + "\n")
+    lines.append(f'#define ANCIENT_DECOR_MODELS "{Path(OUT_REL).parent.as_posix()}/decor_models.inc.c"')
 
 
 def main():
@@ -508,9 +535,8 @@ def main():
         print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")
-    report_objects(ext)
     borrow_textures(ext, out.parent, lines)
-    glow_bush(ext, out.parent, lines)
+    decor_models(ext, out.parent, lines)
     lines += ["", "#endif", ""]
     out.write_text("\n".join(lines))
     print(f"link_level_assets: wrote {out}")

@@ -79,6 +79,8 @@
                     <select id="core"></select>
                 </label>
                 <p class="muted small">If the game freezes, switch emulator here (the site will also offer it automatically).</p>
+                <label class="check"><input type="checkbox" id="perf"> <span><strong>Performance mode</strong> <span class="muted">&mdash; lower resolution and lighter effects, for tablets and phones (on by default there)</span></span></label>
+                <label class="check"><input type="checkbox" id="speed-meter"> <span><strong>Speed meter</strong> <span class="muted">&mdash; shows how fast the game runs (100% = full speed)</span></span></label>
                 <div class="actions">
                     <button id="play" class="primary" type="button">&#9654; Play</button>
                     <button id="play-level" class="primary" type="button" hidden>&#9654; Jump into the new level</button>
@@ -104,6 +106,7 @@
 
         <section id="stage" aria-label="Game">
             <div id="game"></div>
+            <button id="speed" class="speed" type="button" title="Emulation speed (100% = full speed). Tap to hide." hidden></button>
             <div id="crash" class="crash" role="alertdialog" aria-labelledby="crash-title" hidden>
                 <div class="crash-box">
                     <h2 id="crash-title">The game froze</h2>

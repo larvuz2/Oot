@@ -31,6 +31,7 @@ AREAS = {
 KEEP = ["assets/objects/gameplay_field_keep", "assets/objects/gameplay_keep"]
 GFX_RE = re.compile(r"\bGfx\s+(\w+)\s*\[[^\]]*\]\s*=\s*\{(.*?)\n\};", re.S)
 INCLUDE_RE = re.compile(r'#include\s+"([^"]+)"')
+DEFINE_RE = re.compile(r"^#define\s+(ANCIENT_DECOR_\w+_(?:SETUP|GEOM))\s+(\w+)\s*$", re.M)
 STATE = ("gsDPSetOtherMode", "gsDPSetRenderMode", "gsDPSetCombine", "gsSPLoadGeometryMode", "gsSPSetGeometryMode",
          "gsSPClearGeometryMode", "gsSPGeometryMode")
 
@@ -41,6 +42,8 @@ class Lists:
     def __init__(self, roots):
         self.roots = roots
         self.body = {}
+        self.segment = {}
+        self.macro = {}  # "0x0E000008" -> display list (the level's per-frame table, z_remix_level.c)
 
     def add_c(self, path: Path):
         text = path.read_text(errors="replace")
@@ -48,6 +51,8 @@ class Lists:
             p = self.find(m.group(1))
             if p and p.suffix == ".c" and not p.name.endswith(".rgba16.inc.c") and "Gfx " in p.read_text(errors="replace")[:20000]:
                 self.add_c(p)
+        for name, value in DEFINE_RE.findall(text):  # the scenery models' setup/geometry names
+            self.macro[name] = value
         for name, body in GFX_RE.findall(text):
             inc = INCLUDE_RE.search(body)
             self.body[name] = (self.find(inc.group(1)).read_text() if inc and self.find(inc.group(1)) else body)
@@ -72,7 +77,12 @@ def walk(lists: Lists, sym, cost, depth=0):
         name = line[: line.index("(")]
         args = line[line.index("(") + 1 : -1]
         if name in ("gsSPDisplayList", "gsSPBranchList"):
-            walk(lists, args.strip().lstrip("&"), cost, depth + 1)
+            target = args.strip().lstrip("&")
+            target = lists.macro.get(target, target)
+            target = lists.segment.get(target.upper().replace("0X", "0x"), target)
+            if target is None:
+                continue  # a scenery group switched off
+            walk(lists, target, cost, depth + 1)
             if name == "gsSPBranchList":
                 return
         elif name == "gsSPVertex":
@@ -99,6 +109,26 @@ def cost_of(lists, entries):
             if dl and dl != "NULL":
                 walk(lists, dl, cost)
     return cost
+
+
+VIEWPOINTS = {"on the plaza": (0, 0), "at the south gate": (0, 3300)}
+
+
+def decor_sectors(room_h: Path):
+    """The scenery groups make_level.py lists for z_remix_level.c, and whether each is drawn from a point."""
+    text = room_h.read_text().replace("\\\n", " ")
+    dist = re.search(r"#define ANCIENT_DECOR_DRAW_DIST (\d+)", text)
+    rows = re.search(r"#define ANCIENT_DECOR_SECTOR_LIST(.*)", text)
+    dls = re.search(r"#define ANCIENT_DECOR_SECTOR_DLS(.*)", text)
+    if not (dist and rows and dls):
+        return []
+    dist = int(dist.group(1))
+    out = []
+    for (x, z, r, sky), dl in zip(re.findall(r"\{\s*(-?\d+),\s*(-?\d+),\s*(\d+),\s*(\d)\s*\}", rows.group(1)),
+                                re.findall(r"\w+", dls.group(1))):
+        reach = (dist * 3 // 2 if int(sky) else dist) + int(r)
+        out.append({"dl": dl, "near": (lambda ex, ez, x=int(x), z=int(z), reach=reach: (ex - x) ** 2 + (ez - z) ** 2 < reach ** 2)})
+    return out
 
 
 def own_entries(room_c: Path, town_entries: Path | None):
@@ -129,14 +159,20 @@ def main():
     town = build / "assets/scenes/remix/ancient/ancient_town_room.inc.c"
     if town.is_file():
         lists.add_c(town)
-    glow = build / "assets/scenes/remix/ancient/glow_bush.inc.c"
-    if glow.is_file():
-        lists.add_c(glow)
+    models = build / "assets/scenes/remix/ancient/decor_models.inc.c"
+    if models.is_file():
+        lists.add_c(models)
     entries = own_entries(REPO / "assets/scenes/remix/ancient/ancient_room_0.c",
                           build / "assets/scenes/remix/ancient/ancient_town_entries.inc.c")
+    sectors = decor_sectors(REPO / "assets/scenes/remix/ancient/ancient_room_0.h")
+    lists.segment = {f"0x0E{8 * (1 + k):06X}": s["dl"] for k, s in enumerate(sectors)}
     rows.append(("Ancient Plateau (whole room)", cost_of(lists, entries)))
     decor = [(o, x) for o, x in entries if "decor" in o]
     rows.append(("  of which: bushes, flowers, stones", cost_of(lists, decor)))
+    for where, (ex, ez) in VIEWPOINTS.items():
+        lists.segment = {f"0x0E{8 * (1 + k):06X}": (s["dl"] if s["near"](ex, ez) else None) for k, s in enumerate(sectors)}
+        rows.append((f"  scenery drawn with the camera {where}", cost_of(lists, decor)))
+    lists.segment = {f"0x0E{8 * (1 + k):06X}": s["dl"] for k, s in enumerate(sectors)}
     town_e = [(o, x) for o, x in entries if "town" in o]
     rows.append(("  of which: town buildings", cost_of(lists, town_e)))
     terrain = [(o, x) for o, x in entries if "terrain" in o]

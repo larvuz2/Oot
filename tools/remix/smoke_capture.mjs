@@ -3,7 +3,7 @@
 // pictures.
 //
 //   node tools/remix/smoke_capture.mjs --rom boot.z64 --out DIR [--frames 400,900,1500] [--walk-after 900]
-//                                      [--core mupen64plus_next|parallel_n64]
+//                                      [--core mupen64plus_next|parallel_n64] [--query perf=1]
 //
 // Needs the `playwright` package (resolved from NODE_PATH or the current directory) and a Chromium it can
 // launch. Writes DIR/shot-<frame>.png and DIR/capture.json ({ shots, crash, frames, log }).
@@ -25,6 +25,7 @@ const frames = arg("frames", "400,900,1500").split(",").map(Number);
 const walkAfter = Number(arg("walk-after", "900"));
 const timeoutS = Number(arg("timeout", "480"));
 const core = arg("core", "");
+const query = arg("query", ""); // more of the page's address options (perf=1: the website's performance mode)
 const webDir = resolve(arg("web", join(here, "../../web")));
 if (!romPath || !out) {
     console.error("usage: node smoke_capture.mjs --rom ROM --out DIR [--frames a,b,c] [--walk-after N]");
@@ -82,7 +83,7 @@ try {
         if (result.log.length < 400) result.log.push(`[${m.type()}] ${m.text()}`);
     });
     page.on("pageerror", (e) => result.log.push(`[pageerror] ${e.message}`));
-    await page.goto(`${base}/?rom=${encodeURIComponent(base + "/__smoke/boot.z64")}${core ? `&core=${core}` : ""}`);
+    await page.goto(`${base}/?rom=${encodeURIComponent(base + "/__smoke/boot.z64")}${core ? `&core=${core}` : ""}${query ? `&${query}` : ""}`);
     const frameNum = () =>
         page.evaluate(() => {
             try {

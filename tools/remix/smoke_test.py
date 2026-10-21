@@ -40,13 +40,13 @@ def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
     return i
 
 
-def capture(rom: bytes, out: Path, frames, core: str, timeout: int, walk_after=None) -> dict:
+def capture(rom: bytes, out: Path, frames, core: str, timeout: int, walk_after=None, query="") -> dict:
     """Run the ROM in the website's player (smoke_capture.mjs); returns its capture.json."""
     out.mkdir(parents=True, exist_ok=True)
     (out / "rom.z64").write_bytes(rom)
     cmd = ["node", str(HERE / "smoke_capture.mjs"), "--rom", str(out / "rom.z64"), "--out", str(out),
            "--frames", ",".join(map(str, frames)), "--walk-after", str(walk_after or 10**9), "--timeout", str(timeout),
-           "--core", core]
+           "--core", core] + (["--query", query] if query else [])
     try:
         p = subprocess.run(cmd, timeout=timeout + 60, capture_output=True, text=True)
         print((p.stdout + p.stderr).rstrip())
@@ -71,6 +71,16 @@ def describe(name: str, cap: dict):
         print(f"smoke: {name} frame {shot['frame']}: mean={tuple(round(c) for c in ImageStat.Stat(img).mean)} "
               f"colors={colors}{' BLANK' if colors < 12 else ''}")
         print(f"smoke-thumb {name}-{shot['frame']} 96x54 " + img.resize((96, 54), Image.BILINEAR).tobytes().hex())
+    speed(name, cap)
+
+
+def speed(name: str, cap: dict):
+    """Emulation speed between the first and last screenshot (60 frames a second = 100%; on CI's software GPU
+    every run is slow, so compare runs with each other, not with 100%)."""
+    shots = cap.get("shots", [])
+    if len(shots) >= 2 and shots[-1]["seconds"] > shots[0]["seconds"]:
+        fps = (shots[-1]["frame"] - shots[0]["frame"]) / (shots[-1]["seconds"] - shots[0]["seconds"])
+        print(f"smoke: {name} speed {fps:.1f} frames/s ({fps / 60 * 100:.0f}% of full speed)")
 
 
 EXC = {0: "interrupt", 1: "TLB mod", 2: "TLB load miss", 3: "TLB store miss", 4: "address error (load)",
@@ -204,6 +214,7 @@ def main():
 
     shots = [Path(s["file"]) for s in cap.get("shots", [])]
     print(f"smoke: {len(shots)} screenshot(s)")
+    speed("level", cap)
     ok = len(shots) == len(SHOTS) and not cap.get("crash")
     moved = None
     prev = None
@@ -253,6 +264,14 @@ def main():
                     report_threads(Path(last[-1]["state"]), bytes(vrom), args.elf)
                 except Exception as e:  # diagnostics only
                     print(f"smoke:   could not read them ({e})")
+    if not args.no_boot_flag and ok:
+        # The website's performance mode (tablets and phones): the level boots and draws in it too.
+        print("smoke: perf-mode")
+        pcap = capture(bytes(rom), out / "perf-mode", SHOTS, "mupen64plus_next", args.timeout, walk_after=SHOTS[1],
+                       query="perf=1&speed=1")
+        describe("perf-mode", pcap)
+        if pcap.get("crash") or len(pcap.get("shots", [])) < len(SHOTS):
+            ok = False
     if not args.no_boot_flag:
         # Control: the same quick boot into Hyrule Field (memory to compare with; and if it shows pictures while
         # the new level does not, the level is at fault).

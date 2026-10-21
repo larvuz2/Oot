@@ -1369,15 +1369,7 @@ def field_spots():
 
 # Static scenery drawn with the game's own models from gameplay_field_keep (always loaded here, segment 5).
 # Base models: (display list, scale the game's actors draw them at).
-DECOR_KINDS = {
-    # the bush, recolored to glow Sheikah blue at build time (link_level_assets.py); without the ROM's assets
-    # ANCIENT_GLOW_BUSH_DL is the game's own bush
-    "bush": ("ANCIENT_GLOW_BUSH_DL", 0.4),
-    "pebble": ("gFieldKakeraDL", 0.1),
-    "rock": ("gSilverRockDL", 0.4),
-    "flower": ("gHanaDL", 0.01),
-    "green_bush": ("gFieldBushDL", 0.4),  # the game's bush as it is (the floating island)
-}
+DECOR_KINDS = {k: (f"ANCIENT_DECOR_{k.upper()}", scale) for k, (_, scale, _) in town_plan.DECOR_SOURCES.items()}
 # Groups of models drawn with one matrix (so hundreds of bushes cost little memory): (kind, dx, dz, size, yaw)
 PATTERNS = {
     "bush": [("bush", 0, 0, 1.1, 0.0)],
@@ -1389,7 +1381,7 @@ PATTERNS = {
     "green_row": [("green_bush", -84, 5, 0.95, 0.3), ("green_bush", -28, -6, 1.1, 1.9), ("green_bush", 28, 7, 1.0, 4.1),
                   ("green_bush", 84, -4, 0.9, 5.2)],
     "green_clump": [("green_bush", 0, 0, 1.2, 0.0), ("green_bush", 36, 24, 0.85, 2.0), ("green_bush", -32, 28, 0.9, 4.0),
-                    ("green_bush", 8, -34, 0.8, 5.0), ("flower", 50, -20, 1.0, 1.0), ("flower", -46, -18, 1.0, 2.5)],
+                    ("green_bush", 8, -34, 0.8, 5.0)],
 }
 PATTERN_R = {"bush": 32, "bush_row": 112, "bush_clump": 60, "flower_bed": 40, "pebbles": 40, "rock": 50, "green_row": 112,
              "green_clump": 70}
@@ -1423,18 +1415,18 @@ def build_decor():
         DECOR.append((pat, x, mesh_height(x, z) if y is None else y, z, yaw, size))
         return True
 
-    for p in town_plan.PLOTS:
+    for n_plot, p in enumerate(town_plan.PLOTS):
         face = p["face"]
         x0, z0, r = p["x"], p["z"], p["r"]
         # a hedge along the back, clumps at the back corners, flower beds by the front corners, stones
-        for k in (-1, 0, 1):
-            a = face + math.pi + k * 0.42
+        for k in (-0.5, 0.5):  # (three before: trimmed for tablets)
+            a = face + math.pi + k * 0.5
             put("bush_row", x0 + math.sin(a) * (r + 60), z0 + math.cos(a) * (r + 60), yaw=a + math.pi / 2)
         for sgn in (-1, 1):
             a = face + math.pi + sgn * 1.25
             put("bush_clump", x0 + math.sin(a) * (r + 55), z0 + math.cos(a) * (r + 55))
-            a = face + sgn * 0.72
-            put("flower_bed", x0 + math.sin(a) * (r * 0.8 + 40), z0 + math.cos(a) * (r * 0.8 + 40))
+        a = face + (0.72 if n_plot % 2 else -0.72)  # one flower bed by a front corner
+        put("flower_bed", x0 + math.sin(a) * (r * 0.8 + 40), z0 + math.cos(a) * (r * 0.8 + 40))
         a = drng.random() * 2 * math.pi
         put("pebbles", x0 + math.sin(a) * (r + 40), z0 + math.cos(a) * (r + 40))
         if p["ring"] == "outer":
@@ -1449,22 +1441,22 @@ def build_decor():
             if ln < 1:
                 continue
             ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
-            n = int(ln // 250)
+            n = int(ln // 500)  # (every 250 before: halved for tablets)
             for k in range(n):
                 t = (k + 0.5) / max(n, 1)
                 cx, cz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
                 for sgn in (-1, 1):
                     off = town_plan.LANE_HALF + 46
-                    put("bush_row" if k % 3 != 2 else "flower_bed", cx + uz * sgn * off, cz - ux * sgn * off,
+                    put("bush_row" if k % 4 != 3 else "flower_bed", cx + uz * sgn * off, cz - ux * sgn * off,
                         yaw=math.atan2(ux, uz) + math.pi / 2)
     # the ring road's outer edge
-    for k in range(40):
-        a = 2 * math.pi * (k + 0.5) / 40
+    for k in range(24):
+        a = 2 * math.pi * (k + 0.5) / 24
         rr = town_plan.RING_ROAD_R + town_plan.LANE_HALF + 70
         put("bush_row" if k % 2 else "bush_clump", math.sin(a) * rr, math.cos(a) * rr, yaw=a + math.pi / 2)
     # the four roads, both sides, in and out of town
     for kp in range(4):
-        for r in np.arange(1250, 3700, 230):
+        for r in np.arange(1250, 3700, 460):
             ang = float(path_angle(kp, r))
             for sgn in (-1, 1):
                 off = PATH_HALF_WIDTH + 90
@@ -1472,7 +1464,7 @@ def build_decor():
                 z = math.cos(ang) * r - math.sin(ang) * sgn * off
                 if kp == 0 and 2950 < r < 3560:
                     continue  # the obelisks line the road there
-                put("bush_clump" if int(r / 230) % 2 else "bush_row", x, z, yaw=ang + math.pi / 2)
+                put("bush_clump" if int(r / 460) % 2 else "bush_row", x, z, yaw=ang + math.pi / 2)
     # the field: clumps where Hyrule Field's bushes were, its rocks
     for i, (x, z) in enumerate(field_spots()):
         if 20 <= i < 38:
@@ -1518,51 +1510,86 @@ DECOR_SETUP = ["gsDPPipeSync()", "gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE
                "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | G_RM_AA_ZB_OPA_SURF2)",
                "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_LIGHTING | G_SHADING_SMOOTH)",
                "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]  # SETUPDL_25, as the actors draw them
+DECOR_CELL = 1000  # scenery is grouped in squares this wide; z_remix_level.c draws a group only near the camera
+DECOR_DRAW_DIST = 1500  # (from the camera to a group's edge; the game's own bushes, actors, vanish at 1200)
+DECOR_SECTORS = []  # (x, z, radius, display list) of each group, for the draw config
 
 
 def emit_decor():
-    """Matrices, display lists (each group once, then one per quarter placing them) and room entries for DECOR."""
+    """Matrices and display lists for DECOR: each model's material is set once per group (the copies only draw their
+    geometry), groups of nearby copies can be switched off by distance (segment 0x0E, z_remix_level.c), and one room
+    entry per quarter of the valley calls its groups."""
     lines, entries, decl = [], [], []
+    DECOR_SECTORS.clear()
     if not DECOR:
         return lines, entries, decl
     used = sorted({d[0] for d in DECOR}, key=list(PATTERNS).index)
-    lines.append("// static scenery: the game's own bush, flower and rock models (gameplay_field_keep, segment 5)\n" +
-                 "".join(f"extern Gfx {sym}[];\n" for sym, _ in DECOR_KINDS.values() if sym.startswith("g")) + "\n")
+    kind_of = {p: PATTERNS[p][0][0] for p in used}
+    assert all(len({it[0] for it in PATTERNS[p]}) == 1 for p in used), "a pattern mixes models"
     pmtx, pdl = [], []
     for pat in used:
         cmds = []
         for kind, dx, dz, size, yaw in PATTERNS[pat]:
             pmtx.append(decor_mtx(dx, 0, dz, yaw, DECOR_KINDS[kind][1] * size))
             cmds += [f"gsSPMatrix(&{ROOM}DecorPatternMtx[{len(pmtx) - 1}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
-                     f"gsSPDisplayList({DECOR_KINDS[kind][0]})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
+                     f"gsSPDisplayList({DECOR_KINDS[kind][0]}_GEOM)", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
         pdl.append(f"Gfx {ROOM}DL_decor_{pat}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
     lines.append(f"Mtx {ROOM}DecorPatternMtx[{len(pmtx)}] = {{\n" + "".join(mtx_text(m) for m in pmtx) + "};\n\n")
     lines.append(f"Mtx {ROOM}DecorMtx[{len(DECOR)}] = {{\n" + "".join(
         mtx_text(decor_mtx(d[1], d[2], d[3], d[4], d[5])) for d in DECOR) + "};\n\n")
     lines += pdl
-    for q in range(4):
-        idx = [i for i, d in enumerate(DECOR)
-               if int(((math.atan2(d[1], d[3]) % (2 * math.pi)) // (math.pi / 2))) == q]
-        if not idx:
-            continue
+    # groups: squares of the valley (the floating island and islet get their own)
+    cells = {}
+    for i, d in enumerate(DECOR):
+        key = ("sky", round(d[1] / 900), round(d[3] / 900)) if d[2] > ISLAND["top"] - 200 else \
+            (int(math.floor(d[1] / DECOR_CELL)), int(math.floor(d[3] / DECOR_CELL)))
+        cells.setdefault(key, []).append(i)
+    order = sorted(cells, key=lambda k: str(k))
+    assert len(order) <= 63, f"{len(order)} scenery groups (z_remix_level.c's table holds 63)"
+    quarters = {}
+    for k, key in enumerate(order):
+        idx = cells[key]
         cmds = []
-        # the field keep's models first (they share one setup), then the bushes (the glowing one sets its own)
-        for pat in sorted(used, key=lambda p_: PATTERNS[p_][0][0] == "bush"):
-            items = [i for i in idx if DECOR[i][0] == pat]
-            if not items:
-                continue
-            cmds += DECOR_SETUP
-            for i in items:
-                cmds += [f"gsSPMatrix(&{ROOM}DecorMtx[{i}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
-                         f"gsSPDisplayList({ROOM}DL_decor_{pat})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
-        name = f"{ROOM}DL_decor_{q}"
+        # the game's models first (they share the actors' setup), then the glowing bush (its setup is its own)
+        for kind in sorted({kind_of[DECOR[i][0]] for i in idx}, key=lambda kd: kd == "bush"):
+            cmds += DECOR_SETUP + [f"gsSPDisplayList({DECOR_KINDS[kind][0]}_SETUP)"]
+            for i in idx:
+                if kind_of[DECOR[i][0]] == kind:
+                    cmds += [f"gsSPMatrix(&{ROOM}DecorMtx[{i}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
+                             f"gsSPDisplayList({ROOM}DL_decor_{DECOR[i][0]})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
+        name = f"{ROOM}DL_decor_s{k}"
         lines.append(f"Gfx {name}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
+        decl.append(f"extern Gfx {name}[];")
         pts = np.array([[DECOR[i][1], DECOR[i][2], DECOR[i][3]] for i in idx])
         c = (pts.min(0) + pts.max(0)) / 2
-        rad = float(np.max(np.linalg.norm(pts - c, axis=1))) + 160
+        rad = float(np.max(np.linalg.norm((pts - c)[:, [0, 2]], axis=1))) + 120
+        DECOR_SECTORS.append((c, rad, name, key[0] == "sky"))
+        q = int(((math.atan2(c[0], c[2]) % (2 * math.pi)) // (math.pi / 2)))
+        quarters.setdefault(q, []).append(k)
+    for q, ks in sorted(quarters.items()):
+        name = f"{ROOM}DL_decor_{q}"
+        cmds = [f"gsSPDisplayList(0x0E{8 * (1 + k):06X})" for k in ks]  # switched on or off each frame
+        lines.append(f"Gfx {name}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
+        pts = np.array([DECOR_SECTORS[k][0] for k in ks])
+        c = (pts.min(0) + pts.max(0)) / 2
+        rad = max(float(np.linalg.norm(DECOR_SECTORS[k][0] - c)) + DECOR_SECTORS[k][1] for k in ks) + 160
         entries.append((tuple(int(round(v)) for v in c), int(math.ceil(rad)), name, "NULL"))
         decl.append(f"extern Gfx {name}[];")
     return lines, entries, decl
+
+
+def decor_defines():
+    """The scenery groups for z_remix_level.c: centre, radius and display list of each."""
+    if not DECOR_SECTORS:
+        return "#define ANCIENT_DECOR_SECTORS 0\n"
+    rows = ", ".join(f"{{ {int(round(c[0]))}, {int(round(c[2]))}, {int(math.ceil(r))}, {int(sky)} }}"
+                     for c, r, _, sky in DECOR_SECTORS)
+    dls = ", ".join(name for _, _, name, _ in DECOR_SECTORS)
+    return (f"// Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)\n"
+            f"#define ANCIENT_DECOR_SECTORS {len(DECOR_SECTORS)}\n"
+            f"#define ANCIENT_DECOR_DRAW_DIST {DECOR_DRAW_DIST}\n"
+            f"#define ANCIENT_DECOR_SECTOR_LIST {{ {rows} }}\n"
+            f"#define ANCIENT_DECOR_SECTOR_DLS {{ {dls} }}\n")
 
 
 def town_people(add, yaw_to):
@@ -1994,7 +2021,7 @@ def write_sources():
               f"// Center of the floating island (its circling rocks turn around it)\n"
               f"#define ANCIENT_ISLAND_X {round(ISLAND['x'])}\n#define ANCIENT_ISLAND_Y {ISLAND['top']}\n"
               f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n"
-              + view_defines() + "\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
+              + view_defines() + decor_defines() + "\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
     lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
@@ -2020,9 +2047,14 @@ def write_sources():
                  "#include ANCIENT_TOWN_ACTORS\n#endif\n};\n\n")
     # The town's buildings, borrowed from the game's towns at build time (tools/remix/make_town.py)
     lines.append("#ifdef ANCIENT_TOWN_ROOM\n#include ANCIENT_TOWN_ROOM\n#endif\n\n")
-    lines.append("// The game's bush recolored to glow (tools/remix/link_level_assets.py), else the bush itself\n"
-                 "#ifdef ANCIENT_GLOW_BUSH\n#include ANCIENT_GLOW_BUSH\n#else\nextern Gfx gFieldBushDL[];\n"
-                 "#define ANCIENT_GLOW_BUSH_DL gFieldBushDL\n#endif\n\n")
+    lines.append("// The scenery models, split into a setup list and a geometry list (tools/remix/link_level_assets.py; the\n"
+                 "// bush recolored to glow). Without the ROM's assets: the game's whole models, set up for each copy.\n"
+                 "#ifdef ANCIENT_DECOR_MODELS\n#include ANCIENT_DECOR_MODELS\n#else\n"
+                 f"Gfx {ROOM}DecorNone[] = {{ gsSPEndDisplayList() }};\n"
+                 + "".join(f"extern Gfx {sym}[];\n" for sym in sorted({v[0] for v in town_plan.DECOR_SOURCES.values()}))
+                 + "".join(f"#define ANCIENT_DECOR_{k.upper()}_SETUP {ROOM}DecorNone\n#define ANCIENT_DECOR_{k.upper()}_GEOM {v[0]}\n"
+                           for k, v in town_plan.DECOR_SOURCES.items())
+                 + "#endif\n\n")
     lines += decor_lines
     lines.append(f"RoomShapeCullableEntry {ROOM}RoomShapeEntries[] = {{\n" +
                  "".join(f"    {{ {{ {c[0]}, {c[1]}, {c[2]} }}, {r}, {o}, {x} }},\n" for c, r, o, x in entries) +
