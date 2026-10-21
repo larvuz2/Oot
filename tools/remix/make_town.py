@@ -44,6 +44,7 @@ SCENES = {
     "lake": "assets/scenes/overworld/spot06",
     "fortress": "assets/scenes/overworld/spot12",
     "colossus": "assets/scenes/overworld/spot11",
+    "zora_river": "assets/scenes/overworld/spot03",
 }
 
 # Where each source town's streets meet: a borrowed building is turned so that the side that faced this point
@@ -110,6 +111,13 @@ BUILDINGS: list[dict] = [
     # a second Lon Lon arch over the main street of the quarter on Link's left, between the ring road and the
     # monoliths (the Colossus's "arch" is a solid rock in the game's data, so it is not used)
     _ll("street_arch", [2], None, at=("street", 3, 1320), scale=1.2, front=0.0),
+    # where Link arrives: the Desert Colossus's natural stone arch over the road (long along its z axis, so its x
+    # axis follows the road), between the obelisks make_level.py lines the road with
+    dict(name="entrance_arch", scene="colossus", room="spot11_room_0", entries=[11], plot=None, at=("south_road", 3110),
+         scale=1.0, front=math.pi / 2),
+    # Zora's River's rope bridge, in its own colors, from the floating island to the islet (town_plan.bridge_ends)
+    dict(name="zora_bridge", scene="zora_river", room="spot03_room_1", entries=[9], plot=None, at="island_bridge",
+         style="keep"),
 ]
 SINK = 12  # how far buildings sit into the ground, so no gap shows on uneven terrain
 
@@ -241,6 +249,28 @@ class Building:
         return tris, cols
 
 
+def fit_bridge(b, a, c):
+    """Turn, scale and move a borrowed bridge so its deck runs from a to c ((x, y, z) each). Returns the plot and the
+    height to give Building.place."""
+    floor = [p for p, _, _ in b.col if _up(p) > 0.7] or [v[:, :3] for v, _ in b.tris if _up(v[:, :3]) > 0.7]
+    pts = np.concatenate(floor) if floor else np.concatenate([v[:, :3] for v, _ in b.tris])
+    xz = pts[:, [0, 2]]
+    mean = xz.mean(0)
+    _, _, vt = np.linalg.svd(xz - mean)
+    axis = vt[0]
+    t = (xz - mean) @ axis
+    length = float(t.max() - t.min())
+    ends = (t < t.min() + 0.15 * length) | (t > t.max() - 0.15 * length)
+    mid = mean + axis * (t.max() + t.min()) / 2
+    b.pivot = np.array([mid[0], float(np.median(pts[ends, 1])), mid[1]])
+    b.front = math.atan2(axis[0], axis[1])
+    dx, dz = c[0] - a[0], c[2] - a[2]
+    b.scale = math.hypot(dx, dz) / length
+    plot = dict(x=(a[0] + c[0]) / 2, z=(a[2] + c[2]) / 2, face=math.atan2(dx, dz))
+    print(f"make_town: bridge deck {length:.0f} long, scaled by {b.scale:.2f}")
+    return plot, (a[1] + c[1]) / 2 + SINK
+
+
 # ---------------------------------------------------------------- textures
 
 
@@ -252,7 +282,7 @@ class Textures:
         self.items = {}  # key -> dict(sym, fmt, w, h, tlut, cls)
 
     def get(self, field: Field, scene: str, st, usage, style=None):
-        key = (scene, st["tex"], tuple(sorted((style or {}).items())))
+        key = (scene, st["tex"], style if isinstance(style, str) else tuple(sorted((style or {}).items())))
         if key in self.items:
             return self.items[key]
         w, h = st["size"] or (32, 32)
@@ -276,8 +306,11 @@ class Textures:
             h, w = img.shape[:2]
         mean = img[..., :3][img[..., 3] >= 128].mean(0) if (img[..., 3] >= 128).any() else np.zeros(3)
         cls = restyle.classify(mean, fmt_src, usage, has_alpha, name)
-        cls = (style or {}).get(cls, cls)
-        cls = TEXTURE_CLASSES.get(st["tex"], cls)
+        if style == "keep":  # in its own colors
+            cls = "original"
+        else:
+            cls = (style or {}).get(cls, cls)
+            cls = TEXTURE_CLASSES.get(st["tex"], cls)
         new = restyle.restyle(img, cls, seed=len(self.items))
         n = len(self.items)
         sym = f"ancient_town_tex_{n}"
@@ -429,10 +462,12 @@ def main():
     for spec in BUILDINGS:
         if spec.get("plot") is not None:
             plot = town_plan.PLOTS[spec["plot"]]
-        elif spec["at"] == "south_road":  # across the road Link arrives on, between him and the plaza
+        elif spec["at"] == "island_bridge":
+            plot = None  # placed once the bridge is read (its length and direction)
+        elif spec["at"] == "south_road" or spec["at"][0] == "south_road":  # across the road Link arrives on
             import make_level
 
-            r = 2860.0
+            r = 2860.0 if spec["at"] == "south_road" else float(spec["at"][1])
             a = float(make_level.path_angle(0, r))
             da = float(make_level.path_angle(0, r + 10)) - a
             heading = math.atan2(math.sin(a) + r * math.cos(a) * da / 10, math.cos(a) - r * math.sin(a) * da / 10)
@@ -458,10 +493,13 @@ def main():
         except (ValueError, IndexError) as e:
             print(f"make_town: skipping {spec['name']}: {e}")
             continue
-        ground = [ground_height(own_v, own_t, plot["x"] + dx, plot["z"] + dz)
-                  for dx, dz in ((0, 0), (b.radius * 0.6, 0), (-b.radius * 0.6, 0), (0, b.radius * 0.6), (0, -b.radius * 0.6))]
-        ground = [g for g in ground if g is not None]
-        gy = min(ground) if ground else 0.0
+        if plot is None:
+            plot, gy = fit_bridge(b, *town_plan.bridge_ends())
+        else:
+            ground = [ground_height(own_v, own_t, plot["x"] + dx, plot["z"] + dz)
+                      for dx, dz in ((0, 0), (b.radius * 0.6, 0), (-b.radius * 0.6, 0), (0, b.radius * 0.6), (0, -b.radius * 0.6))]
+            ground = [g for g in ground if g is not None]
+            gy = min(ground) if ground else 0.0
         tris, colp = b.place(plot["x"], plot["z"], gy, plot["face"])
 
         # usage of each texture by this building, to classify it

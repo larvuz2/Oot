@@ -62,6 +62,8 @@ def gradient(lum: np.ndarray, pal) -> np.ndarray:
 
 def restyle(rgba: np.ndarray, cls: str, seed: int = 0) -> np.ndarray:
     """New RGBA uint8 array, same size and alpha, in the colors of the material class."""
+    if cls == "original":
+        return rgba.astype(np.uint8).copy()
     a = rgba.astype(float)
     if cls in KEEP:
         out = a.copy()

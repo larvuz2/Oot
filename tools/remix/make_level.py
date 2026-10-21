@@ -151,6 +151,24 @@ def paths_polygon():
     return _paths_poly
 
 
+TOWN_GROUND_R = 3020  # inside this (wavy) circle the ground is the town's (TOWN_GROUND), outside the field's grass
+_town_poly = None
+
+
+def town_polygon():
+    global _town_poly
+    if _town_poly is None:
+        from shapely.geometry import Polygon
+
+        pts = []
+        for k in range(24):
+            a = 2 * math.pi * k / 24
+            r = TOWN_GROUND_R + 70 * math.sin(5 * a + 0.7)
+            pts.append((math.sin(a) * r, math.cos(a) * r))
+        _town_poly = Polygon(pts)
+    return _town_poly
+
+
 _town_streets = None
 
 
@@ -218,7 +236,8 @@ def normal_at(x, z, e=20.0):
 
 class Mat:
     def __init__(self, name, tex=None, fmt=None, size=(32, 32), lit=True, xlu=False, prim=(255, 255, 255, 255),
-                 prim_seg=None, scroll=False, repeat=200.0, clamp_t=False):
+                 prim_seg=None, scroll=False, repeat=200.0, clamp_t=False, combine=None):
+        self.combine = combine
         self.name, self.tex, self.fmt, self.size = name, tex, fmt, size
         self.lit, self.xlu, self.prim, self.prim_seg = lit, xlu, prim, prim_seg
         self.scroll, self.repeat, self.clamp_t = scroll, repeat, clamp_t
@@ -226,6 +245,7 @@ class Mat:
 
 GRASS = Mat("grass", "grass", "rgba16", (32, 32), repeat=150)
 DIRT = Mat("dirt", "dirt", "rgba16", (32, 32), repeat=150)
+TOWN_GROUND = Mat("town_ground", "town_ground", "rgba16", (32, 32), repeat=170)
 ROCK = Mat("rock", "rock", "rgba16", (32, 32), repeat=330)
 PLAZA = Mat("plaza", "plaza", "ci4", (64, 64), repeat=380)
 TECH = Mat("tech", "techstone", "ci4", (64, 64), repeat=200)
@@ -237,14 +257,21 @@ GLOW_CYAN = Mat("glow_cyan", "glow", "i8", (32, 32), lit=False, xlu=True, prim_s
 GLOW_ORANGE = Mat("glow_orange", "glow", "i8", (32, 32), lit=False, xlu=True, prim_seg=0x0C, scroll=True,
                   repeat=150, clamp_t=True)
 EYE = Mat("eye", "eye", "i8", (64, 64), lit=False, xlu=True, prim_seg=0x0C)
+EYE_CYAN = Mat("eye_cyan", "eye", "i8", (64, 64), lit=False, xlu=True, prim_seg=0x08)
+# Zora's River's water when the ROM's assets are there (else a look-alike), scrolled by segment 0x0E
+WATER = Mat("water", "water", "rgba16", (32, 32), lit=False, xlu=True, prim=(255, 255, 255, 170), scroll=0x0E, repeat=160,
+            combine="water")
 
 # Textures that come from Hyrule Field itself when the ROM's assets are there (tools/remix/link_level_assets.py
 # writes ancient_hf.h at build time); the files here are look-alike fallbacks for builds without a ROM.
-HF_TEXTURES = {"grass": "ANCIENT_HF_GRASS", "dirt": "ANCIENT_HF_DIRT", "rock": "ANCIENT_HF_ROCK"}
+HF_TEXTURES = {"grass": "ANCIENT_HF_GRASS", "dirt": "ANCIENT_HF_DIRT", "rock": "ANCIENT_HF_ROCK",
+               "town_ground": "ANCIENT_TOWN_GROUND", "water": "ANCIENT_ZORA_WATER"}
 
 TEXTURES = {  # key: (file stem, format, size)
     "grass": ("ancient_grass", "rgba16", (32, 32)),
     "dirt": ("ancient_dirt", "rgba16", (32, 32)),
+    "town_ground": ("ancient_town_ground", "rgba16", (32, 32)),
+    "water": ("ancient_water", "rgba16", (32, 32)),
     "rock": ("ancient_rock", "rgba16", (32, 32)),
     "plaza": ("ancient_plaza", "ci4", (64, 64)),
     "techstone": ("ancient_techstone", "ci4", (64, 64)),
@@ -276,6 +303,7 @@ class Entry:
         self.matrix_seg = matrix_seg
         self.sphere = sphere  # (center, radius) override, for animated parts
         self.groups = {}  # Mat -> list of triangles; triangle = 3 vertices (pos, uv, nc)
+        self.instances = []  # (shared mesh Entry, x, y, z, yaw, scale xz, scale y): drawn with a matrix each
 
     def tri(self, mat, verts):
         self.groups.setdefault(mat, []).append(verts)
@@ -285,6 +313,25 @@ class Entry:
 
 
 ENTRIES: list[Entry] = []
+MESHES: list[Entry] = []  # shared models drawn by instances (no room entry of their own)
+INST_MTX = []  # the instances' matrices, in emit order
+
+
+def new_mesh(name):
+    e = Entry(name)
+    MESHES.append(e)
+    return e
+
+
+def inst_transform(inst):
+    """Function moving a point of the shared mesh to where the instance puts it."""
+    _, x, y, z, yaw, sxz, sy = inst
+    c, s_ = math.cos(yaw), math.sin(yaw)
+
+    def f(p):
+        q = np.asarray(p, float) * [sxz, sy, sxz]
+        return np.array([q[0] * c + q[2] * s_ + x, q[1] + y, -q[0] * s_ + q[2] * c + z])
+    return f
 COL_TRIS = []  # (p0, p1, p2, surface, flags)
 
 
@@ -377,8 +424,8 @@ def build_terrain():
         for i in range(GRID_N):
             cx, cz = (xs[i] + xs[i + 1]) / 2, (xs[j] + xs[j + 1]) / 2
             rc = math.hypot(cx, cz)
-            if rc < 760:
-                continue  # hidden under the plaza
+            if max(math.hypot(xs[a], xs[b]) for a in (i, i + 1) for b in (j, j + 1)) < PLAZA_R - 40:
+                continue  # all of it hidden under the plaza (a cell that reaches past its edge stays: no holes)
             if min(math.hypot(xs[a], xs[b]) for a in (i, i + 1) for b in (j, j + 1)) > 7700:
                 continue  # far corners, always behind the mountains
             key = (i // per, j // per)
@@ -419,7 +466,7 @@ def build_terrain():
                 else:
                     uvs = [planar_uv(mat, p) for p in pts]
                 on_path = False
-                if mat is GRASS and (pd < 400 or 950 < rc < 2800):
+                if mat is GRASS and (pd < 400 or 600 < rc < TOWN_GROUND_R + 400):
                     on_path = cut_paths(e, pts, nrm)
                 else:
                     e.tri(mat, [V(pts[k], uvs[k], nrm[k]) for k in range(3)])
@@ -437,8 +484,10 @@ def cut_paths(e, pts, nrm):
 
     tri2 = Polygon([(p[0], p[2]) for p in pts])
     paths = paths_polygon()
-    if not tri2.intersects(paths):
-        e.tri(GRASS, [V(pts[k], planar_uv(GRASS, pts[k]), nrm[k]) for k in range(3)])
+    town = town_polygon()
+    if not tri2.intersects(paths) and (tri2.within(town) or not tri2.intersects(town)):
+        mat = TOWN_GROUND if tri2.within(town) else GRASS
+        e.tri(mat, [V(pts[k], planar_uv(mat, pts[k]), nrm[k]) for k in range(3)])
         return False
     a2 = np.array([[p[0], p[2]] for p in pts])
     den = np.linalg.det(np.array([a2[1] - a2[0], a2[2] - a2[0]]).T)
@@ -452,7 +501,7 @@ def cut_paths(e, pts, nrm):
 
     inside = tri2.intersection(paths)
     outside = tri2.difference(paths)
-    for geom, mat in ((inside, DIRT), (outside, GRASS)):
+    for geom, mat in ((inside, DIRT), (outside.intersection(town), TOWN_GROUND), (outside.difference(town), GRASS)):
         if geom.is_empty:
             continue
         for t in shapely.constrained_delaunay_triangles(geom).geoms:
@@ -540,7 +589,7 @@ def strip(entry, mat, pts, normals, width, lift=1.5, closed=False):
              [(us[i], 0), (us[i], 32), (us[i + 1], 32), (us[i + 1], 0)], [(255, 255, 255, 255)] * 4, n)
 
 
-def noisy_rock(entry, mat, center, radius, squash=1.0, seed=0, sink=0.25, col=None, glow_ring=False, detail=1):
+def noisy_rock(entry, mat, center, radius, squash=1.0, seed=0, sink=0.25, col=None, glow_ring=False, detail=1, flat=None):
     """Icosphere boulder with smooth normals, half buried."""
     t = (1 + 5**0.5) / 2
     vs = [(-1, t, 0), (1, t, 0), (-1, -t, 0), (1, -t, 0), (0, -1, t), (0, 1, t), (0, -1, -t), (0, 1, -t),
@@ -574,6 +623,11 @@ def noisy_rock(entry, mat, center, radius, squash=1.0, seed=0, sink=0.25, col=No
         d = 1 + 0.22 * float(pn(v[0] * 1.7 + v[2], v[1] * 1.7 - v[2])) + 0.08 * (r.random() - 0.5)
         p = v * d * radius
         p[1] *= squash
+        if flat is not None:  # cut flat on one side (dir, distance from the center)
+            fd, fdist = np.asarray(flat[0], float), flat[1]
+            over = float(np.dot(p, fd)) - fdist
+            if over > 0:
+                p = p - fd * over
         pos.append(np.array(center) + p - np.array([0, radius * squash * sink, 0]))
     vn = [np.zeros(3) for _ in pos]
     for a, b, c in fs:
@@ -584,7 +638,7 @@ def noisy_rock(entry, mat, center, radius, squash=1.0, seed=0, sink=0.25, col=No
     su, sv = tex_scale(mat)
     for a, b, c in fs:
         pts = [pos[a], pos[b], pos[c]]
-        if max(p[1] for p in pts) < height(pts[0][0], pts[0][2]) - 5:
+        if sink > 0 and max(p[1] for p in pts) < height(pts[0][0], pts[0][2]) - 5:
             continue  # fully underground
         fn = unit(np.cross(pts[1] - pts[0], pts[2] - pts[0]))
         ax = int(np.argmax(np.abs(fn)))
@@ -807,6 +861,14 @@ def build_floating():
         a = k * math.pi / 3 + 0.3
         c = (math.sin(a) * 380, 470 + 70 * ((k * 37) % 5), math.cos(a) * 380)
         noisy_rock(shards, TECHROCK, c, 40 + 7 * (k % 3), squash=1.3, seed=200 + k, sink=0.0, detail=0)
+    # bigger rocks drifting high over the town, on the same slow turn
+    sky = new_entry("sky_rocks", matrix_seg=0x0A, sphere=((0, 1000, 0), 2600))
+    for k in range(10):
+        a = k * math.pi / 5 + 0.15 + 0.2 * (k % 2)
+        rr = 1550 + 240 * ((k * 3) % 4)
+        sc = 0.55 + 0.2 * (k % 3)
+        sky.instances.append((float_rock_mesh(), math.sin(a) * rr, 960 + 90 * ((k * 5) % 4), math.cos(a) * rr, a * 2.3,
+                              sc, sc * 1.3))
 
 
 # ---------------------------------------------------------------- monoliths, pillars, boulders
@@ -904,6 +966,256 @@ def build_pillars():
                 strip(es[k], GLOW_ORANGE, pts2, nr, 9, lift=1.2, closed=True)
 
 
+# ---------------------------------------------------------------- the sky: island, stepping rocks, waterfall, eye rock
+
+ISLAND, ISLET = town_plan.ISLAND, town_plan.ISLET
+ROCK_R = 62  # stepping rocks: top radius
+HOP_GAP, HOP_DROP = 46, 8  # Link jumps by himself when he runs off an edge over a drop
+CLIMB_UP, CLIMB_OVERLAP = 68, 26  # a 59-79 unit ledge is his "step up" climb (z_player.c, ageProperties)
+COL_DEPTH = 120  # collision walls reach this far below a rock's top (so the ledge below "sees" them)
+
+
+def float_rock(e, cx, cz, top, rad, depth, seed, top_mat=None, n=7, band=30, col=True, rough=0.1):
+    """A floating rock: a flat top (grass) on a band of rock, and a jagged point hanging underneath.
+    Collision: the top and walls COL_DEPTH deep. Returns the top ring (for decoration)."""
+    r = np.random.default_rng(seed)
+    top_mat = top_mat or GRASS
+    ph = r.random() * 2 * math.pi
+    radii = [rad * (1 + rough * (r.random() - 0.5) * 2) for _ in range(n)]
+    ring = lambda rr, y, k_off=0.0: [np.array([cx + math.sin(ph + 2 * math.pi * (k + k_off) / n) * rr[k],
+                                               y, cz + math.cos(ph + 2 * math.pi * (k + k_off) / n) * rr[k]])
+                                     for k in range(n)]
+    top_ring = ring(radii, top)
+    band_ring = ring(radii, top - band)
+    mid_ring = ring([q * 0.62 for q in radii], top - band - depth * 0.42, 0.5)
+    tip = np.array([cx + (r.random() - 0.5) * rad * 0.3, top - band - depth, cz + (r.random() - 0.5) * rad * 0.3])
+    su, sv = tex_scale(ROCK)
+    c_top = np.array([cx, top, cz])
+    for k in range(n):
+        k2 = (k + 1) % n
+        out = unit(((top_ring[k] + top_ring[k2]) / 2 - c_top) * [1, 0, 1])
+        w = float(np.linalg.norm(top_ring[k2] - top_ring[k]))
+        quad(e, ROCK, [band_ring[k], band_ring[k2], top_ring[k2], top_ring[k]],
+             [(0, band * sv), (w * su, band * sv), (w * su, 0), (0, 0)], [tuple(out)] * 4, out)
+        # the cap
+        tri = facing_tri(c_top, top_ring[k], top_ring[k2], (0, 1, 0))
+        e.tri(top_mat, [V(q, planar_uv(top_mat, q), (0, 1, 0)) for q in tri])
+        # underneath: band -> middle ring -> tip
+        for a, b, c in ((band_ring[k], band_ring[k2], mid_ring[k]), (band_ring[k2], mid_ring[k2], mid_ring[k]),
+                        (mid_ring[k], mid_ring[k2], tip)):
+            fn = unit(np.cross(b - a, c - a))
+            ctr = (a + b + c) / 3
+            if np.dot(fn, ctr - np.array([cx, ctr[1] + rad, cz])) < 0:
+                fn = -fn
+            t3 = facing_tri(a, b, c, fn)
+            e.tri(ROCK, [V(q, (q[0] * su + q[2] * su * 0.5, -q[1] * sv), tuple(unit(fn + (q - c_top) * [1, 0, 1] / max(rad, 1) * 0.6)))
+                         for q in t3])
+        if col:
+            add_col(c_top, top_ring[k], top_ring[k2], SURF_GRASS if top_mat in (GRASS, TOWN_GROUND) else SURF_STONE,
+                    facing=(0, 1, 0))
+            lo0, lo1 = top_ring[k] - [0, COL_DEPTH, 0], top_ring[k2] - [0, COL_DEPTH, 0]
+            add_col(lo0, lo1, top_ring[k2], SURF_STONE, facing=out)
+            add_col(lo0, top_ring[k2], top_ring[k], SURF_STONE, facing=out)
+    return top_ring
+
+
+def stepping_rocks():
+    """The floating rocks that lead from the field up to the island: (x, z, top). Pairs of a hop across a small gap
+    (a little lower) and a climb up a ledge, spiralling around the island; the last one touches the island's rim,
+    one more climb below its top. Every climb is 41-79 units (Link climbs those by himself, z_player.c)."""
+    ix, iz = ISLAND["x"], ISLAND["z"]
+    face = math.atan2(-ix, -iz)  # the waterfall's side: start away from it, turning away from the islet
+    phi = face + math.radians(70)
+    end_r = ISLAND["r"] + ROCK_R - CLIMB_OVERLAP
+    start_r = ISLAND["r"] + 330
+    x, z = ix + math.sin(phi) * start_r, iz + math.cos(phi) * start_r
+    first = float(mesh_height(x, z)) + 66
+    goal = ISLAND["top"] - CLIMB_UP
+    pairs = math.ceil((goal - first) / (CLIMB_UP - HOP_DROP))
+    climb = (goal - first) / pairs + HOP_DROP
+    assert 45 <= climb <= 76, climb
+    rocks = [(x, z, first)]
+    top = first
+    for k in range(2 * pairs):
+        hop = k % 2 == 0
+        dist = 2 * ROCK_R + (HOP_GAP if hop else -CLIMB_OVERLAP)
+        top = top - HOP_DROP if hop else top + climb
+        rr = start_r + (end_r - start_r) * (k + 1) / (2 * pairs)
+        lo_, hi_ = 0.0, 1.5  # turn around the island until the next rock is `dist` away
+        for _ in range(40):
+            mid = (lo_ + hi_) / 2
+            if math.hypot(ix + math.sin(phi + mid) * rr - x, iz + math.cos(phi + mid) * rr - z) < dist:
+                lo_ = mid
+            else:
+                hi_ = mid
+        phi += hi_
+        x, z = ix + math.sin(phi) * rr, iz + math.cos(phi) * rr
+        rocks.append((x, z, top))
+    return rocks
+
+
+def waterfall_spot():
+    """(rim point (x, y, z), outward direction (dx, dz)): where the island's stream pours over the edge, toward the Spire."""
+    ix, iz = ISLAND["x"], ISLAND["z"]
+    d = unit(np.array([-ix, 0, -iz]))
+    rim = np.array([ix, ISLAND["top"], iz]) + d * (ISLAND["r"] * 0.97)
+    return rim, d
+
+
+def pool_center():
+    rim, d = waterfall_spot()
+    p = rim + d * 70
+    return float(p[0]), float(p[2])
+
+
+POOL_R = 210
+
+
+def build_sky():
+    e = new_entry("island")
+    float_rock(e, ISLAND["x"], ISLAND["z"], ISLAND["top"], ISLAND["r"], 560, 901, n=12, band=95, rough=0.06)
+    float_rock(e, ISLET["x"], ISLET["z"], ISLET["top"], ISLET["r"], 300, 902, n=8, band=60, rough=0.08)
+    # a Sheikah eye on a stone pad in the middle of the island
+    pad = np.array([ISLAND["x"], ISLAND["top"], ISLAND["z"]])
+    prism(e, TECH, 70, 64, ISLAND["top"] - 4, ISLAND["top"] + 12, 8, center=(pad[0], pad[2]), col=SURF_TECH, cap=True,
+          cap_mat=PLAZA)
+    up = np.array([0.0, 1.0, 0.0])
+    side, fwd = np.array([1.0, 0, 0]), np.array([0, 0, 1.0])
+    c = pad + [0, 14, 0]
+    h = 52
+    quad(e, EYE_CYAN, [c - side * h + fwd * h, c + side * h + fwd * h, c + side * h - fwd * h, c - side * h - fwd * h],
+         [(0, 0), (64, 0), (64, 64), (0, 64)], [(255, 255, 255, 255)] * 4, up)
+    # the stream across the island and the waterfall over its edge, into a pool on the field
+    rim, d = waterfall_spot()
+    s_ = np.array([d[2], 0, -d[0]])
+    spring = pad + d * 110
+    stream = [spring + d * t + s_ * 18 * math.sin(t / 60) for t in np.linspace(0, float(np.linalg.norm((rim - spring) * [1, 0, 1])), 6)]
+    strip(e, WATER, stream, [up] * len(stream), 64, lift=3.0)
+    px, pz = pool_center()
+    gy = float(mesh_height(px, pz))
+    surf = gy + 12
+    w = 54
+    top_c = rim + d * 4 + [0, 2, 0]
+    bot_c = np.array([px, surf + 4, pz]) - d * 40
+    su, sv = tex_scale(WATER)
+    length = float(np.linalg.norm(top_c - bot_c))
+    for facing in (d, -d):
+        quad(e, WATER, [bot_c - s_ * w * 1.3, bot_c + s_ * w * 1.3, top_c + s_ * w, top_c - s_ * w],
+             [(0, length * sv), (2 * w * su, length * sv), (2 * w * su, 0), (0, 0)], [(255, 255, 255, 255)] * 4, facing)
+    # the pool: a low stone rim (Link steps over it) and the water
+    n = 18
+    outer = [np.array([px + math.sin(2 * math.pi * k / n) * POOL_R, 0, pz + math.cos(2 * math.pi * k / n) * POOL_R]) for k in range(n)]
+    inner = [np.array([px + math.sin(2 * math.pi * k / n) * (POOL_R - 34), 0, pz + math.cos(2 * math.pi * k / n) * (POOL_R - 34)])
+             for k in range(n)]
+    rim_y = surf + 4
+    for k in range(n):
+        k2 = (k + 1) % n
+        o0, o1 = outer[k] + [0, rim_y, 0], outer[k2] + [0, rim_y, 0]
+        i0, i1 = inner[k] + [0, rim_y, 0], inner[k2] + [0, rim_y, 0]
+        ob0 = outer[k] + [0, float(mesh_height(outer[k][0], outer[k][2])) - 12, 0]
+        ob1 = outer[k2] + [0, float(mesh_height(outer[k2][0], outer[k2][2])) - 12, 0]
+        ib0, ib1 = inner[k] + [0, gy - 20, 0], inner[k2] + [0, gy - 20, 0]
+        out = unit(((o0 + o1) / 2 - np.array([px, rim_y, pz])) * [1, 0, 1])
+        quad(e, TECH, [o0, o1, i1, i0], [planar_uv(TECH, q) for q in (o0, o1, i1, i0)], [tuple(up)] * 4, up, SURF_STONE)
+        wq = float(np.linalg.norm(o1 - o0))
+        quad(e, TECH, [ob0, ob1, o1, o0], [(0, 30 * tex_scale(TECH)[1]), (wq * tex_scale(TECH)[0], 30 * tex_scale(TECH)[1]),
+                                          (wq * tex_scale(TECH)[0], 0), (0, 0)], [tuple(out)] * 4, out)
+        quad(e, TECH, [ib0, ib1, i1, i0], [(0, 30 * tex_scale(TECH)[1]), (wq * tex_scale(TECH)[0], 30 * tex_scale(TECH)[1]),
+                                          (wq * tex_scale(TECH)[0], 0), (0, 0)], [tuple(-out)] * 4, -out)
+        wt = facing_tri(i0 + [0, surf - rim_y, 0], i1 + [0, surf - rim_y, 0], np.array([px, surf, pz]), up)
+        e.tri(WATER, [V(q, planar_uv(WATER, q), (200, 235, 255, 255)) for q in wt])
+    WATERBOXES.append((px, surf, pz, (POOL_R - 34) * 0.7))
+    # floor of the pool (the field's grass is under the water anyway; this keeps the bottom stone)
+    # rocks circling the island (segment 0x0F: z_remix_level.c turns them around its center)
+    orbit = new_entry("island_orbit", matrix_seg=0x0F, sphere=((ISLAND["x"], ISLAND["top"], ISLAND["z"]), 950))
+    for k in range(9):
+        a = 2 * math.pi * k / 9 + 0.4
+        rr = 540 + 120 * ((k * 5) % 3)
+        cy = -260 + 90 * ((k * 7) % 6)
+        sc = 0.32 + 0.12 * (k % 3)
+        orbit.instances.append((float_rock_mesh(), math.sin(a) * rr, cy, math.cos(a) * rr, a * 3.1, sc, sc * 1.2))
+    # the stepping rocks: the shared rock, and collision that matches its top
+    steps = new_entry("sky_steps")
+    mesh, ring = float_rock_mesh(), _ROCK_MESH[1]
+    for i, (x, z, top) in enumerate(stepping_rocks()):
+        inst = (mesh, x, top, z, 0.7 * i, ROCK_R / 100, 0.9 + 0.25 * (i % 3))
+        steps.instances.append(inst)
+        f = inst_transform(inst)
+        tr = [f(p) for p in ring]
+        c_top = np.array([x, top, z])
+        for k in range(len(tr)):
+            k2 = (k + 1) % len(tr)
+            out = unit(((tr[k] + tr[k2]) / 2 - c_top) * [1, 0, 1])
+            add_col(c_top, tr[k], tr[k2], SURF_GRASS, facing=(0, 1, 0))
+            lo0, lo1 = tr[k] - [0, COL_DEPTH, 0], tr[k2] - [0, COL_DEPTH, 0]
+            add_col(lo0, lo1, tr[k2], SURF_STONE, facing=out)
+            add_col(lo0, tr[k2], tr[k], SURF_STONE, facing=out)
+
+
+_ROCK_MESH = []
+
+
+def float_rock_mesh():
+    """The shared floating rock (top radius 100, top at 0): stepping rocks, rocks circling the island and drifting
+    over the town are all this one model, each with its own matrix."""
+    if not _ROCK_MESH:
+        m = new_mesh("float_rock")
+        ring = float_rock(m, 0.0, 0.0, 0.0, 100.0, 150.0, 700, n=6, band=30, col=False, rough=0.12)
+        _ROCK_MESH[:] = [m, ring]
+    return _ROCK_MESH[0]
+
+
+WATERBOXES = []  # (x, surface y, z, half size)
+
+
+def build_entrance():
+    """Where Link arrives: an avenue of Sheikah obelisks along the south road and a giant rock with a glowing
+    eye watching over it (the Colossus's stone arch spans the road: tools/remix/make_town.py)."""
+    e = new_entry("entrance")
+    for r in (3000, 3170, 3340, 3510):
+        ang = float(path_angle(0, r))
+        fwd = np.array([math.sin(ang), 0, math.cos(ang)])
+        side = np.array([math.cos(ang), 0, -math.sin(ang)])
+        for sgn in (-1, 1):
+            c = fwd * r + side * sgn * 205
+            gy = float(mesh_height(c[0], c[2]))
+            H = 250 if r < 3400 else 200
+            bot, top = prism(e, PLAZA, 30, 22, gy - 20, gy + H, 4, phase=ang + math.pi / 4, col=SURF_TECH, cap=False,
+                             center=(c[0], c[2]))
+            apex = np.array([c[0], gy + H + 46, c[2]])
+            for k in range(4):
+                a1, b1 = top[k], top[(k + 1) % 4]
+                fn = unit(np.cross(b1 - a1, apex - a1))
+                if np.dot(fn, ((a1 + b1) / 2 - np.array([c[0], 0, c[2]])) * [1, 0, 1]) < 0:
+                    fn = -fn
+                t3 = facing_tri(a1, b1, apex, fn)
+                e.tri(TECH, [V(q, (0, 0), tuple(fn)) for q in t3])
+            outs = [unit(((bot[k] + bot[(k + 1) % 4]) / 2 - np.array([c[0], 0, c[2]])) * [1, 0, 1]) for k in range(4)]
+            k = int(np.argmax([float(np.dot(o, -side * sgn)) for o in outs]))  # a glowing line up the face to the road
+            a1, b1, a2, b2 = bot[k], bot[(k + 1) % 4], top[k], top[(k + 1) % 4]
+            line = [(a1 + b1) / 2 + ((a2 + b2) / 2 - (a1 + b1) / 2) * t for t in (0.15, 0.55, 0.95)]
+            strip(e, GLOW_CYAN, line, [outs[k]] * 3, 9, lift=1.2)
+    # the giant eye rock beside the road, its eye turned to where Link arrives
+    ang = float(path_angle(0, 3260))
+    side = np.array([math.cos(ang), 0, -math.sin(ang)])
+    c = np.array([math.sin(ang) * 3260, 0, math.cos(ang) * 3260]) + side * 640
+    gy = float(mesh_height(c[0], c[2]))
+    R = 240
+    center = np.array([c[0], gy + R * 0.55, c[2]])
+    look = unit(np.array([SPAWN[0] - c[0], 0, SPAWN[1] - c[2]]) + side * -0.0)
+    look = unit(look + np.array([0, 0.12, 0]))
+    noisy_rock(e, TECHROCK, center, R, squash=1.05, seed=77, sink=0.2, detail=1, flat=(look, R * 0.78))
+    face_c = center + look * (R * 0.78 + 2.5)
+    fs = unit(np.cross(look, (0, 1, 0)))
+    fu = unit(np.cross(fs, look))
+    h = R * 0.5
+    quad(e, EYE_CYAN, [face_c - fs * h + fu * h, face_c + fs * h + fu * h, face_c + fs * h - fu * h, face_c - fs * h - fu * h],
+         [(0, 0), (64, 0), (64, 64), (0, 64)], [(255, 255, 255, 255)] * 4, look)
+    ringp = [face_c + look * 0.5 + (fs * math.cos(t) + fu * math.sin(t)) * R * 0.62 for t in np.linspace(0, 2 * math.pi, 25)[:-1]]
+    strip(e, GLOW_CYAN, ringp, [tuple(look)] * len(ringp), 12, lift=0.5, closed=True)
+    prism_col(tuple(center), R * 0.85, gy - 40, gy + R * 1.3, 10, SURF_TECH)
+
+
 def build_boundary():
     """Invisible wall that keeps Link out of the mountains (ignored by the camera)."""
     n, r = 48, 4300
@@ -951,8 +1263,6 @@ def actors():
         y = mesh_height(x, z)
         if i < 20:
             add("ACTOR_EN_WOOD02", x, y, z, int(rng.random() * 0x10000), "0xFF05" if i % 3 else "0xFF00")
-        elif i < 38:
-            add("ACTOR_EN_KUSA", x, y, z, 0, "0x0000")
         elif i >= 59:
             add("ACTOR_EN_BUTTE", x, y + 60, z, 0, "0x0000")
     # lanterns where each quarter's main street leaves the ring road
@@ -963,15 +1273,24 @@ def actors():
             r = town_plan.RING_ROAD_R + 120
             x, z = math.sin(a) * r, math.cos(a) * r
             add("ACTOR_OBJ_SYOKUDAI", x, mesh_height(x, z), z, 0, "0x043F")
+    # torches by the obelisks where Link arrives
+    for r in (3000, 3340):
+        ang = float(path_angle(0, r))
+        for sgn in (-1, 1):
+            x = math.sin(ang) * r + math.cos(ang) * sgn * 150
+            z = math.cos(ang) * r - math.sin(ang) * sgn * 150
+            add("ACTOR_OBJ_SYOKUDAI", x, mesh_height(x, z), z, 0, "0x043F")
+    # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
+    add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
     return out
 
 
 OBJECTS = ["OBJECT_SYOKUDAI", "OBJECT_GS", "OBJECT_VM", "OBJECT_WOOD02",
            # the town's people and animals (town_people)
-           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_MU", "OBJECT_DOG", "OBJECT_NIW", "OBJECT_ANI",
+           "OBJECT_OS_ANIME", "OBJECT_BOJ", "OBJECT_AHG", "OBJECT_DOG", "OBJECT_NIW", "OBJECT_ANI",
            "OBJECT_TSUBO"]
-# With gameplay_keep, field_keep and Link these take about 920 KB of the scene's 940 KB object space
+# With gameplay_keep, field_keep and Link these take about 870 KB of the scene's 880 KB object space
 # (REMIX_ANCIENT_OBJECT_SPACE, include/remix_level.h); the rest of the play heap is actor memory for the town.
 
 TOWN_PATH_R = town_plan.RING_ROAD_R  # the ring road around the plaza (dogs and strollers follow it)
@@ -1011,121 +1330,192 @@ def field_spots():
     return _SPOTS
 
 
-# Static scenery drawn with the game's own models from gameplay_field_keep (always loaded here, segment 5):
-# (symbol, scale, needs white primitive color). The actors that normally draw them use the same scales.
+# Static scenery drawn with the game's own models from gameplay_field_keep (always loaded here, segment 5).
+# Base models: (display list, scale the game's actors draw them at).
 DECOR_KINDS = {
-    "bush": ("gFieldBushDL", 0.4),
+    # the bush, recolored to glow Sheikah blue at build time (link_level_assets.py); without the ROM's assets
+    # ANCIENT_GLOW_BUSH_DL is the game's own bush
+    "bush": ("ANCIENT_GLOW_BUSH_DL", 0.4),
     "pebble": ("gFieldKakeraDL", 0.1),
     "rock": ("gSilverRockDL", 0.4),
     "flower": ("gHanaDL", 0.01),
 }
-DECOR = []  # (kind, x, y, z, yaw radians, scale factor)
+# Groups of models drawn with one matrix (so hundreds of bushes cost little memory): (kind, dx, dz, size, yaw)
+PATTERNS = {
+    "bush": [("bush", 0, 0, 1.1, 0.0)],
+    "bush_row": [("bush", -84, 5, 0.95, 0.3), ("bush", -28, -6, 1.1, 1.9), ("bush", 28, 7, 1.0, 4.1), ("bush", 84, -4, 0.9, 5.2)],
+    "bush_clump": [("bush", 0, 0, 1.2, 0.0), ("bush", 36, 24, 0.85, 2.0), ("bush", -32, 28, 0.9, 4.0), ("bush", 8, -34, 0.8, 5.0)],
+    "flower_bed": [("flower", 0, 0, 1.0, 0.0), ("flower", 24, 15, 1.0, 1.0), ("flower", -22, 17, 1.0, 2.0), ("flower", 6, -24, 1.0, 3.0)],
+    "pebbles": [("pebble", 0, 0, 1.3, 0.0), ("pebble", 28, 11, 0.8, 1.5), ("pebble", -13, 26, 1.0, 3.0)],
+    "rock": [("rock", 0, 0, 1.0, 0.0)],
+}
+PATTERN_R = {"bush": 32, "bush_row": 112, "bush_clump": 60, "flower_bed": 40, "pebbles": 40, "rock": 50}
+DECOR = []  # (pattern, x, y, z, yaw radians, size)
 
 
 def build_decor():
-    """Bushes, flower beds and rocks around the houses and along the streets, and the field's rocks."""
+    """Glowing bushes, flower beds and rocks around the houses, along every street and road, in the field and
+    on the floating island."""
     drng = np.random.default_rng(31)
+    px, pz = pool_center()
+    ang_in = float(path_angle(0, 3260))
+    eye_c = np.array([math.sin(ang_in) * 3260 + math.cos(ang_in) * 640, math.cos(ang_in) * 3260 - math.sin(ang_in) * 640])
 
-    def free(x, z, gap=55):
-        if float(path_dist(x, z)) < 130 or street_dist(x, z) < 25:
+    def free(pat, x, z, street_gap=8):
+        rad = PATTERN_R[pat]
+        if float(path_dist(x, z)) < 112 + rad * 0.7 or street_dist(x, z) < street_gap:
             return False
-        if any(math.hypot(x - p["x"], z - p["z"]) < p["r"] + 15 for p in town_plan.PLOTS):
+        if any(math.hypot(x - p["x"], z - p["z"]) < p["r"] + 10 for p in town_plan.PLOTS):
             return False
-        return all(math.hypot(x - d[1], z - d[3]) >= gap for d in DECOR)
+        if math.hypot(x - px, z - pz) < POOL_R + rad or math.hypot(x - eye_c[0], z - eye_c[1]) < 300 + rad:
+            return False
+        if math.hypot(x - SPAWN[0], z - SPAWN[1]) < 160 or math.hypot(x, z) < 980:
+            return False
+        return all(math.hypot(x - d[1], z - d[3]) >= rad + PATTERN_R[d[0]] * 0.8 for d in DECOR)
 
-    def put(kind, x, z, size=1.0, gap=55):
-        if free(x, z, gap):
-            DECOR.append((kind, x, mesh_height(x, z), z, drng.random() * 2 * math.pi, size))
-            return True
-        return False
+    def put(pat, x, z, yaw=None, size=1.0, y=None, check=True):
+        if check and not free(pat, x, z):
+            return False
+        yaw = drng.random() * 2 * math.pi if yaw is None else yaw
+        DECOR.append((pat, x, mesh_height(x, z) if y is None else y, z, yaw, size))
+        return True
 
     for p in town_plan.PLOTS:
         face = p["face"]
-        # flower beds by the front corners, bushes along the sides and back, a few stones
-        for s in (-1, 1):
-            for k in range(3):
-                a = face + s * (0.62 + 0.13 * k)
-                d = p["r"] * 0.78 + 35 + 18 * k
-                put("flower", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, gap=30)
-        for k in range(5):
-            a = face + math.pi + (k - 2) * 0.55 + drng.normal(0, 0.06)
-            d = p["r"] + 45 + drng.random() * 70
-            put("bush", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.85 + drng.random() * 0.4)
-        for k in range(3):
-            a = drng.random() * 2 * math.pi
-            d = p["r"] + 30 + drng.random() * 90
-            put("pebble", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.8 + drng.random() * 0.6, gap=40)
+        x0, z0, r = p["x"], p["z"], p["r"]
+        # a hedge along the back, clumps at the back corners, flower beds by the front corners, stones
+        for k in (-1, 0, 1):
+            a = face + math.pi + k * 0.42
+            put("bush_row", x0 + math.sin(a) * (r + 60), z0 + math.cos(a) * (r + 60), yaw=a + math.pi / 2)
+        for sgn in (-1, 1):
+            a = face + math.pi + sgn * 1.25
+            put("bush_clump", x0 + math.sin(a) * (r + 55), z0 + math.cos(a) * (r + 55))
+            a = face + sgn * 0.72
+            put("flower_bed", x0 + math.sin(a) * (r * 0.8 + 40), z0 + math.cos(a) * (r * 0.8 + 40))
+        a = drng.random() * 2 * math.pi
+        put("pebbles", x0 + math.sin(a) * (r + 40), z0 + math.cos(a) * (r + 40))
         if p["ring"] == "outer":
             a = face + math.pi + drng.normal(0, 0.5)
-            d = p["r"] + 140
-            if put("rock", p["x"] + math.sin(a) * d, p["z"] + math.cos(a) * d, size=0.9 + drng.random() * 0.3, gap=90):
+            if put("rock", x0 + math.sin(a) * (r + 150), z0 + math.cos(a) * (r + 150), size=0.9 + drng.random() * 0.3):
                 x, y, z = DECOR[-1][1:4]
                 prism_col((x, y, z), 46, y - 20, y + 60, 8, SURF_STONE)
-    # flowers along the main streets
-    for line in town_plan.lanes()[::5]:
-        (x0, z0), (x1, z1) = line[0], line[-1]
-        n = int(math.hypot(x1 - x0, z1 - z0) // 160)
-        side = np.array([z1 - z0, -(x1 - x0)]) / max(math.hypot(x1 - x0, z1 - z0), 1)
-        for k in range(1, n):
-            t = k / n
-            for s in (-1, 1):
-                off = side * s * (town_plan.LANE_HALF + 34)
-                put("flower" if k % 2 else "bush", x0 + (x1 - x0) * t + off[0], z0 + (z1 - z0) * t + off[1], gap=40)
-    # the field's rocks (static: the liftable ones cost 36 KB of actor code)
+    # hedges of glowing bushes along both sides of every street, flowers between
+    for line in town_plan.lanes():
+        for (x0, z0), (x1, z1) in zip(line[:-1], line[1:]):
+            ln = math.hypot(x1 - x0, z1 - z0)
+            if ln < 1:
+                continue
+            ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
+            n = int(ln // 250)
+            for k in range(n):
+                t = (k + 0.5) / max(n, 1)
+                cx, cz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
+                for sgn in (-1, 1):
+                    off = town_plan.LANE_HALF + 46
+                    put("bush_row" if k % 3 != 2 else "flower_bed", cx + uz * sgn * off, cz - ux * sgn * off,
+                        yaw=math.atan2(ux, uz) + math.pi / 2)
+    # the ring road's outer edge
+    for k in range(40):
+        a = 2 * math.pi * (k + 0.5) / 40
+        rr = town_plan.RING_ROAD_R + town_plan.LANE_HALF + 70
+        put("bush_row" if k % 2 else "bush_clump", math.sin(a) * rr, math.cos(a) * rr, yaw=a + math.pi / 2)
+    # the four roads, both sides, in and out of town
+    for kp in range(4):
+        for r in np.arange(1250, 3700, 230):
+            ang = float(path_angle(kp, r))
+            for sgn in (-1, 1):
+                off = PATH_HALF_WIDTH + 90
+                x = math.sin(ang) * r + math.cos(ang) * sgn * off
+                z = math.cos(ang) * r - math.sin(ang) * sgn * off
+                if kp == 0 and 2950 < r < 3560:
+                    continue  # the obelisks line the road there
+                put("bush_clump" if int(r / 230) % 2 else "bush_row", x, z, yaw=ang + math.pi / 2)
+    # the field: clumps where Hyrule Field's bushes were, its rocks
     for i, (x, z) in enumerate(field_spots()):
-        if 38 <= i < 59:
+        if 20 <= i < 38:
+            put("bush_clump", x, z, size=1.0 + drng.random() * 0.3)
+        elif 38 <= i < 59:
             if i < 52:
-                put("pebble", x, z, size=1.0 + drng.random() * 0.5, gap=10)
-            elif put("rock", x, z, size=0.9 + drng.random() * 0.4, gap=10):
+                put("pebbles", x, z, size=1.0 + drng.random() * 0.5)
+            elif put("rock", x, z, size=0.9 + drng.random() * 0.4):
                 xx, y, zz = DECOR[-1][1:4]
                 prism_col((xx, y, zz), 46, y - 20, y + 60, 8, SURF_STONE)
+    # the floating island and the islet
+    rim, d = waterfall_spot()
+    wf = math.atan2(d[0], d[2])
+    for k in range(10):
+        a = wf + 0.5 + k * (2 * math.pi - 1.0) / 9
+        rr = ISLAND["r"] * 0.78
+        put("bush_clump" if k % 2 else "bush_row", ISLAND["x"] + math.sin(a) * rr, ISLAND["z"] + math.cos(a) * rr,
+            yaw=a + math.pi / 2, y=ISLAND["top"], check=False)
+    for k in range(4):
+        a = k * math.pi / 2 + 0.6
+        put("bush_clump", ISLET["x"] + math.sin(a) * ISLET["r"] * 0.65, ISLET["z"] + math.cos(a) * ISLET["r"] * 0.65,
+            y=ISLET["top"], check=False, size=0.8)
 
 
-def decor_mtx(x, y, z, yaw, scale):
+def decor_mtx(x, y, z, yaw, scale, scale_y=None):
     """The 16 words of an N64 Mtx (s15.16, integer parts then fractions) for scale, turn about Y, move."""
     c, s_ = math.cos(yaw) * scale, math.sin(yaw) * scale
-    mf = [[c, 0, -s_, 0], [0, scale, 0, 0], [s_, 0, c, 0], [x, y, z, 1]]
+    mf = [[c, 0, -s_, 0], [0, scale if scale_y is None else scale_y, 0, 0], [s_, 0, c, 0], [x, y, z, 1]]
     fixed = [int(round(mf[i][j] * 65536)) & 0xFFFFFFFF for i in range(4) for j in range(4)]
     ints = [(v >> 16) & 0xFFFF for v in fixed]
     fracs = [v & 0xFFFF for v in fixed]
     return [(ints[k] << 16) | ints[k + 1] for k in range(0, 16, 2)] + [(fracs[k] << 16) | fracs[k + 1] for k in range(0, 16, 2)]
 
 
+def mtx_text(m):
+    return "    { { " + ", ".join("{ " + ", ".join(f"0x{w:08X}" for w in m[r * 4:(r + 1) * 4]) + " }" for r in range(4)) + " } },\n"
+
+
+DECOR_SETUP = ["gsDPPipeSync()", "gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON)",
+               "gsDPSetCombineMode(G_CC_MODULATEIDECALA, G_CC_MODULATEIA_PRIM2)",
+               "gsDPSetOtherMode(G_AD_NOTPATTERN | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
+               "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | G_RM_AA_ZB_OPA_SURF2)",
+               "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_LIGHTING | G_SHADING_SMOOTH)",
+               "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]  # SETUPDL_25, as the actors draw them
+
+
 def emit_decor():
-    """Matrices, display lists (one per quarter) and room entries for DECOR."""
+    """Matrices, display lists (each group once, then one per quarter placing them) and room entries for DECOR."""
     lines, entries, decl = [], [], []
     if not DECOR:
         return lines, entries, decl
+    used = sorted({d[0] for d in DECOR}, key=list(PATTERNS).index)
     lines.append("// static scenery: the game's own bush, flower and rock models (gameplay_field_keep, segment 5)\n" +
-                 "".join(f"extern Gfx {sym}[];\n" for sym, _ in DECOR_KINDS.values()) + "\n")
+                 "".join(f"extern Gfx {sym}[];\n" for sym, _ in DECOR_KINDS.values() if sym.startswith("g")) + "\n")
+    pmtx, pdl = [], []
+    for pat in used:
+        cmds = []
+        for kind, dx, dz, size, yaw in PATTERNS[pat]:
+            pmtx.append(decor_mtx(dx, 0, dz, yaw, DECOR_KINDS[kind][1] * size))
+            cmds += [f"gsSPMatrix(&{ROOM}DecorPatternMtx[{len(pmtx) - 1}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
+                     f"gsSPDisplayList({DECOR_KINDS[kind][0]})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
+        pdl.append(f"Gfx {ROOM}DL_decor_{pat}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
+    lines.append(f"Mtx {ROOM}DecorPatternMtx[{len(pmtx)}] = {{\n" + "".join(mtx_text(m) for m in pmtx) + "};\n\n")
     lines.append(f"Mtx {ROOM}DecorMtx[{len(DECOR)}] = {{\n" + "".join(
-        "    { { " + ", ".join("{ " + ", ".join(f"0x{w:08X}" for w in m[r * 4:(r + 1) * 4]) + " }" for r in range(4)) + " } },\n"
-        for m in (decor_mtx(d[1], d[2], d[3], d[4], DECOR_KINDS[d[0]][1] * d[5]) for d in DECOR)) + "};\n\n")
-    setup = ["gsDPPipeSync()", "gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON)",
-             "gsDPSetCombineMode(G_CC_MODULATEIDECALA, G_CC_MODULATEIA_PRIM2)",
-             "gsDPSetOtherMode(G_AD_NOTPATTERN | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE | "
-             "G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | G_RM_AA_ZB_OPA_SURF2)",
-             "gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_LIGHTING | G_SHADING_SMOOTH)",
-             "gsDPSetPrimColor(0, 0, 255, 255, 255, 255)"]  # SETUPDL_25, as the actors draw them
+        mtx_text(decor_mtx(d[1], d[2], d[3], d[4], d[5])) for d in DECOR) + "};\n\n")
+    lines += pdl
     for q in range(4):
         idx = [i for i, d in enumerate(DECOR)
                if int(((math.atan2(d[1], d[3]) % (2 * math.pi)) // (math.pi / 2))) == q]
         if not idx:
             continue
         cmds = []
-        for kind in DECOR_KINDS:
-            items = [i for i in idx if DECOR[i][0] == kind]
+        # the field keep's models first (they share one setup), then the bushes (the glowing one sets its own)
+        for pat in sorted(used, key=lambda p_: PATTERNS[p_][0][0] == "bush"):
+            items = [i for i in idx if DECOR[i][0] == pat]
             if not items:
                 continue
-            cmds += setup
+            cmds += DECOR_SETUP
             for i in items:
                 cmds += [f"gsSPMatrix(&{ROOM}DecorMtx[{i}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
-                         f"gsSPDisplayList({DECOR_KINDS[kind][0]})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
+                         f"gsSPDisplayList({ROOM}DL_decor_{pat})", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
         name = f"{ROOM}DL_decor_{q}"
         lines.append(f"Gfx {name}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "    gsSPEndDisplayList(),\n};\n\n")
         pts = np.array([[DECOR[i][1], DECOR[i][2], DECOR[i][3]] for i in idx])
         c = (pts.min(0) + pts.max(0)) / 2
-        rad = float(np.max(np.linalg.norm(pts - c, axis=1))) + 120
+        rad = float(np.max(np.linalg.norm(pts - c, axis=1))) + 160
         entries.append((tuple(int(round(v)) for v in c), int(math.ceil(rad)), name, "NULL"))
         decl.append(f"extern Gfx {name}[];")
     return lines, entries, decl
@@ -1144,10 +1534,11 @@ def town_people(add, yaw_to):
         return math.sin(a) * r, math.cos(a) * r
 
     # on the plaza, around the Spire (between the Armos at 45-degree points and the stairs at the paths)
+    # two men chatting (the Market's haggling pair needs a 43 KB object: that memory went to the scenery)
     x, z = at(720, 20)
-    add("ACTOR_EN_MU", x, PLAZA_Y, z, yaw_to(x, z, *at(720, 30)), "0")  # a haggling pair
     x2, z2 = at(720, 30)
-    add("ACTOR_EN_MU", x2, PLAZA_Y, z2, yaw_to(x2, z2, x, z), "1")
+    hy("ENHY_TYPE_MAN_1_BOWL_CUT_GREEN_SHIRT", x, z, y=PLAZA_Y, face=(x2, z2))
+    hy("ENHY_TYPE_MAN_2_BALD", x2, z2, y=PLAZA_Y, face=(x, z))
     x, z = at(700, 112)
     add("ACTOR_EN_TG", x, PLAZA_Y, z, 0, "0")  # the dancing couple
     hy("ENHY_TYPE_MAN_1_BOWL_CUT_PURPLE_SHIRT", *at(720, 200), y=PLAZA_Y)
@@ -1212,6 +1603,15 @@ def make_textures():
         if key == "eye":
             Image.fromarray(eye_texture(w), "L").save(OUT / f"{stem}.i8.png")
             continue
+        if key == "water":
+            Image.fromarray(water_texture(w, h), "RGBA").save(OUT / f"{stem}.rgba16.png")
+            continue
+        if key == "town_ground":  # stand-in for the game texture link_level_assets.py picks: darker, mossier grass
+            g = np.array(Image.open(ART / "grass.png").convert("RGB").resize((w, h), Image.LANCZOS)).astype(float)
+            lum = g.mean(-1, keepdims=True)
+            g = (lum + (g - lum) * 0.55) * np.array([0.72, 0.8, 0.82])
+            Image.fromarray(np.clip(g, 0, 255).astype(np.uint8)).convert("RGBA").save(OUT / f"{stem}.rgba16.png")
+            continue
         src = Image.open(ART / f"{key}.png").convert("RGB").resize((w, h), Image.LANCZOS)
         if key == "grass":  # a touch less saturated, closer to the game's fields
             g = np.array(src).astype(float)
@@ -1236,6 +1636,22 @@ def glow_texture(w, h):
     along = 0.58 + 0.42 * np.exp(-(((u - 6) / 3.2) ** 2)) + 0.42 * np.exp(-(((u - 6 - w) / 3.2) ** 2))
     v = np.clip(across * along, 0, 1)
     return np.round(v * 255).astype(np.uint8)
+
+
+def water_texture(w, h):
+    """Falling water: streaks along t (the waterfall scrolls it down), light foam on blue-green."""
+    r = np.random.default_rng(5)
+    u = np.arange(w)[None, :]
+    t = np.arange(h)[:, None]
+    streaks = np.zeros((h, w))
+    for _ in range(9):
+        c, wd, ph = r.random() * w, 0.8 + r.random() * 1.6, r.random() * 2 * np.pi
+        d = np.minimum(np.abs(u - c), w - np.abs(u - c))
+        streaks += np.exp(-((d / wd) ** 2)) * (0.6 + 0.4 * np.sin(2 * np.pi * t / h * 2 + ph))
+    v = np.clip(0.35 + 0.5 * streaks / streaks.max(), 0, 1)
+    rgb = np.stack([60 + 170 * v, 130 + 120 * v, 160 + 95 * v], -1)
+    a = np.full((h, w, 1), 255.0)
+    return np.clip(np.concatenate([rgb, a], -1), 0, 255).astype(np.uint8)
 
 
 def eye_texture(size):
@@ -1322,7 +1738,9 @@ def material_setup(mat):
     g.append(f"gsDPSetOtherMode(G_AD_NOISE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | {tt} | G_TL_TILE | "
              f"G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE, G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | {rm})")
     g.append(f"gsSPLoadGeometryMode({geo})")
-    if mat.xlu:
+    if mat.combine == "water":  # texture times vertex color, see-through by the primitive alpha
+        g.append("gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, 0, 0, 0, PRIMITIVE, 0, 0, 0, COMBINED, 0, 0, 0, COMBINED)")
+    elif mat.xlu:
         g.append("gsDPSetCombineLERP(0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED, 0, 0, 0, COMBINED)")
     elif mat.tex:
         g.append("gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, 0, 0, 0, 1, COMBINED, 0, PRIMITIVE, 0, 0, 0, 0, 1)")
@@ -1343,7 +1761,7 @@ def material_setup(mat):
             g.append(f"gsDPLoadTextureBlock({sym}, {imfmt}, {siz}, {w}, {h}, 0, G_TX_NOMIRROR | G_TX_WRAP, {cmt}, "
                      f"{ms}, {mt}, G_TX_NOLOD, G_TX_NOLOD)")
         if mat.scroll:
-            g.append("gsSPDisplayList(0x0D000000)")
+            g.append(f"gsSPDisplayList(0x{0x0D if mat.scroll is True else mat.scroll:02X}000000)")
     else:
         g.append("gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF)")
     if mat.prim_seg is not None:
@@ -1365,11 +1783,12 @@ def tlut_symbol(key):
 def emit_room():
     vtx_out, dl_out, entries_out = [], [], []
     decl = []
-    for e in ENTRIES:
+    INST_MTX.clear()
+    for e in MESHES + ENTRIES:
         dls = {}
         for xlu in (False, True):
             groups = [(m, t) for m, t in e.groups.items() if m.xlu == xlu]
-            if not groups:
+            if not groups and (xlu or not e.instances):
                 continue
             vname = f"{ROOM}Vtx_{e.name}_{'xlu' if xlu else 'opa'}"
             dname = f"{ROOM}DL_{e.name}_{'xlu' if xlu else 'opa'}"
@@ -1396,28 +1815,42 @@ def emit_room():
                             cmds.append(f"gsSP2Triangles({a[0]}, {a[1]}, {a[2]}, 0, {b[0]}, {b[1]}, {b[2]}, 0)")
                         else:
                             cmds.append(f"gsSP1Triangle({a[0]}, {a[1]}, {a[2]}, 0)")
+            if not xlu:
+                for inst in e.instances:
+                    INST_MTX.append(decor_mtx(inst[1], inst[2], inst[3], inst[4], inst[5], inst[6]))
+                    cmds += [f"gsSPMatrix(&{ROOM}InstMtx[{len(INST_MTX) - 1}], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW)",
+                             f"gsSPDisplayList({ROOM}DL_{inst[0].name}_opa)", "gsSPPopMatrix(G_MTX_MODELVIEW)"]
             if e.matrix_seg is not None:
                 cmds.append("gsSPPopMatrix(G_MTX_MODELVIEW)")
             cmds.append("gsSPEndDisplayList()")
             for v in verts:
                 assert all(-32768 <= c <= 32767 for c in v[:5]), (e.name, v)
-            vtx_out.append(f"Vtx {vname}[{len(verts)}] = {{\n" +
-                           "".join(f"    VTX({v[0]}, {v[1]}, {v[2]}, {v[3]}, {v[4]}, 0x{v[5]:02X}, 0x{v[6]:02X}, 0x{v[7]:02X}, 0x{v[8]:02X}),\n"
-                                   for v in verts) + "};\n")
+            if verts:
+                vtx_out.append(f"Vtx {vname}[{len(verts)}] = {{\n" +
+                               "".join(f"    VTX({v[0]}, {v[1]}, {v[2]}, {v[3]}, {v[4]}, 0x{v[5]:02X}, 0x{v[6]:02X}, 0x{v[7]:02X}, 0x{v[8]:02X}),\n"
+                                       for v in verts) + "};\n")
+                decl.append(f"extern Vtx {vname}[{len(verts)}];")
             dl_out.append(f"Gfx {dname}[] = {{\n" + "".join(f"    {c},\n" for c in cmds) + "};\n")
-            decl.append(f"extern Vtx {vname}[{len(verts)}];")
             decl.append(f"extern Gfx {dname}[];")
             dls[xlu] = dname
+        if e in MESHES:
+            continue
         if e.sphere:
             center, radius = e.sphere
         else:
-            pts = np.array(e.positions())
+            pts = e.positions()
+            for inst in e.instances:
+                f = inst_transform(inst)
+                pts = pts + [f(p) for p in inst[0].positions()]
+            pts = np.array(pts)
             lo, hi = pts.min(0), pts.max(0)
             center = (lo + hi) / 2
             radius = float(np.max(np.linalg.norm(pts - center, axis=1)))
         entries_out.append((tuple(int(round(c)) for c in center), int(math.ceil(radius)) + 8,
                             dls.get(False, "NULL"), dls.get(True, "NULL")))
     assert len(entries_out) <= 64, len(entries_out)
+    if INST_MTX:
+        vtx_out.insert(0, f"Mtx {ROOM}InstMtx[{len(INST_MTX)}] = {{\n" + "".join(mtx_text(m) for m in INST_MTX) + "};\n")
     return vtx_out, dl_out, entries_out, decl
 
 
@@ -1521,7 +1954,10 @@ def write_sources():
               f"extern ActorEntry {ROOM}ActorList[];\nextern RoomShapeCullable {ROOM}RoomShape;\n"
               f"extern RoomShapeCullableEntry {ROOM}RoomShapeEntries[];\n\n"
               f"// Height of the Spire's floating ring and crystal (animated by z_remix_level.c)\n"
-              f"#define ANCIENT_RING_Y {RING_Y}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
+              f"#define ANCIENT_RING_Y {RING_Y}\n"
+              f"// Center of the floating island (its circling rocks turn around it)\n"
+              f"#define ANCIENT_ISLAND_X {round(ISLAND['x'])}\n#define ANCIENT_ISLAND_Y {ISLAND['top']}\n"
+              f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
     lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
@@ -1545,6 +1981,9 @@ def write_sources():
                  "#include ANCIENT_TOWN_ACTORS\n#endif\n};\n\n")
     # The town's buildings, borrowed from the game's towns at build time (tools/remix/make_town.py)
     lines.append("#ifdef ANCIENT_TOWN_ROOM\n#include ANCIENT_TOWN_ROOM\n#endif\n\n")
+    lines.append("// The game's bush recolored to glow (tools/remix/link_level_assets.py), else the bush itself\n"
+                 "#ifdef ANCIENT_GLOW_BUSH\n#include ANCIENT_GLOW_BUSH\n#else\nextern Gfx gFieldBushDL[];\n"
+                 "#define ANCIENT_GLOW_BUSH_DL gFieldBushDL\n#endif\n\n")
     lines += decor_lines
     lines.append(f"RoomShapeCullableEntry {ROOM}RoomShapeEntries[] = {{\n" +
                  "".join(f"    {{ {{ {c[0]}, {c[1]}, {c[2]} }}, {r}, {o}, {x} }},\n" for c, r, o, x in entries) +
@@ -1625,10 +2064,13 @@ def write_sources():
                      for m, hk, hb in SURFACES) +
              "#ifdef ANCIENT_TOWN_COL_SURFACES\n#include ANCIENT_TOWN_COL_SURFACES\n#endif\n};\n\n")
     s.append(f"BgCamInfo {SCENE}BgCamList[] = {{\n    {{ CAM_SET_NORMAL0, 0, NULL }},\n}};\n\n")
+    s.append(f"// the pool under the island's waterfall\nWaterBox {SCENE}WaterBoxes[] = {{\n" + "".join(
+        f"    {{ {int(round(x - h))}, {int(round(y))}, {int(round(z - h))}, {int(round(2 * h))}, {int(round(2 * h))}, "
+        "WATERBOX_PROPERTIES(0, WATERBOX_LIGHT_INDEX_NONE, 0x3F, false) },\n" for x, y, z, h in WATERBOXES) + "};\n\n")
     s.append(f"CollisionHeader {SCENE}CollisionHeader = {{\n    {{ {lo[0]}, {lo[1]}, {lo[2]} }},\n    {{ {hi[0]}, {hi[1]}, {hi[2]} }},\n"
              f"    ARRAY_COUNT({SCENE}CollisionVtx),\n    {SCENE}CollisionVtx,\n    ARRAY_COUNT({SCENE}CollisionPolys),\n"
              f"    {SCENE}CollisionPolys,\n"
-             f"    {SCENE}SurfaceTypes,\n    {SCENE}BgCamList,\n    0,\n    NULL,\n}};\n")
+             f"    {SCENE}SurfaceTypes,\n    {SCENE}BgCamList,\n    ARRAY_COUNT({SCENE}WaterBoxes),\n    {SCENE}WaterBoxes,\n}};\n")
     (OUT / f"{SCENE}.h").write_text(scene_h)
     (OUT / f"{SCENE}.c").write_text("".join(s))
 
@@ -1682,10 +2124,16 @@ def export_preview(path):
         0x09: lambda p: rot_z(np.array(p), 0.18) + [0, RING_Y, 0],
         0x0A: lambda p: np.array(p),
         0x0B: lambda p: np.array(p) + [0, RING_Y, 0],
+        0x0F: lambda p: np.array(p) + [ISLAND["x"], ISLAND["top"], ISLAND["z"]],
     }
     meshes = []
     for e in ENTRIES:
-        for mat, tris in e.groups.items():
+        groups = {m: list(t) for m, t in e.groups.items()}
+        for inst in e.instances:
+            f = inst_transform(inst)
+            for m, tris in inst[0].groups.items():
+                groups.setdefault(m, []).extend([[(tuple(f(v[0])), v[1], v[2]) for v in t] for t in tris])
+        for mat, tris in groups.items():
             pos, uv, nc = [], [], []
             w, h = mat.size if mat.tex else (32, 32)
             for t in tris:
@@ -1724,6 +2172,8 @@ def main():
     build_floating()
     build_monoliths()
     build_pillars()
+    build_sky()
+    build_entrance()
     build_boundary()
     build_decor()
     npolys, nverts, entries, acts = write_sources()

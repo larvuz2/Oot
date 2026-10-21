@@ -69,3 +69,24 @@ def lanes():
 
 def ring_road():
     return [_polar(RING_ROAD_R, 2 * math.pi * k / 48) for k in range(49)]
+
+
+# ---------------------------------------------------------------- the sky island (north of the town)
+# make_level.py builds the island, the floating rocks that lead up to it and its waterfall; make_town.py hangs
+# Zora's River's rope bridge between the island and the islet beyond it.
+
+ISLAND_A = math.radians(166)  # direction from the Spire
+ISLAND = dict(x=math.sin(ISLAND_A) * 3330, z=math.cos(ISLAND_A) * 3330, top=820, r=330)
+_ISLET_D = 920  # from the island's center, further out
+ISLET = dict(x=ISLAND["x"] + math.sin(ISLAND_A + 0.55) * _ISLET_D, z=ISLAND["z"] + math.cos(ISLAND_A + 0.55) * _ISLET_D,
+             top=ISLAND["top"] + 40, r=170)
+
+
+def bridge_ends():
+    """((x, y, z), (x, y, z)): where the rope bridge meets the island's and the islet's edges."""
+    dx, dz = ISLET["x"] - ISLAND["x"], ISLET["z"] - ISLAND["z"]
+    d = math.hypot(dx, dz)
+    ux, uz = dx / d, dz / d
+    a = (ISLAND["x"] + ux * (ISLAND["r"] - 20), ISLAND["top"], ISLAND["z"] + uz * (ISLAND["r"] - 20))
+    b = (ISLET["x"] - ux * (ISLET["r"] - 20), ISLET["top"], ISLET["z"] - uz * (ISLET["r"] - 20))
+    return a, b
