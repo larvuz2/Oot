@@ -21,6 +21,7 @@
 #include "game.h"
 #include "gfx.h"
 #include "play_state.h"
+#include "player.h"
 #include "save.h"
 #include "scene.h"
 #include "seqcmd.h"
@@ -155,6 +156,22 @@ void RemixBoot_Start(GameState* gameState) {
     gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0 : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
+    if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
+        // Tests: start somewhere else in the level, the way Link comes back after a void out (z_player.c).
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+        s32 island = (mode == REMIX_BOOT_ISLAND_VIEW);
+
+        r->pos.x = island ? ANCIENT_VIEW_ISLAND_X : ANCIENT_VIEW_POOL_X;
+        r->pos.y = island ? ANCIENT_VIEW_ISLAND_Y : ANCIENT_VIEW_POOL_Y;
+        r->pos.z = island ? ANCIENT_VIEW_ISLAND_Z : ANCIENT_VIEW_POOL_Z;
+        r->yaw = island ? ANCIENT_VIEW_ISLAND_YAW : ANCIENT_VIEW_POOL_YAW;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_ANCIENT_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;
     gSaveContext.showTitleCard = true;

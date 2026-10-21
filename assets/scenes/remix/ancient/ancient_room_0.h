@@ -18,6 +18,15 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_ISLAND_X 806
 #define ANCIENT_ISLAND_Y 960
 #define ANCIENT_ISLAND_Z -3231
+// Where the test boots put Link (z_remix_level.c)
+#define ANCIENT_VIEW_ISLAND_X 1043.0f
+#define ANCIENT_VIEW_ISLAND_Y 962.0f
+#define ANCIENT_VIEW_ISLAND_Z -3115.6f
+#define ANCIENT_VIEW_ISLAND_YAW 0xAD8D
+#define ANCIENT_VIEW_POOL_X 566.1f
+#define ANCIENT_VIEW_POOL_Y 41.0f
+#define ANCIENT_VIEW_POOL_Z -2270.4f
+#define ANCIENT_VIEW_POOL_YAW 0x760B
 
 extern u64 ancient_room_0Tex_grass[];
 extern u64 ancient_room_0Tex_dirt[];

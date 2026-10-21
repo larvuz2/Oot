@@ -34,6 +34,8 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_NORMAL 0        // title screen as usual
 #define REMIX_BOOT_ANCIENT 1       // the Ancient Plateau, as adult Link
 #define REMIX_BOOT_HYRULE_FIELD 2  // Hyrule Field the same way (tests: tools/remix/smoke_test.py)
+#define REMIX_BOOT_ISLAND_VIEW 3   // the Ancient Plateau, standing on the floating island (tests)
+#define REMIX_BOOT_POOL_VIEW 4     // the Ancient Plateau, at the pool facing the waterfall (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

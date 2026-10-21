@@ -1293,6 +1293,25 @@ def island_actors(add, yaw_to):
     add("ACTOR_EN_ZO", zx, mesh_height(zx, zz), zz, yaw_to(zx, zz, wx, wz), "0x0000")
 
 
+def view_defines():
+    """Where the test boots put Link (src/code/z_remix_level.c, tools/remix/smoke_test.py): on the island where
+    the stepping rocks arrive, facing the chest; and on the field in front of the pool, facing the waterfall."""
+    ix, iz, top = ISLAND["x"], ISLAND["z"], ISLAND["top"]
+    lx, lz, _ = stepping_rocks()[-1]
+    a = math.atan2(lx - ix, lz - iz)
+    vx, vz = ix + math.sin(a) * ISLAND["r"] * 0.8, iz + math.cos(a) * ISLAND["r"] * 0.8
+    vyaw = int(math.atan2(ix - vx, iz - vz) / (2 * math.pi) * 0x10000) & 0xFFFF
+    px, pz = pool_center()
+    rim, d = waterfall_spot()
+    qx, qz = px + d[0] * (POOL_R + 260), pz + d[2] * (POOL_R + 260)
+    qyaw = int(math.atan2(px - qx, pz - qz) / (2 * math.pi) * 0x10000) & 0xFFFF
+    return (f"// Where the test boots put Link (z_remix_level.c)\n"
+            f"#define ANCIENT_VIEW_ISLAND_X {vx:.1f}f\n#define ANCIENT_VIEW_ISLAND_Y {top + 2:.1f}f\n"
+            f"#define ANCIENT_VIEW_ISLAND_Z {vz:.1f}f\n#define ANCIENT_VIEW_ISLAND_YAW 0x{vyaw:04X}\n"
+            f"#define ANCIENT_VIEW_POOL_X {qx:.1f}f\n#define ANCIENT_VIEW_POOL_Y {float(mesh_height(qx, qz)) + 2:.1f}f\n"
+            f"#define ANCIENT_VIEW_POOL_Z {qz:.1f}f\n#define ANCIENT_VIEW_POOL_YAW 0x{qyaw:04X}\n")
+
+
 TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
 
 
@@ -1974,7 +1993,8 @@ def write_sources():
               f"#define ANCIENT_RING_Y {RING_Y}\n"
               f"// Center of the floating island (its circling rocks turn around it)\n"
               f"#define ANCIENT_ISLAND_X {round(ISLAND['x'])}\n#define ANCIENT_ISLAND_Y {ISLAND['top']}\n"
-              f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
+              f"#define ANCIENT_ISLAND_Z {round(ISLAND['z'])}\n"
+              + view_defines() + "\n" + "\n".join(tex_decl) + "\n" + "\n".join(decl) +
               "\n\n#endif\n")
     lines = [hdr, f'#include "{ROOM}.h"\n#include "{INC}/ancient_hf.h"\n#include "{INC}/ancient_town.h"\n', '#include "actor.h"\n#include "array_count.h"\n#include "gfx.h"\n#include "object.h"\n'
              '#include "room.h"\n#include "scene.h"\n#include "sequence.h"\n#include "actor_profile.h"\n'
