@@ -426,6 +426,23 @@ def glow_bush(ext: Path, out_dir: Path, lines: list):
           + ", ".join(f"{k[0]} tile {k[1]}" for k in groups))
 
 
+def report_objects(ext: Path):
+    """Print the size of game models the level places as actors (to fit them), e.g. Zora's River's waterfall."""
+    for rel in ("assets/objects/object_spot03_object", "assets/objects/object_box", "assets/objects/object_spot07_object"):
+        src = ext / rel
+        if not src.is_dir():
+            continue
+        field = Field(ext, src)
+        for sym in field.of_type("Vtx"):
+            v = field.vertices(sym)
+            if v is not None and len(v):
+                print(f"link_level_assets: {Path(rel).name} {sym}: {len(v)} vertices, min {v[:, :3].min(0).astype(int).tolist()} "
+                      f"max {v[:, :3].max(0).astype(int).tolist()}")
+        for sym in field.of_type("Gfx"):
+            print(f"link_level_assets: {Path(rel).name} {sym}: " + " ".join(
+                ln.strip()[:60] for ln in field.text(sym).splitlines() if "Vertex" in ln or "Texture" in ln)[:400])
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", default="ntsc-1.2")
@@ -491,6 +508,7 @@ def main():
         print(f"link_level_assets: light settings = {lights[0]} ({lights[2]} entries)")
     else:
         print(f"link_level_assets: no usable light settings ({lights}); keeping the level's own")
+    report_objects(ext)
     borrow_textures(ext, out.parent, lines)
     glow_bush(ext, out.parent, lines)
     lines += ["", "#endif", ""]
