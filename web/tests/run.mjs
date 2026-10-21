@@ -15,6 +15,8 @@ import { applyBps } from "../js/bps.js";
 import { decompressRom, toBigEndian } from "../js/rom.js";
 import { parseEnhance, rigOutputs, rigInput, imagesInput, isFalMediaUrl, isFalQueueUrl } from "../js/studio-pipeline.js";
 import { findBootConfig, setBootMode, BOOT_ANCIENT_PLATEAU } from "../js/boot.js";
+import { uploadRom, downloadRom, deleteRom, deriveKeys, cloudInfo, PART_SIZE } from "../js/cloud.js";
+import { handle as romHandler } from "../netlify/functions/rom.mjs";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -104,6 +106,40 @@ for (const r of manifest.roms) {
     const header = new Uint8Array(0x2000);
     header.set(magic, 0x10); // inside the ROM header area: ignored
     check("boot config ignores the header", findBootConfig(header) === -1 && !setBootMode(header, 1));
+}
+
+// Cloud copy of the ROM: browser side (cloud.js) against the function (rom.mjs) on an in-memory store.
+{
+    const mem = new Map();
+    const store = {
+        get: async (k, { type } = {}) => (mem.has(k) ? (type === "json" ? JSON.parse(mem.get(k)) : mem.get(k)) : null),
+        set: async (k, v) => void mem.set(k, v),
+        setJSON: async (k, v) => void mem.set(k, JSON.stringify(v)),
+        delete: async (k) => void mem.delete(k),
+    };
+    const fetchImpl = (url, init = {}) => romHandler(new Request(new URL(url, "https://site.test"), init), store, "studio-pw");
+    const romBytes = new Uint8Array(randomBytes(PART_SIZE * 2 + 12345));
+    check("cloud info says a site password is needed", (await cloudInfo(fetchImpl)).passwordRequired === true);
+    let denied = false;
+    try {
+        await uploadRom("correct horse battery", "zelda.z64", romBytes, { sitePassword: "nope", fetchImpl });
+    } catch (err) {
+        denied = err.status === 401;
+    }
+    check("cloud save refused without the site password", denied && mem.size === 0);
+    const seen = [];
+    const id = await uploadRom("correct horse battery", "zelda.z64", romBytes, { sitePassword: "studio-pw", fetchImpl, onProgress: (f) => seen.push(f) });
+    check("cloud save in 3 encrypted pieces", mem.has(`${id}/2`) && !mem.has(`${id}/3`) && seen.at(-1) === 1);
+    const stored = new Uint8Array(mem.get(`${id}/0`));
+    check("cloud pieces are not the ROM", stored.length === PART_SIZE + 28 && !equal(stored.subarray(12, 112), romBytes.subarray(0, 100)));
+    check("cloud id comes from the passphrase", id === (await deriveKeys("  correct horse battery ")).id && id !== (await deriveKeys("correct horse")).id);
+    const got = await downloadRom("correct horse battery", { fetchImpl });
+    check("cloud load gives the same ROM and name", got && got.name === "zelda.z64" && equal(got.bytes, romBytes));
+    check("cloud load with another passphrase finds nothing", (await downloadRom("wrong passphrase!", { fetchImpl })) === null);
+    const bad = await romHandler(new Request("https://site.test/api/rom?id=../../etc"), store, "");
+    check("cloud rejects bad ids", bad.status === 400);
+    await deleteRom("correct horse battery", { sitePassword: "studio-pw", fetchImpl });
+    check("cloud delete removes it", mem.size === 0 && (await downloadRom("correct horse battery", { fetchImpl })) === null);
 }
 
 if (failures) {

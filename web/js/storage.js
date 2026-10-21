@@ -1,5 +1,6 @@
 // Remember the player's ROM in their own browser (IndexedDB) so they only pick it once.
-// Nothing is uploaded anywhere. Every call fails soft: private windows may block storage.
+// (To use it on other devices, the player can save an encrypted copy to the cloud: cloud.js.)
+// Every call fails soft: private windows may block storage.
 
 const DB = "oot-web-remix";
 const STORE = "files";
