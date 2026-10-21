@@ -250,15 +250,16 @@ class Building:
 
 
 def fit_bridge(b, a, c):
-    """Turn, scale and move a borrowed bridge so its deck runs from a to c ((x, y, z) each). Returns the plot and the
-    height to give Building.place."""
-    floor = [p for p, _, _ in b.col if _up(p) > 0.7] or [v[:, :3] for v, _ in b.tris if _up(v[:, :3]) > 0.7]
-    pts = np.concatenate(floor) if floor else np.concatenate([v[:, :3] for v, _ in b.tris])
+    """Turn, scale and move a borrowed bridge so its deck (the planks: its upward-facing triangles) runs from a to c
+    ((x, y, z) each), and keep only the collision of the deck. Returns the plot and the height for Building.place."""
+    deck = [v[:, :3] for v, _ in b.tris if _up(v[:, :3]) > 0.7]
+    pts = np.concatenate(deck) if deck else np.concatenate([v[:, :3] for v, _ in b.tris])
     xz = pts[:, [0, 2]]
     mean = xz.mean(0)
     _, _, vt = np.linalg.svd(xz - mean)
-    axis = vt[0]
+    axis, side = vt[0], vt[1]
     t = (xz - mean) @ axis
+    w = (xz - mean) @ side
     length = float(t.max() - t.min())
     ends = (t < t.min() + 0.15 * length) | (t > t.max() - 0.15 * length)
     mid = mean + axis * (t.max() + t.min()) / 2
@@ -266,8 +267,17 @@ def fit_bridge(b, a, c):
     b.front = math.atan2(axis[0], axis[1])
     dx, dz = c[0] - a[0], c[2] - a[2]
     b.scale = math.hypot(dx, dz) / length
+    kept = []
+    for p, surf, flags in b.col:
+        q = p.mean(0)
+        tq, wq = (q[[0, 2]] - mean) @ axis, (q[[0, 2]] - mean) @ side
+        if t.min() - 20 <= tq <= t.max() + 20 and w.min() - 40 <= wq <= w.max() + 40 and \
+                pts[:, 1].min() - 60 <= q[1] <= pts[:, 1].max() + 60:
+            kept.append((p, surf, flags))
+    b.col = kept
     plot = dict(x=(a[0] + c[0]) / 2, z=(a[2] + c[2]) / 2, face=math.atan2(dx, dz))
-    print(f"make_town: bridge deck {length:.0f} long, scaled by {b.scale:.2f}")
+    print(f"make_town: bridge deck {length:.0f} long and {float(w.max() - w.min()):.0f} wide, scaled by {b.scale:.2f}, "
+          f"{len(kept)} collision polys kept")
     return plot, (a[1] + c[1]) / 2 + SINK
 
 
