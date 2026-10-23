@@ -20,7 +20,7 @@ SPHERE_R = 28
 LINTEL = dict(x=80, z=-130, y0=230, y1=270, post=14)
 
 # ring 1: a rotating stone band around the dais, four openings, a cradle on its inner face
-RING_R0, RING_R1, RING_Y0, RING_Y1 = 410, 430, -300, 200
+RING_R0, RING_R1, RING_Y0, RING_Y1 = 410, 430, -320, 90
 OPENINGS = [0, 80, 150, 290]  # centre angles (degrees) at rest
 OPENING_W = 44
 CRADLE_PHI, CRADLE_R, CRADLE_Y = 230, 390, -40  # where the sphere rides (its plate; the sphere sits on top)
@@ -29,7 +29,7 @@ LAUNCH_PHI = 165  # turning backwards, the cradle throws the sphere when it face
 
 # four timed torches on pillars between the dais and the ring, at different heights
 TORCH_R = 300
-TORCHES = [(30, -100), (110, 20), (270, -40), (330, 80)]  # (phi, base height)
+TORCHES = [(30, -150), (110, -20), (270, -90), (330, 30)]  # (phi, base height)
 TORCH_COUNT = 1  # Obj_Syokudai: 50 * 1 + 110 frames, 8 seconds
 
 # the curved track from the pedestal down to the cradle (at rest)

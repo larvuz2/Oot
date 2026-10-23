@@ -133,6 +133,8 @@ def configure():
                      HALL=HALL, CH=CH, CH_APO=CH_APO, PEDESTAL=PEDESTAL_EXIT, OBJECTS=OBJECTS, actors=actors,
                      room_defines=room_defines, EXTRA_ROOM_C=[], EXTRA_ENTRIES=[],
                      WATERBOXES=[(x0, x1, z0, z1, T.WATER_LOW)],
+                     LIGHT_ROW=("{ { 118, 96, 72 }, { 73, 73, 73 }, { 255, 228, 180 }, { -73, -73, -73 }, "
+                                "{ 120, 96, 80 }, { 70, 50, 34 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 4200 },\n"),
                      EXTRA_SPAWNS=[(T.BLUE_PAD[0], 0, T.BLUE_PAD[1], 0x8000),
                                    (T.ORANGE_PAD[0], 0, T.ORANGE_PAD[1], 0x8000)]).items():
         setattr(S, k, v)
@@ -143,8 +145,8 @@ def configure():
 
 def sand_palettes():
     """The game-style stone textures, recoloured to the Spirit Temple's warm sandstone."""
-    ramp = {"plaza": ((70, 52, 36), (238, 214, 170)), "techstone": ((86, 60, 40), (232, 196, 146)),
-            "techrock": ((52, 38, 30), (170, 132, 96)), "runes": ((74, 54, 38), (236, 206, 160))}
+    ramp = {"plaza": ((112, 82, 52), (255, 232, 186)), "techstone": ((128, 88, 54), (255, 214, 156)),
+            "techrock": ((70, 50, 36), (196, 150, 104)), "runes": ((110, 80, 52), (255, 224, 172))}
     for key, (lo, hi) in ramp.items():
         stem = TEXTURES[key][0]
         path = OUT / f"{stem}.ci4.png"

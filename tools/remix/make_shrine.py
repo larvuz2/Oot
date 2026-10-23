@@ -513,6 +513,7 @@ MUSIC = "NA_BGM_ICE_CAVERN"
 EXTRA_ROOM_C = []  # more C after the display lists (lists that call segments, for room entries of their own)
 EXTRA_ENTRIES = []  # more room entries: (center, radius, opa list, xlu list)
 WATERBOXES = []  # (x0, x1, z0, z1, surface y): water (tools/remix/make_forge.py's pool)
+LIGHT_ROW = None  # another light setting (tools/remix/make_time.py: warm, sunlit sandstone)
 EXTRA_SPAWNS = []  # more places Link can come in: (x, y, z, yaw) (tools/remix/make_time.py's pads)
 
 
@@ -549,8 +550,8 @@ def title_card(text="Ember Shrine"):
 
 def light_settings():
     """Inside, one dim blue light setting (the glow lines and the torches do the rest), dark blue fog."""
-    row = ("{ { 66, 72, 98 }, { 73, 73, 73 }, { 150, 164, 200 }, { -73, -73, -73 }, { 84, 66, 50 }, "
-           "{ 14, 18, 32 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 3600 },\n")
+    row = LIGHT_ROW or ("{ { 66, 72, 98 }, { 73, 73, 73 }, { 150, 164, 200 }, { -73, -73, -73 }, { 84, 66, 50 }, "
+                        "{ 14, 18, 32 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 3600 },\n")
     return f"EnvLightSettings {SCENE}LightSettings[] = {{\n" + "    " + row * 1 + "    " + row + "    " + row + "    " + row + "};\n\n"
 
 

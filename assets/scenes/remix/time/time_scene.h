@@ -15,7 +15,7 @@ extern ActorEntry time_scenePlayerEntryList[];
 extern s16 time_sceneExitList[];
 extern EnvLightSettings time_sceneLightSettings[];
 
-// Collision memory for BgCheck_Allocate (1487 polys, 8309 lookup nodes)
-#define TIME_SCENE_BGCHECK_MEMSIZE 0x11300
+// Collision memory for BgCheck_Allocate (1487 polys, 8217 lookup nodes)
+#define TIME_SCENE_BGCHECK_MEMSIZE 0x11200
 
 #endif
