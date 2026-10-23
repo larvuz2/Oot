@@ -78,16 +78,21 @@ LOW, PIT = -30, -280  # the island, the bridge and the north side are a little l
 SOUTH_Z0 = 420  # the south hall ends at the chasm here
 EDGE_Z = 540  # from here to the chasm the floor is "no jumping"
 NORTH_Z1 = -560  # the north side starts here
-ISLAND = dict(x0=-220, x1=220, z0=40, z1=310)  # 110 from the south edge: hover boots only
-CRYSTAL_PED = (430, 0, 250, 45)  # out in the chasm (x, top, z, radius), 170 from the edge: a pot throw
+ISLAND = dict(x0=-220, x1=220, z0=0, z1=270)  # 150 from the south edge, under a low lintel: hover boots only
+CRYSTAL_PED = (470, 0, 250, 40)  # out in the chasm (x, top, z, radius), 170 from the edge (clear of the lintel): a pot
+# Low lintels over the hover gaps (x0, x1, z0, z1, underside): hovering Link (56 tall) passes under them; a running
+# jump (up to 42 above the ledge, 157 far) hits one after two frames and drops into the gap. (Positions move by 1.5
+# times the velocity each frame, so plain distances would let a jump cross: Actor_UpdatePos.)
+LINTEL_H = 75
+LINTELS = [(-420, 400, 260, 430, LINTEL_H), (-460, -290, -1250, -1000, 310 + LINTEL_H)]
 RAMP = dict(x0=560, x1=700, z0=-300, z1=SOUTH_Z0)  # stairs out of the pit, up to the south hall
-BRIDGE = [(0, 40), (0, -90), (-280, -170), (-280, -320), (200, -400), (200, NORTH_Z1)]  # invisible, 90 wide
+BRIDGE = [(0, 0), (0, -90), (-280, -170), (-280, -320), (200, -400), (200, NORTH_Z1)]  # invisible, 90 wide
 BRIDGE_W = 90
 FIRE_ALCOVE = dict(x0=-900, z0=760, z1=960, door0=815, door1=905, door_h=160)  # in the south hall's west wall
 FAKE_ALCOVE = dict(x0=-900, z0=-990, z1=-790, door0=-960, door1=-820, door_h=200)  # behind a wall that isn't
 SHELF = dict(x0=200, x1=700, z0=-1250, z1=-850, top=140)  # NE shelf (170 over the north side: no climbing)
 BALCONY = dict(x0=-300, x1=150, z0=-1250, z1=-1050, top=310)  # "no jumping" too
-ALTAR = dict(x0=-680, x1=-410, z0=-1250, z1=-1030, top=280)  # 110 from the balcony: hover boots again
+ALTAR = dict(x0=-700, x1=-450, z0=-1250, z1=-1030, top=280)  # 150 from the balcony, a lintel over it: hover again
 POST_A = (450, SHELF["top"], -1000)
 POST_B = (40, BALCONY["top"], -1150)
 POST_CRYSTAL = (330, LOW, -760)
@@ -270,6 +275,15 @@ def build_lens():
     S.EXTRA_ENTRIES = [(rc, rr, "NULL", f"{ROOM}DL_reveal_call"), (fc, fr, f"{ROOM}DL_fake_call", "NULL")]
 
 
+def build_lintels(e):
+    """The low stone beams over the hover gaps (collision underneath: a jump stops there)."""
+    for x0, x1, z0, z1, y in LINTELS:
+        box(e, x0, x1, y, y + 40, z0, z1, top=DARK)
+        p = [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)]
+        quad(e, DARK, p, [L.planar_uv(DARK, q) for q in p], [(0, -1, 0)] * 4, (0, -1, 0), SURF_WALL)
+        wall_line(e, EMBER, [(x0, y + 20, z1), (x1, y + 20, z1)], (0, 0, 1), width=8)
+
+
 def build_ceiling():
     e = L.new_entry("ceiling")
     x0, x1, z0, z1, h = HALL["x0"], HALL["x1"], HALL["z0"], HALL["z1"], HALL["h"]
@@ -331,8 +345,7 @@ def actors():
     al = ALTAR
     a.append(("ACTOR_EN_BOX", al["x0"] + 150, al["top"], -1150, 0, 0x4000, 0,
               f"(ENBOX_TYPE_BIG_DEFAULT << 12) | (GI_HEART_CONTAINER << 5) | {T_HEART}"))
-    for z in (al["z1"] - 30, al["z0"] + 30):
-        a.append(("ACTOR_OBJ_SYOKUDAI", al["x1"] - 30, al["top"], z, 0, 0, 0, "0x0400"))
+    # (no torches on the altar: the hookshot pulls Link to torches, past the last gap)
     for x in (-500, 0, 500):
         a.append(("ACTOR_OBJ_SYOKUDAI", x, LOW, NORTH_Z1 - 30, 0, 0, 0, "0x0400"))
     return a
@@ -354,12 +367,15 @@ def room_defines():
 def check_reach():
     """The hookshot (260 long, from about 50 above Link's feet) reaches each post from where Link stands; the hover
     gaps are what the boots cross (19 frames at up to 5.5 a frame, then falling 30) and no jump can."""
-    reach = 245
+    reach = 245  # (the hookshot actually flies 13 frames x 20 x 1.5 = 390: kept well inside)
     for stand, post in (((POST_A[0], LOW, SHELF["z1"] + 50), POST_A), ((SHELF["x0"] + 40, SHELF["top"], POST_B[2]), POST_B)):
         d = math.dist((stand[0], stand[1] + 50, stand[2]), (post[0], post[1] + 20, post[2]))
         assert d <= reach, f"hookshot post at {post} is {d:.0f} from {stand}"
     for gap in (SOUTH_Z0 - ISLAND["z1"], BALCONY["x0"] - ALTAR["x1"]):
-        assert 90 <= gap <= 115, gap
+        assert 130 <= gap <= 155, gap  # hover: 19 frames x 5.5 x 1.5 = 157 level, then falling 30
+    x0, x1, z0, z1, _ = LINTELS[0]
+    assert x0 < ISLAND["x0"] - 150 and x1 > ISLAND["x1"] + 150 and z0 < ISLAND["z1"] and z1 > SOUTH_Z0
+    assert CRYSTAL_PED[0] - CRYSTAL_PED[3] > x1, "pots thrown at the crystal would hit the lintel"
     assert ISLAND["z0"] - BRIDGE[0][1] == 0 and BRIDGE[-1][1] == NORTH_Z1
     assert SHELF["top"] - LOW > 140 and BALCONY["top"] - SHELF["top"] > 140  # (Link climbs 111 at most)
     print("make_seeker: hookshot reaches and hover gaps checked")
@@ -380,6 +396,7 @@ def main():
     build_pit(L.new_entry("pit"))
     build_middle(L.new_entry("middle"))
     build_north(L.new_entry("north"))
+    build_lintels(L.new_entry("lintels"))
     build_ceiling()
     build_ring()
     build_lens()

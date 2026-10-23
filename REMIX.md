@@ -233,7 +233,7 @@ pieces only):
 1. **Empty-handed.** A crystal switch stands on a pedestal out in the chasm, out of reach. Pick up a pot, lock on to
    the crystal and throw: the fire in a doorway in the west wall dies down for 20 seconds. Inside the alcove: the
    **Hover Boots** (and a crystal to strike to get back out). Equip them from the pause menu.
-2. **The gap.** The chasm's edge is a floor Link doesn't jump from: without the boots he just drops into the pit
+2. **The gap.** A low stone lintel hangs over the gap: a running jump hits it and drops into the pit
    (stairs lead back up). With them he floats across to the island: the **Lens of Truth** (pots of magic nearby).
 3. **The unseen.** Through the Lens a zigzag bridge appears over the chasm (it is there all along, only invisible);
    and one stretch of the far wall is not a wall at all (a glowing line runs into it). Behind it: the **Hookshot**.

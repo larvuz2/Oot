@@ -17,7 +17,7 @@ extern RoomShapeCullableEntry seeker_room_0RoomShapeEntries[];
 #define SEEKER_TREASURE_LENS 2
 #define SEEKER_TREASURE_HOOK 3
 // The rune ring over the altar
-#define SEEKER_RING_X -545
+#define SEEKER_RING_X -575
 #define SEEKER_RING_Y 580
 #define SEEKER_RING_Z -1140
 // Room entries that call the Lens's switches (segments 0x09 and 0x0A)
@@ -56,6 +56,10 @@ extern Vtx seeker_room_0Vtx_north_opa[68];
 extern Gfx seeker_room_0DL_north_opa[];
 extern Vtx seeker_room_0Vtx_north_xlu[96];
 extern Gfx seeker_room_0DL_north_xlu[];
+extern Vtx seeker_room_0Vtx_lintels_opa[48];
+extern Gfx seeker_room_0DL_lintels_opa[];
+extern Vtx seeker_room_0Vtx_lintels_xlu[8];
+extern Gfx seeker_room_0DL_lintels_xlu[];
 extern Vtx seeker_room_0Vtx_ceiling_opa[4];
 extern Gfx seeker_room_0DL_ceiling_opa[];
 extern Vtx seeker_room_0Vtx_ceiling_xlu[28];

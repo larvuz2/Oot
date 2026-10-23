@@ -15,7 +15,7 @@ extern ActorEntry seeker_scenePlayerEntryList[];
 extern s16 seeker_sceneExitList[];
 extern EnvLightSettings seeker_sceneLightSettings[];
 
-// Collision memory for BgCheck_Allocate (267 polys, 2826 lookup nodes)
-#define SEEKER_SCENE_BGCHECK_MEMSIZE 0xAF00
+// Collision memory for BgCheck_Allocate (291 polys, 2948 lookup nodes)
+#define SEEKER_SCENE_BGCHECK_MEMSIZE 0xB100
 
 #endif
