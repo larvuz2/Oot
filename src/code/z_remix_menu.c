@@ -81,6 +81,7 @@ typedef enum RemixPage {
 typedef enum RemixMainRow {
     REMIX_MAIN_ANCIENT,
     REMIX_MAIN_SHRINE,
+    REMIX_MAIN_SEEKER,
     REMIX_MAIN_WARP,
     REMIX_MAIN_EQUIP,
     REMIX_MAIN_SPAWN,
@@ -790,6 +791,11 @@ static void RemixMenu_UpdateMain(PlayState* play, Input* input, s32 dir) {
             RemixLevel_GoToShrine(play);
             break;
 
+        case REMIX_MAIN_SEEKER:
+            RemixMenu_Close();
+            RemixLevel_GoToSeeker(play);
+            break;
+
         case REMIX_MAIN_WARP:
             RemixMenu_Close();
             gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -992,6 +998,7 @@ static void RemixMenu_PrintRow(GfxPrint* printer, s32 row, s32 selected, const c
 static void RemixMenu_PrintMain(GfxPrint* printer) {
     static const char* sRows[] = { "Go to: Ancient Plateau (NEW)",
                                    "Go to: Ember Shrine (NEW)",
+                                   "Go to: Seeker's Shrine (NEW)",
                                    "Warp anywhere (Map Select)",
                                    NULL,
                                    "Spawn characters/objects",

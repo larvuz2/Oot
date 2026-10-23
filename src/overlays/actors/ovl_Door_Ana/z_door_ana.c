@@ -66,6 +66,7 @@ static s16 sGrottoEntrances[] = {
     ENTR_GROTTOS_4,         ENTR_GROTTOS_5,  ENTR_GROTTOS_6,  ENTR_GROTTOS_7,  ENTR_GROTTOS_8,
     ENTR_GROTTOS_9,         ENTR_GROTTOS_10, ENTR_GROTTOS_11, ENTR_GROTTOS_12, ENTR_GROTTOS_13,
     ENTR_REMIX_SHRINE_0, // Web Remix: the Ember Shrine (the hole in the Ancient Plateau has home.rot.z 14)
+    ENTR_REMIX_SEEKER_0, // Web Remix: the Seeker's Shrine (home.rot.z 15)
 };
 
 void DoorAna_SetupAction(DoorAna* this, DoorAnaActionFunc actionFunc) {

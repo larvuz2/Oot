@@ -693,4 +693,8 @@ DECLARE_ROM_SEGMENT(ancient_room_0)
 DECLARE_ROM_SEGMENT(ember_scene)
 DECLARE_ROM_SEGMENT(ember_room_0)
 
+// Web Remix level 3: the Seeker's Shrine (spec/remix_scenes.inc, tools/remix/make_seeker.py)
+DECLARE_ROM_SEGMENT(seeker_scene)
+DECLARE_ROM_SEGMENT(seeker_room_0)
+
 #endif

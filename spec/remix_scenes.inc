@@ -48,6 +48,30 @@ beginseg
     include "$(BUILD_DIR)/assets/scenes/remix/ember/ember_title.o"
 endseg
 
+// Level 3: the Seeker's Shrine (tools/remix/make_seeker.py, committed in assets/scenes/remix/seeker/)
+beginseg
+    name "seeker_scene"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/seeker/seeker_scene.o"
+    number 2
+endseg
+
+beginseg
+    name "seeker_room_0"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/seeker/seeker_room_0.o"
+    number 3
+endseg
+
+beginseg
+    name "g_pn_remix_seeker"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/seeker/seeker_title.o"
+endseg
+
 // Biomes:
 // tools/remix/make_biome.py copies Hyrule Field into extracted/VERSION/assets/scenes/remix/tundra/ after
 // `make setup`; the Makefile then sets REMIX_HAS_TUNDRA=1. Without that step the ROM is built without biomes.

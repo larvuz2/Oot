@@ -1196,20 +1196,27 @@ def build_entrance():
     prism_col(tuple(center), R * 0.85, gy - 40, gy + R * 1.3, 10, SURF_TECH)
 
 
-_HOLE = []
+_HOLE = {}
 HOLE_R = 150  # the shrine marker's platform
+# Where each shrine's hole goes: (road, distances along it, offsets to its side). 0: the Ember Shrine (level 2), west
+# of the south road across from the eye rock, where Link arrives; 1: the Seeker's Shrine (level 3), by the west road.
+HOLE_SITES = [(0, (3200, 3120, 3300, 3040), (-560, -620, -500, -680)),
+              (3, (3150, 3300, 3000, 3450), (420, 520, -420, -520))]
 
 
-def shrine_hole():
-    """(x, y, z, yaw) of the hole down to the Ember Shrine (level 2): west of the south road, across from the eye
-    rock, where Link arrives; on a platform clear of the field's trees and rocks. yaw faces the road."""
-    if not _HOLE:
-        for r in (3200, 3120, 3300, 3040):
-            for off in (-560, -620, -500, -680):
-                ang = float(path_angle(0, r))
+def shrine_hole(k=0):
+    """(x, y, z, yaw) of shrine k's hole: on a platform clear of the paths and of the field's trees and rocks.
+    yaw faces the road."""
+    if k not in _HOLE:
+        road, dists, offs = HOLE_SITES[k]
+        for r in dists:
+            for off in offs:
+                ang = float(path_angle(road, r))
                 x = math.sin(ang) * r + math.cos(ang) * off
                 z = math.cos(ang) * r - math.sin(ang) * off
                 if any(math.hypot(x - fx, z - fz) < HOLE_R + 120 for fx, fz in field_spots()):
+                    continue
+                if any(math.hypot(x - h[0], z - h[2]) < 2 * HOLE_R + 200 for h in _HOLE.values()):
                     continue
                 if float(path_dist(x, z)) < HOLE_R + 100:
                     continue
@@ -1217,19 +1224,19 @@ def shrine_hole():
                           for a in np.linspace(0, 2 * math.pi, 12, endpoint=False))
                 top = max(top, float(mesh_height(x, z))) + 8
                 rx, rz = math.sin(ang) * r, math.cos(ang) * r
-                _HOLE.append((x, top, z, int(math.atan2(rx - x, rz - z) / (2 * math.pi) * 0x10000) & 0xFFFF))
+                _HOLE[k] = (x, top, z, int(math.atan2(rx - x, rz - z) / (2 * math.pi) * 0x10000) & 0xFFFF)
                 break
-            if _HOLE:
+            if k in _HOLE:
                 break
-        assert _HOLE, "no clear spot for the shrine's hole"
-    return _HOLE[0]
+        assert k in _HOLE, f"no clear spot for shrine {k}'s hole"
+    return _HOLE[k]
 
 
-def build_shrine_marker():
+def build_shrine_marker(k=0):
     """The way down to the Ember Shrine: a round platform of Sheikah stone with rings of orange light, four glowing
     posts, and in the middle the game's grotto hole (Door_Ana: actors())."""
-    e = new_entry("shrine_marker")
-    x, top, z, _ = shrine_hole()
+    e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
+    x, top, z, _ = shrine_hole(k)
     gy = float(mesh_height(x, z))
     prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 16, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
     for rr, w in ((HOLE_R - 18, 12), (78, 10)):
@@ -1305,6 +1312,8 @@ def actors():
     # the hole down to the Ember Shrine (Door_Ana: home.rot.z 14 picks the shrine in its list of grottos)
     hx, hy, hz, _ = shrine_hole()
     add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=14)
+    hx, hy, hz, _ = shrine_hole(1)  # the Seeker's Shrine: 15
+    add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=15)
     # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
     add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
@@ -1363,7 +1372,9 @@ def view_defines():
             f"#define ANCIENT_VIEW_POOL_Z {qz:.1f}f\n#define ANCIENT_VIEW_POOL_YAW 0x{qyaw:04X}\n"
             "// The hole down to the Ember Shrine: coming back up, Link is launched out of it (z_remix_level.c)\n"
             f"#define ANCIENT_SHRINE_HOLE_X {shrine_hole()[0]:.1f}f\n#define ANCIENT_SHRINE_HOLE_Y {shrine_hole()[1]:.1f}f\n"
-            f"#define ANCIENT_SHRINE_HOLE_Z {shrine_hole()[2]:.1f}f\n#define ANCIENT_SHRINE_HOLE_YAW 0x{shrine_hole()[3]:04X}\n")
+            f"#define ANCIENT_SHRINE_HOLE_Z {shrine_hole()[2]:.1f}f\n#define ANCIENT_SHRINE_HOLE_YAW 0x{shrine_hole()[3]:04X}\n"
+            f"#define ANCIENT_SEEKER_HOLE_X {shrine_hole(1)[0]:.1f}f\n#define ANCIENT_SEEKER_HOLE_Y {shrine_hole(1)[1]:.1f}f\n"
+            f"#define ANCIENT_SEEKER_HOLE_Z {shrine_hole(1)[2]:.1f}f\n#define ANCIENT_SEEKER_HOLE_YAW 0x{shrine_hole(1)[3]:04X}\n")
 
 
 TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
@@ -1460,7 +1471,7 @@ def build_decor():
             return False
         if math.hypot(x - SPAWN[0], z - SPAWN[1]) < 160 or math.hypot(x, z) < 980:
             return False
-        if math.hypot(x - shrine_hole()[0], z - shrine_hole()[2]) < HOLE_R + 60 + rad:
+        if any(math.hypot(x - shrine_hole(k)[0], z - shrine_hole(k)[2]) < HOLE_R + 60 + rad for k in range(len(HOLE_SITES))):
             return False
         return all(math.hypot(x - d[1], z - d[3]) >= rad + PATTERN_R[d[0]] * 0.8 for d in DECOR)
 
@@ -1607,7 +1618,7 @@ def emit_decor():
         idx = cells[key]
         cmds = []
         # the game's models first (they share the actors' setup), then the glowing bush (its setup is its own)
-        for kind in sorted({kind_of[DECOR[i][0]] for i in idx}, key=lambda kd: kd == "bush"):
+        for kind in sorted({kind_of[DECOR[i][0]] for i in idx}, key=lambda kd: (kd == "bush", kd)):
             cmds += DECOR_SETUP + [f"gsSPDisplayList({DECOR_KINDS[kind][0]}_SETUP)"]
             for i in idx:
                 if kind_of[DECOR[i][0]] == kind:
@@ -1883,8 +1894,9 @@ def material_setup(mat):
             g.append(f"gsSPDisplayList(0x{0x0D if mat.scroll is True else mat.scroll:02X}000000)")
     else:
         g.append("gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF)")
-    if mat.prim_seg is not None:
-        g.append(f"gsSPDisplayList(0x{mat.prim_seg:02X}000000)")
+    if mat.prim_seg is not None:  # a segment (0x08) or a full segmented address (0x0E000018: an entry of a table)
+        addr = mat.prim_seg if mat.prim_seg > 0xFF else mat.prim_seg << 24
+        g.append(f"gsSPDisplayList(0x{addr >> 24:02X}{addr & 0xFFFFFF:06X})")
     else:
         r, gg, b, a = mat.prim
         g.append(f"gsDPSetPrimColor(0, 0, {r}, {gg}, {b}, {a})")
@@ -2301,7 +2313,8 @@ def main():
     build_pillars()
     build_sky()
     build_entrance()
-    build_shrine_marker()
+    build_shrine_marker(0)
+    build_shrine_marker(1)
     build_boundary()
     build_decor()
     npolys, nverts, entries, acts = write_sources()

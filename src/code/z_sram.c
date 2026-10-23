@@ -1,4 +1,5 @@
 #include "sram.h"
+#include "remix_level.h"
 
 #include "versions.h"
 #include "array_count.h"
@@ -211,6 +212,7 @@ static Checksum sNewSaveChecksum = { 0 };
  *  This save has an empty inventory with 3 hearts and single magic.
  */
 void Sram_InitNewSave(void) {
+    RemixLevel_TrialForget();
     bzero(&gSaveContext.save.info, sizeof(SaveInfo));
     gSaveContext.save.totalDays = 0;
     gSaveContext.save.bgsDayCount = 0;
@@ -373,6 +375,7 @@ static Checksum sDebugSaveChecksum = { 0 };
  *  and set water level in Water Temple to lowest level.
  */
 void Sram_InitDebugSave(void) {
+    RemixLevel_TrialForget();
     bzero(&gSaveContext.save.info, sizeof(SaveInfo));
     gSaveContext.save.totalDays = 0;
     gSaveContext.save.bgsDayCount = 0;
@@ -448,6 +451,8 @@ void Sram_OpenSave(SramContext* sramCtx) {
     u16 i;
     u16 j;
     u8* ptr;
+
+    RemixLevel_TrialForget();
 
     PRINTF(T("個人Ｆｉｌｅ作成\n", "Create personal file\n"));
     i = gSramSlotOffsets[gSaveContext.fileNum];
@@ -618,6 +623,7 @@ void Sram_WriteSave(UNUSED SramContext* sramCtx) {
     u16 j;
     u16* ptr;
 
+    RemixLevel_TrialSaveSwap(); // Web Remix: save Link's own items, not the Seeker's Shrine's
     gSaveContext.save.info.checksum.value = 0;
 
     ptr = (u16*)&gSaveContext;
@@ -657,6 +663,7 @@ void Sram_WriteSave(UNUSED SramContext* sramCtx) {
 
     offset = gSramSlotOffsets[gSaveContext.fileNum + 3];
     SRAM_WRITE(OS_K1_TO_PHYSICAL(0xA8000000) + offset, &gSaveContext, SLOT_SIZE);
+    RemixLevel_TrialSaveSwap();
 }
 
 /**

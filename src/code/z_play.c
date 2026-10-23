@@ -45,6 +45,7 @@
 #include "quake.h"
 #include "regs.h"
 #include "remix_menu.h"
+#include "remix_level.h"
 #include "room.h"
 #include "rumble.h"
 #include "save.h"
@@ -442,6 +443,10 @@ void Play_Init(GameState* thisx) {
         gEntranceTable[((void)0, gSaveContext.save.entranceIndex) + ((void)0, gSaveContext.sceneLayer)].spawn);
 
     PRINTF("\nSCENE_NO=%d COUNTER=%d\n", ((void)0, gSaveContext.save.entranceIndex), gSaveContext.sceneLayer);
+
+    // Web Remix: the Seeker's Shrine takes Link's items on the way in and gives them back on the way out (before the
+    // HUD and Link are set up from them)
+    RemixLevel_OnSceneStart(this);
 
 #if PLATFORM_GC
     // When entering Gerudo Valley in the credits, trigger the GC emulator to play the ending movie.

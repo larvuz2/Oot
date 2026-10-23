@@ -125,3 +125,5 @@
 DEFINE_SCENE(ancient_scene, g_pn_remix_ancient, SCENE_REMIX_ANCIENT, SDC_REMIX_ANCIENT, 0, 0)
 // Web Remix: level 2, the Ember Shrine (tools/remix/make_shrine.py)
 DEFINE_SCENE(ember_scene, g_pn_remix_ember, SCENE_REMIX_SHRINE, SDC_REMIX_SHRINE, 0, 0)
+// Web Remix: level 3, the Seeker's Shrine (tools/remix/make_seeker.py)
+DEFINE_SCENE(seeker_scene, g_pn_remix_seeker, SCENE_REMIX_SEEKER, SDC_REMIX_SEEKER, 0, 0)
