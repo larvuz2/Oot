@@ -7,3 +7,10 @@ beginseg
     flags OVERLAY
     include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o"
 endseg
+
+beginseg
+    name "ovl_En_Remix_Magnet"
+    compress
+    flags OVERLAY
+    include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Magnet/z_en_remix_magnet.o"
+endseg

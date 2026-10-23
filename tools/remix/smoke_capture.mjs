@@ -4,6 +4,10 @@
 //
 //   node tools/remix/smoke_capture.mjs --rom boot.z64 --out DIR [--frames 400,900,1500] [--walk-after 900]
 //                                      [--core mupen64plus_next|parallel_n64] [--query perf=1]
+//                                      [--inputs FRAME:INDEX:VALUE,...]
+//
+// --inputs presses and releases controls at given frames (EmulatorJS input indices, see KEYS in web/js/app.js:
+// 0 A, 1 B, 10 L, 18/19 stick down/up, 20-23 C right/left/down/up; VALUE 1 or 0 for buttons, 0-32767 for sticks).
 //
 // Needs the `playwright` package (resolved from NODE_PATH or the current directory) and a Chromium it can
 // launch. Writes DIR/shot-<frame>.png and DIR/capture.json ({ shots, crash, frames, log }).
@@ -26,6 +30,11 @@ const walkAfter = Number(arg("walk-after", "900"));
 const timeoutS = Number(arg("timeout", "480"));
 const core = arg("core", "");
 const query = arg("query", ""); // more of the page's address options (perf=1: the website's performance mode)
+const inputs = arg("inputs", "")
+    .split(",")
+    .filter(Boolean)
+    .map((s) => s.split(":").map(Number))
+    .sort((a, b) => a[0] - b[0]);
 const webDir = resolve(arg("web", join(here, "../../web")));
 if (!romPath || !out) {
     console.error("usage: node smoke_capture.mjs --rom ROM --out DIR [--frames a,b,c] [--walk-after N]");
@@ -131,8 +140,23 @@ try {
                 });
                 console.log(`capture: holding the stick forward from frame ${n} (${walking ? "ok" : "input API missing"})`);
             }
+            while (inputs.length && n >= inputs[0][0]) {
+                const [at, index, value] = inputs.shift();
+                const ok = await page.evaluate(
+                    ([i, v]) => {
+                        try {
+                            window.EJS_emulator.gameManager.simulateInput(0, i, v);
+                            return true;
+                        } catch {
+                            return false;
+                        }
+                    },
+                    [index, value],
+                );
+                console.log(`capture: input ${index}=${value} at frame ${n} (asked for ${at}${ok ? "" : ", input API missing"})`);
+            }
             if (n >= target) break;
-            await page.waitForTimeout(250);
+            await page.waitForTimeout(inputs.length ? 60 : 250);
         }
         const file = join(out, `shot-${target}.png`);
         const canvas = page.locator("#game canvas").first();

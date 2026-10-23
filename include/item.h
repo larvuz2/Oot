@@ -444,8 +444,13 @@ typedef enum GetItemID {
     /* 0x7B */ GI_BULLET_BAG_50,
     /* 0x7C */ GI_ICE_TRAP, // freezes link when opened from a chest
     /* 0x7D */ GI_TEXT_0, // no model appears over Link, shows text id 0 (pocket egg)
-    /* 0x7E */ GI_MAX
+    /* 0x7E */ GI_REMIX_MAGNESIS, // Web Remix: the Magnesis Rune (Lodestone Shrine)
+    /* 0x7F */ GI_MAX
 } GetItemID;
+
+// Web Remix: the text box of GI_REMIX_MAGNESIS (assets/text/message_data.h; a text id the game does not use: a
+// duplicate would not link, the message symbols are named after their ids)
+#define REMIX_TEXT_MAGNESIS 0x7FA0
 
 typedef enum GetItemDrawID {
     /* 0x00 */ GID_BOTTLE_EMPTY,
@@ -565,7 +570,8 @@ typedef enum GetItemDrawID {
     /* 0x72 */ GID_BULLET_BAG_50,
     /* 0x73 */ GID_SWORD_KOKIRI,
     /* 0x74 */ GID_SKULL_TOKEN_2,
-    /* 0x75 */ GID_MAX
+    /* 0x75 */ GID_REMIX_MAGNESIS, // Web Remix: the Magnesis Rune (object_remix_slate)
+    /* 0x76 */ GID_MAX
 } GetItemDrawID;
 
 typedef enum ExchangeItemID {

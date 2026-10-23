@@ -83,6 +83,7 @@
 #include "assets/objects/object_gi_rupy/object_gi_rupy.h"
 #include "assets/objects/object_gi_sword_1/object_gi_sword_1.h"
 #include "assets/objects/object_st/object_st.h"
+#include "assets/objects/object_remix_slate/object_remix_slate.h"
 
 // "Get Item" Model Draw Functions
 void GetItem_DrawMaskOrBombchu(PlayState* play, s16 giDrawId);
@@ -373,6 +374,8 @@ DrawItemTableEntry sDrawItemTable[] = {
     { GetItem_DrawOpa0, { gGiKokiriSwordDL } },
     // GID_SKULL_TOKEN_2
     { GetItem_DrawSkullToken, { gSkulltulaTokenDL, gSkulltulaTokenFlameDL } },
+    // GID_REMIX_MAGNESIS (Web Remix)
+    { GetItem_DrawOpa0, { gRemixSlateDL } },
 };
 
 /**

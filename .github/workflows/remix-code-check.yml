@@ -10,6 +10,8 @@ on:
       - "src/**"
       - "include/**"
       - "assets/objects/object_remix_model/**"
+      - "assets/objects/object_remix_slate/**"
+      - "assets/objects/object_remix_magnet/**"
       - "assets/scenes/remix/**"
       - "spec/**"
       - "tools/remix/**"
@@ -19,6 +21,8 @@ on:
       - "src/**"
       - "include/**"
       - "assets/objects/object_remix_model/**"
+      - "assets/objects/object_remix_slate/**"
+      - "assets/objects/object_remix_magnet/**"
       - "assets/scenes/remix/**"
       - "spec/**"
       - "tools/remix/**"
@@ -54,6 +58,24 @@ jobs:
             build/${{ matrix.version }}/src/code/object_table.o \
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
+
+      - name: Level 4 (Lodestone Shrine), Magnesis and its objects compile
+        run: |
+          V=${{ matrix.version }}
+          G=build/$V/assets/scenes/remix/magnet
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/magnet/*.png assets/objects/object_remix_slate/*.png \
+            assets/objects/object_remix_magnet/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $G/magnet_scene.o $G/magnet_room_0.o $G/magnet_title.o \
+            build/$V/src/overlays/actors/ovl_En_Remix_Magnet/z_en_remix_magnet.o \
+            build/$V/assets/objects/object_remix_slate/object_remix_slate.o \
+            build/$V/assets/objects/object_remix_magnet/object_remix_magnet.o
+          for f in scene:magnet_sceneCommands room_0:magnet_room_0Commands; do
+            mips-linux-gnu-nm $G/magnet_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of magnet_${f%%:*}"; exit 1; }
+          done
+          # the player loads get-item objects into an 8 KB buffer (z_player.c)
+          size=$(mips-linux-gnu-size -A build/$V/assets/objects/object_remix_slate/object_remix_slate.o | awk '$1==".data"{print $2}')
+          [ "$size" -le 8192 ] || { echo "object_remix_slate is $size bytes: get-item objects must fit in 8 KB"; exit 1; }
 
       - name: New level (Ancient Plateau) and engine changes compile
         run: |
@@ -118,6 +140,8 @@ jobs:
           grep -q '"ancient_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ember_room_0"' build/${{ matrix.version }}/spec
           grep -q '"seeker_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"magnet_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"ovl_En_Remix_Magnet"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.
           B=build/${{ matrix.version }}/assets/scenes

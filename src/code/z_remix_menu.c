@@ -82,6 +82,7 @@ typedef enum RemixMainRow {
     REMIX_MAIN_ANCIENT,
     REMIX_MAIN_SHRINE,
     REMIX_MAIN_SEEKER,
+    REMIX_MAIN_MAGNET,
     REMIX_MAIN_WARP,
     REMIX_MAIN_EQUIP,
     REMIX_MAIN_SPAWN,
@@ -796,6 +797,11 @@ static void RemixMenu_UpdateMain(PlayState* play, Input* input, s32 dir) {
             RemixLevel_GoToSeeker(play);
             break;
 
+        case REMIX_MAIN_MAGNET:
+            RemixMenu_Close();
+            RemixLevel_GoToMagnet(play);
+            break;
+
         case REMIX_MAIN_WARP:
             RemixMenu_Close();
             gSaveContext.gameMode = GAMEMODE_NORMAL;
@@ -999,6 +1005,7 @@ static void RemixMenu_PrintMain(GfxPrint* printer) {
     static const char* sRows[] = { "Go to: Ancient Plateau (NEW)",
                                    "Go to: Ember Shrine (NEW)",
                                    "Go to: Seeker's Shrine (NEW)",
+                                   "Go to: Lodestone Shrine (NEW)",
                                    "Warp anywhere (Map Select)",
                                    NULL,
                                    "Spawn characters/objects",
@@ -1085,7 +1092,7 @@ void RemixMenu_Draw(PlayState* play) {
         gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 10, 20, 190);
-        gDPFillRectangle(OVERLAY_DISP++, (REMIX_COL - 1) * 8, (REMIX_ROW - 1) * 8, 37 * 8, (REMIX_ROW + 13) * 8);
+        gDPFillRectangle(OVERLAY_DISP++, (REMIX_COL - 1) * 8, (REMIX_ROW - 1) * 8, 37 * 8, (REMIX_ROW + 14) * 8);
         gDPPipeSync(OVERLAY_DISP++);
     }
 
@@ -1104,12 +1111,12 @@ void RemixMenu_Draw(PlayState* play) {
         } else {
             RemixMenu_PrintSpawn(&printer);
         }
-        GfxPrint_SetPos(&printer, REMIX_COL, REMIX_ROW + 11);
+        GfxPrint_SetPos(&printer, REMIX_COL, REMIX_ROW + 12);
         GfxPrint_SetColor(&printer, 150, 150, 150, 255);
         GfxPrint_Printf(&printer, "D-Pad/Stick:Move A:OK B:Back");
     }
     if ((sRemix.messageTimer > 0) && (sRemix.message != NULL)) {
-        GfxPrint_SetPos(&printer, REMIX_COL, sRemix.isOpen ? REMIX_ROW + 12 : 26);
+        GfxPrint_SetPos(&printer, REMIX_COL, sRemix.isOpen ? REMIX_ROW + 13 : 26);
         GfxPrint_SetColor(&printer, 255, 255, 120, 255);
         GfxPrint_Printf(&printer, "%s", sRemix.message);
     }

@@ -64,11 +64,11 @@
 
 typedef struct GetItemEntry {
     /* 0x00 */ u8 itemId;
-    /* 0x01 */ u8 field; // various bit-packed data
-    /* 0x02 */ s8 gi;    // defines the draw id and chest opening animation
-    /* 0x03 */ u8 textId;
-    /* 0x04 */ u16 objectId;
-} GetItemEntry; // size = 0x06
+    /* 0x01 */ u8 field;   // various bit-packed data
+    /* 0x02 */ s8 gi;      // defines the draw id and chest opening animation
+    /* 0x04 */ u16 textId; // (u8 in the original; the Web Remix needs a text id of its own)
+    /* 0x06 */ u16 objectId;
+} GetItemEntry; // size = 0x08
 
 #define GET_ITEM(itemId, objectId, drawId, textId, field, chestAnim) \
     { itemId, field, (chestAnim != CHEST_ANIM_SHORT ? 1 : -1) * (drawId + 1), textId, objectId }
@@ -795,6 +795,8 @@ static GetItemEntry sGetItemTable[] = {
     GET_ITEM_NONE,
     // GI_TEXT_0
     GET_ITEM_NONE,
+    // GI_REMIX_MAGNESIS (Web Remix: gives a green rupee as its item, so that the chest opens slowly)
+    GET_ITEM(ITEM_RUPEE_GREEN, OBJECT_REMIX_SLATE, GID_REMIX_MAGNESIS, REMIX_TEXT_MAGNESIS, 0x80, CHEST_ANIM_LONG),
 };
 
 #define GET_PLAYER_ANIM(group, type) D_80853914[group * PLAYER_ANIMTYPE_MAX + type]
