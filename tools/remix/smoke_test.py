@@ -323,8 +323,9 @@ def main():
                 ("time-child", BOOT_TIME_CHILD, [400, 700], []),
                 # Level 7: adult Link before the Master Sword's pedestal places the sword (A, then A through the
                 # text): the hall comes back seven years ago, child Link before the pedestal, the sword in it
-                ("years-sword", BOOT_YEARS_TEST, [420, 560, 760, 1000, 1250],
-                 [(440, IN_A, 1), (470, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0), (600, IN_A, 1), (630, IN_A, 0)]),
+                ("years-sword", BOOT_YEARS_TEST, [420, 600, 820, 1060, 1320],
+                 [(440, IN_A, 1), (470, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0), (640, IN_A, 1), (670, IN_A, 0),
+                  (740, IN_A, 1), (770, IN_A, 0)]),
                 # everything prepared in the past: the adult on the upper floor sees the final staircase whole (its
                 # support under it), the door open; the tree grown by the upper floor
                 ("years-future", BOOT_YEARS_FUTURE, [400, 700], []),

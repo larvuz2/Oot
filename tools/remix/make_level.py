@@ -1306,14 +1306,14 @@ def actors():
     # trees, bushes and butterflies in the field (its rocks are static scenery: build_decor)
     for i, (x, z) in enumerate(field_spots()):
         y = mesh_height(x, z)
-        if i < 20:
+        if i < 14:  # (fewer than there are spots: every actor here comes out of the town's actor memory)
             add("ACTOR_EN_WOOD02", x, y, z, int(rng.random() * 0x10000), "0xFF05" if i % 3 else "0xFF00")
         elif i >= 59:
             add("ACTOR_EN_BUTTE", x, y + 60, z, 0, "0x0000")
-    # lanterns where each quarter's main street leaves the ring road
+    # a lantern where each quarter's main street leaves the ring road
     for q in range(4):
         mid = math.pi / 4 + q * math.pi / 2
-        for s in (-1, 1):
+        for s in (1,):
             a = mid + s * 0.095
             r = town_plan.RING_ROAD_R + 120
             x, z = math.sin(a) * r, math.cos(a) * r
