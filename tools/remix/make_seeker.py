@@ -62,8 +62,10 @@ TOOL = [Mat(f"tool{k}", "glow", "i8", (32, 32), lit=False, xlu=True, prim_seg=0x
             repeat=150, clamp_t=True) for k in range(3)]
 
 SURF_FLOOR, SURF_WALL, SURF_EXIT, SURF_NOJUMP = range(4)
+# 9: Link walks off edges without jumping. The player code checks the property one frame after Link leaves the
+# ground, of the floor then under him: so the floors below the gaps have it too, not only the ledges.
 SURFACES = [("SURFACE_MATERIAL_STONE", 0), ("SURFACE_MATERIAL_STONE", 0), ("SURFACE_MATERIAL_STONE", 1),
-            ("SURFACE_MATERIAL_STONE", 0, "FLOOR_PROPERTY_9")]  # 9: Link walks off its edges without jumping
+            ("SURFACE_MATERIAL_STONE", 0, "FLOOR_PROPERTY_9")]
 
 # ---------------------------------------------------------------- the plan
 
@@ -166,7 +168,9 @@ def build_south(e):
 def build_pit(e):
     """The chasm: its floor, the stairs back up, the crystal's pedestal, the island and the north side's faces."""
     x0, x1 = HALL["x0"], HALL["x1"]
-    flat(e, DARK, x0, x1, NORTH_Z1, SOUTH_Z0, PIT)
+    # (also "no jumping": the player code reads the property of the floor under Link a frame after he steps off an
+    # edge, which by then is the floor far below it)
+    flat(e, DARK, x0, x1, NORTH_Z1, SOUTH_Z0, PIT, col=SURF_NOJUMP)
     for z in np.arange(NORTH_Z1 + 120, SOUTH_Z0, 240):
         floor_line(e, GLOW, [(x0 + 40, z), (RAMP["x0"] - 40, z)], width=10, y=PIT)
     r = RAMP  # stairs as a ramp (Link walks up slopes this gentle)
@@ -200,7 +204,7 @@ def build_middle(e):
 def build_north(e):
     """The north side: the shelf and the balcony (hookshot), the altar (hover boots again), the fake wall's alcove."""
     x0, x1, z0 = HALL["x0"], HALL["x1"], HALL["z0"]
-    flat(e, FLOOR, x0, x1, z0, NORTH_Z1, LOW)
+    flat(e, FLOOR, x0, x1, z0, NORTH_Z1, LOW, col=SURF_NOJUMP)  # under the balcony's gap too (see build_pit)
     alcove(e, FAKE_ALCOVE, LOW)
     s, b, a = SHELF, BALCONY, ALTAR
     box(e, s["x0"], s["x1"], LOW, s["top"], s["z0"], s["z1"], skip=("e", "n"))

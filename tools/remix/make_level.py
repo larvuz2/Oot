@@ -1233,22 +1233,15 @@ def shrine_hole(k=0):
 
 
 def build_shrine_marker(k=0):
-    """The way down to the Ember Shrine: a round platform of Sheikah stone with rings of orange light, four glowing
-    posts, and in the middle the game's grotto hole (Door_Ana: actors())."""
+    """The way down to a shrine: a low round platform of Sheikah stone with a ring of orange light, and in the middle
+    the game's grotto hole (Door_Ana: actors()). Kept small: every vertex here is room data, which comes out of the
+    actors' memory."""
     e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
     x, top, z, _ = shrine_hole(k)
     gy = float(mesh_height(x, z))
-    prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 16, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
-    for rr, w in ((HOLE_R - 18, 12), (78, 10)):
-        ring = [(x + rr * math.sin(t), top, z + rr * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 25)[:-1]]
-        strip(e, GLOW_ORANGE, ring, [(0, 1, 0)] * len(ring), w, lift=1.2, closed=True)
-    for k in range(4):
-        a = math.pi / 4 + k * math.pi / 2
-        cx, cz = x + math.sin(a) * (HOLE_R - 30), z + math.cos(a) * (HOLE_R - 30)
-        bot, tp = prism(e, TECH, 16, 12, top, top + 120, 4, phase=a, col=SURF_TECH, cap=True, center=(cx, cz))
-        out = unit(np.array([cx - x, 0, cz - z]))
-        line = [np.array([cx, top + h, cz]) + out * 14 for h in (18, 70, 112)]
-        strip(e, GLOW_ORANGE, line, [tuple(out)] * 3, 8, lift=1.0)
+    prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 10, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
+    ring = [(x + (HOLE_R - 22) * math.sin(t), top, z + (HOLE_R - 22) * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 13)[:-1]]
+    strip(e, GLOW_ORANGE, ring, [(0, 1, 0)] * len(ring), 14, lift=1.2, closed=True)
 
 
 def build_boundary():
