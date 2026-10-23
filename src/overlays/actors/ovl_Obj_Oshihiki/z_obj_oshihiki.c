@@ -66,12 +66,14 @@ static Color_RGB8 sColors[][4] = {
     { { 135, 125, 95 }, { 135, 125, 95 }, { 135, 125, 95 }, { 135, 125, 95 } },     // shadow temple
     { { 255, 255, 255 }, { 255, 255, 255 }, { 255, 255, 255 }, { 255, 255, 255 } }, // ganons castle
     { { 232, 210, 176 }, { 232, 210, 176 }, { 232, 210, 176 }, { 232, 210, 176 } }, // gerudo training grounds
+    { { 120, 170, 185 }, { 120, 170, 185 }, { 120, 170, 185 }, { 120, 170, 185 } }, // Web Remix: Ember Shrine
 };
 
 static s16 sSceneIds[] = {
     SCENE_DEKU_TREE,     SCENE_DODONGOS_CAVERN, SCENE_FOREST_TEMPLE,
     SCENE_FIRE_TEMPLE,   SCENE_WATER_TEMPLE,    SCENE_SPIRIT_TEMPLE,
     SCENE_SHADOW_TEMPLE, SCENE_GANONS_TOWER,    SCENE_GERUDO_TRAINING_GROUND,
+    SCENE_REMIX_SHRINE, // Web Remix: the Ember Shrine's block, in its teal stone
 };
 
 static InitChainEntry sInitChain[] = {

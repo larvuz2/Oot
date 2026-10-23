@@ -289,6 +289,7 @@ static MapSelectEntry sMapSelectEntries[] = {
     { "64DD TEST2 n64dd_SetDiskVersion(0)", (void*)func_80800B08_unknown, 0 },
 #endif
     { "NEW:ANCIENT PLATEAU", MapSelect_LoadGame, ENTR_REMIX_ANCIENT_0 },
+    { "NEW:EMBER SHRINE", MapSelect_LoadGame, ENTR_REMIX_SHRINE_0 },
 };
 
 void MapSelect_UpdateMenu(MapSelectState* this) {

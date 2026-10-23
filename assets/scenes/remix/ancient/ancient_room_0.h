@@ -27,6 +27,11 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_VIEW_POOL_Y 41.0f
 #define ANCIENT_VIEW_POOL_Z -2270.4f
 #define ANCIENT_VIEW_POOL_YAW 0x760B
+// The hole down to the Ember Shrine: coming back up, Link is launched out of it (z_remix_level.c)
+#define ANCIENT_SHRINE_HOLE_X -961.2f
+#define ANCIENT_SHRINE_HOLE_Y 177.2f
+#define ANCIENT_SHRINE_HOLE_Z 3103.2f
+#define ANCIENT_SHRINE_HOLE_YAW 0x3AD2
 // Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
 #define ANCIENT_DECOR_SECTORS 51
 #define ANCIENT_DECOR_DRAW_DIST 1500
@@ -209,6 +214,10 @@ extern Vtx ancient_room_0Vtx_entrance_opa[324];
 extern Gfx ancient_room_0DL_entrance_opa[];
 extern Vtx ancient_room_0Vtx_entrance_xlu[106];
 extern Gfx ancient_room_0DL_entrance_xlu[];
+extern Vtx ancient_room_0Vtx_shrine_marker_opa[165];
+extern Gfx ancient_room_0DL_shrine_marker_opa[];
+extern Vtx ancient_room_0Vtx_shrine_marker_xlu[132];
+extern Gfx ancient_room_0DL_shrine_marker_xlu[];
 extern Gfx ancient_room_0DL_decor_s0[];
 extern Gfx ancient_room_0DL_decor_s1[];
 extern Gfx ancient_room_0DL_decor_s2[];

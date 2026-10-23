@@ -14,6 +14,10 @@ struct PlayState;
 // segments 0x08-0x0F.
 void RemixLevel_DrawConfigAncient(struct PlayState* play);
 
+// Scene draw config of the Ember Shrine (SDC_REMIX_SHRINE, level 2, tools/remix/make_shrine.py): glow, the circuit
+// lines of each stage of its trial lit by the stage's switch flag, the rune ring over the altar.
+void RemixLevel_DrawConfigShrine(struct PlayState* play);
+
 // Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
 // objects and adult Link, so it reserves less than the usual 1000 KB and the rest goes to actor memory (the
 // town's people). The remix build checks that the objects fit (.github/workflows/remix.yml).
@@ -21,6 +25,8 @@ void RemixLevel_DrawConfigAncient(struct PlayState* play);
 
 // Sends Link to the Ancient Plateau from anywhere in the game.
 void RemixLevel_GoToAncient(struct PlayState* play);
+// Sends Link down into the Ember Shrine (its exit then takes him up the hole in the Ancient Plateau).
+void RemixLevel_GoToShrine(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -36,6 +42,7 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_HYRULE_FIELD 2  // Hyrule Field the same way (tests: tools/remix/smoke_test.py)
 #define REMIX_BOOT_ISLAND_VIEW 3   // the Ancient Plateau, standing on the floating island (tests)
 #define REMIX_BOOT_POOL_VIEW 4     // the Ancient Plateau, at the pool facing the waterfall (tests)
+#define REMIX_BOOT_SHRINE 5        // level 2: the Ember Shrine, as adult Link, dropping in from its hole
 
 extern RemixBootConfig gRemixBootConfig;
 

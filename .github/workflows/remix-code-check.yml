@@ -75,6 +75,20 @@ jobs:
               || { echo "${f#*:} is not at the start of ancient_${f%%:*}"; exit 1; }
           done
 
+      - name: Level 2 (Ember Shrine) compiles
+        run: |
+          V=${{ matrix.version }}
+          E=build/$V/assets/scenes/remix/ember
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/ember/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $E/ember_scene.o $E/ember_room_0.o $E/ember_title.o
+          size=$(mips-linux-gnu-size -A $E/ember_title.o | awk '$1==".data"{print $2}')
+          case "$V" in pal-*|gc-eu*) want=10368;; *) want=6912;; esac
+          [ "$size" = "$want" ] || { echo "title card is $size bytes, expected $want"; exit 1; }
+          for f in scene:ember_sceneCommands room_0:ember_room_0Commands; do
+            mips-linux-gnu-nm $E/ember_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of ember_${f%%:*}"; exit 1; }
+          done
+
       - name: Biome copy (stand-in scene, no ROM) compiles
         run: |
           python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
@@ -91,6 +105,7 @@ jobs:
             build/${{ matrix.version }}/spec
           grep -q '"tundra_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ancient_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"ember_room_0"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.
           B=build/${{ matrix.version }}/assets/scenes

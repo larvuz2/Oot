@@ -1,7 +1,7 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
-import { setBootMode, BOOT_ANCIENT_PLATEAU } from "./boot.js";
+import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE } from "./boot.js";
 import { cloudInfo, uploadRom, downloadRom } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
@@ -79,6 +79,7 @@ function renderReady() {
 
     const patch = manifest.patches.find((p) => p.sourceMd5 === version.decompressedMd5);
     $("play-level").hidden = !patch;
+    $("play-shrine").hidden = !patch;
     $("play-level-note").hidden = !patch;
     const modes = $("modes");
     const options = [];
@@ -482,7 +483,7 @@ function startEmulator(bytes, gameName, meta = {}) {
     $("game").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function play(forcedMode, { newLevel = false } = {}) {
+async function play(forcedMode, { newLevel = false, level = BOOT_ANCIENT_PLATEAU } = {}) {
     const mode = newLevel ? "remix" : (typeof forcedMode === "string" && forcedMode) || document.querySelector('input[name="mode"]:checked')?.value || "original";
     const core = $("core").value;
     setPreferredCore(core);
@@ -500,7 +501,7 @@ async function play(forcedMode, { newLevel = false } = {}) {
         }
         let gameName = `oot-${rom.version.version}-${rom.version.region}-${mode}`;
         if (newLevel) {
-            if (!setBootMode(bytes, BOOT_ANCIENT_PLATEAU)) {
+            if (!setBootMode(bytes, level)) {
                 throw new Error("This remix build doesn't include the new level yet. Wait for the next remix build and reload.");
             }
             // A test save: keep it apart from your real remix saves.
@@ -571,7 +572,18 @@ $("speed").addEventListener("click", () => {
     setFlag("oot.speed", false);
 });
 $("play").addEventListener("click", () => play());
-$("play-level").addEventListener("click", () => play("remix", { newLevel: true }));
+$("play-level").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_ANCIENT_PLATEAU }));
+$("play-shrine").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_EMBER_SHRINE }));
+// Shortcuts on the start screen: 1 and 2 jump into level 1 and level 2.
+window.addEventListener("keydown", (e) => {
+    if (document.body.dataset.state !== "ready" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+    const button = { 1: "play-level", 2: "play-shrine" }[e.key];
+    if (button && !$(button).hidden) {
+        e.preventDefault();
+        $(button).click();
+    }
+});
 $("crash-restart").addEventListener("click", () => restart(session.core));
 $("crash-copy").addEventListener("click", async () => {
     const text = diagnostics();

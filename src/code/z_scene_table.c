@@ -207,6 +207,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     Scene_DrawConfigGanonsTowerCollapseInterior, // SDC_GANONS_TOWER_COLLAPSE_INTERIOR
     Scene_DrawConfigInsideGanonsCastleCollapse,  // SDC_INSIDE_GANONS_CASTLE_COLLAPSE
     RemixLevel_DrawConfigAncient,                // SDC_REMIX_ANCIENT
+    RemixLevel_DrawConfigShrine,                 // SDC_REMIX_SHRINE
 };
 
 void Scene_Draw(PlayState* play) {
@@ -1774,6 +1775,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     Scene_DrawConfigGanonsTowerCollapseInterior, // SDC_GANONS_TOWER_COLLAPSE_INTERIOR
     Scene_DrawConfigInsideGanonsCastleCollapse,  // SDC_INSIDE_GANONS_CASTLE_COLLAPSE
     RemixLevel_DrawConfigAncient,                // SDC_REMIX_ANCIENT
+    RemixLevel_DrawConfigShrine,                 // SDC_REMIX_SHRINE
 };
 
 void Scene_Draw(PlayState* play) {

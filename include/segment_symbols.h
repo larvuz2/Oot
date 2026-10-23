@@ -689,4 +689,8 @@ DECLARE_ROM_SEGMENT(tundra_room_0)
 DECLARE_ROM_SEGMENT(ancient_scene)
 DECLARE_ROM_SEGMENT(ancient_room_0)
 
+// Web Remix level 2: the Ember Shrine (spec/remix_scenes.inc, tools/remix/make_shrine.py)
+DECLARE_ROM_SEGMENT(ember_scene)
+DECLARE_ROM_SEGMENT(ember_room_0)
+
 #endif

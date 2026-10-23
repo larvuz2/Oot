@@ -181,6 +181,43 @@ The remix build also checks the level:
   runs the level in the website's performance mode, and prints each run's emulation speed (CI's software GPU is
   slow, so compare the runs with each other). The screenshots are attached to the run (`smoke-screenshots`).
 
+## Level 2: the Ember Shrine
+
+A shrine in the style of Breath of the Wild, under the Ancient Plateau: west of the south road where Link arrives,
+across from the eye rock, a round platform with rings of orange light holds the game's grotto hole. Walk into it
+and Link drops into the shrine, the way he falls into a grotto. On the website, **2 · Ember Shrine** (or the
+key <kbd>2</kbd> on the start screen) starts a test save there; from your own save, Remix menu &rarr;
+*Go to: Ember Shrine*.
+
+The arrival chamber is the cow grotto's, rebuilt in the Plateau's Sheikah stone: a cow in its corner, pots of
+arrows, and the glowing pedestal that takes Link back up through the hole. The hall holds the trial, *Carry the
+Flame*, built only from the game's own puzzle pieces (about five minutes):
+
+1. **Wake the shrine.** A Sheikah eye watches over the arch you came through: an arrow in it (an eye switch)
+   lights the great brazier in the middle of the hall.
+2. **Push.** A stone block sits on a track by the east gallery. At the end of the track it rests on a floor
+   switch: the gallery's brazier lights, and the block is the step up to the gallery.
+3. **Kindle.** Three torches must burn at once (each burns 13 seconds). Arrows shot through a burning brazier
+   catch fire and light what they hit: two torches are on the floor, one is on the west gallery, which nobody can
+   reach (a parapet stops shots from below; shoot across the hall from the east gallery).
+4. The big chest drops onto the altar with a Heart Container, and every circuit line in the shrine burns orange.
+
+Each stage's circuit lines (from the eye to the brazier, from the switch up to the gallery, from the torches to
+the altar) glow dim blue until that stage is done, then orange. Puzzle state is saved like a dungeon's.
+
+How it is made: `tools/remix/make_shrine.py` generates `assets/scenes/remix/ember/` (committed; the scene is
+`ember_scene` because the game already has a `shrine_scene`, the Temple of Time's outside) with the Plateau's
+own textures and display-list tools, and checks the trial's shots (each arrow line clear, the west torch out of
+reach from the floor). The pieces are the game's: torches (Obj_Syokudai, golden and timed wooden), the eye switch
+and floor switch (Obj_Switch), the push block (Obj_Oshihiki, tinted the shrine's teal), the falling big chest
+(En_Box), fire walls as flame pillars (Bg_Hidan_Curtain), pots (Obj_Tsubo), the cow (En_Cow), the grotto hole
+(Door_Ana, whose list of grottos gained the shrine) and the grotto exit (`ENTR_RETURN_GROTTO`). Kept cheap to
+draw: about 1,000 triangles in five room chunks, each material set once per chunk, no per-copy matrices
+(`frame_cost.py`: 976 triangles, 41 texture loads, 81 render-mode changes for the whole shrine; Hyrule Field's
+room is 1,639 / 241 / 336). The draw config (`RemixLevel_DrawConfigShrine` in `src/code/z_remix_level.c`)
+reads the trial's switch flags for the circuit lines and turns the rune ring over the altar. The smoke test boots
+into the shrine too (pictures, crash and memory checks).
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
