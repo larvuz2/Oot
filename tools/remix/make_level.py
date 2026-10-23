@@ -1227,6 +1227,8 @@ def shrine_hole(k=0):
                 top = max(float(mesh_height(x + math.sin(a) * HOLE_R, z + math.cos(a) * HOLE_R))
                           for a in np.linspace(0, 2 * math.pi, 12, endpoint=False))
                 top = max(top, float(mesh_height(x, z))) + 8
+                if k >= 2:  # (a plain ring on the grass, no platform: the hole sits on the ground)
+                    top = float(mesh_height(x, z)) + 1
                 rx, rz = math.sin(ang) * r, math.cos(ang) * r
                 _HOLE[k] = (x, top, z, int(math.atan2(rx - x, rz - z) / (2 * math.pi) * 0x10000) & 0xFFFF)
                 break
@@ -1241,14 +1243,21 @@ def build_shrine_marker(k=0):
     the game's grotto hole (Door_Ana: actors()). Kept small: every vertex here is room data, which comes out of the
     actors' memory."""
     x, top, z, _ = shrine_hole(k)
-    if k < 2:
-        e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
-    else:  # (the room has no chunks to spare: later markers go in the terrain chunk under them)
+    if k >= 2:
+        # Later shrines: only the ring of orange light, on the grass round the hole. The room has no chunks to spare
+        # (it goes in the terrain chunk under it), and every byte of room data comes out of the actors' memory: a
+        # platform costs about 2.5 KB of the town's last few.
         xs = _GRID["xs"]
         i = min(max(int(np.searchsorted(xs, x)) - 1, 0), len(xs) - 2)
         j = min(max(int(np.searchsorted(xs, z)) - 1, 0), len(xs) - 2)
         key = _GRID["chunk_of"][(i, j)]
         e = next(en for en in ENTRIES if en.name == f"terrain_{key[0]}_{key[1]}")
+        r = HOLE_R - 50
+        ring = [(x + r * math.sin(t), float(mesh_height(x + r * math.sin(t), z + r * math.cos(t))) + 3,
+                 z + r * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 11)[:-1]]
+        strip(e, GLOW_ORANGE, ring, [(0, 1, 0)] * len(ring), 14, lift=1.2, closed=True)
+        return
+    e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
     gy = float(mesh_height(x, z))
     prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 10, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
     ring = [(x + (HOLE_R - 22) * math.sin(t), top, z + (HOLE_R - 22) * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 13)[:-1]]

@@ -37,11 +37,11 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_SEEKER_HOLE_Z -622.9f
 #define ANCIENT_SEEKER_HOLE_YAW 0xFD5D
 #define ANCIENT_MAGNET_HOLE_X 3162.4f
-#define ANCIENT_MAGNET_HOLE_Y 149.2f
+#define ANCIENT_MAGNET_HOLE_Y 118.3f
 #define ANCIENT_MAGNET_HOLE_Z 313.3f
 #define ANCIENT_MAGNET_HOLE_YAW 0x8161
 #define ANCIENT_FORGE_HOLE_X 39.5f
-#define ANCIENT_FORGE_HOLE_Y 145.9f
+#define ANCIENT_FORGE_HOLE_Y 127.1f
 #define ANCIENT_FORGE_HOLE_Z -3177.6f
 #define ANCIENT_FORGE_HOLE_YAW 0xC4E6
 // Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
@@ -121,9 +121,9 @@ extern Vtx ancient_room_0Vtx_terrain_1_1_opa[74];
 extern Gfx ancient_room_0DL_terrain_1_1_opa[];
 extern Vtx ancient_room_0Vtx_terrain_2_1_opa[152];
 extern Gfx ancient_room_0DL_terrain_2_1_opa[];
-extern Vtx ancient_room_0Vtx_terrain_3_1_opa[130];
+extern Vtx ancient_room_0Vtx_terrain_3_1_opa[79];
 extern Gfx ancient_room_0DL_terrain_3_1_opa[];
-extern Vtx ancient_room_0Vtx_terrain_3_1_xlu[26];
+extern Vtx ancient_room_0Vtx_terrain_3_1_xlu[22];
 extern Gfx ancient_room_0DL_terrain_3_1_xlu[];
 extern Vtx ancient_room_0Vtx_terrain_4_1_opa[69];
 extern Gfx ancient_room_0DL_terrain_4_1_opa[];
@@ -149,9 +149,9 @@ extern Vtx ancient_room_0Vtx_terrain_2_3_opa[431];
 extern Gfx ancient_room_0DL_terrain_2_3_opa[];
 extern Vtx ancient_room_0Vtx_terrain_3_3_opa[454];
 extern Gfx ancient_room_0DL_terrain_3_3_opa[];
-extern Vtx ancient_room_0Vtx_terrain_4_3_opa[163];
+extern Vtx ancient_room_0Vtx_terrain_4_3_opa[112];
 extern Gfx ancient_room_0DL_terrain_4_3_opa[];
-extern Vtx ancient_room_0Vtx_terrain_4_3_xlu[26];
+extern Vtx ancient_room_0Vtx_terrain_4_3_xlu[22];
 extern Gfx ancient_room_0DL_terrain_4_3_xlu[];
 extern Vtx ancient_room_0Vtx_terrain_5_3_opa[79];
 extern Gfx ancient_room_0DL_terrain_5_3_opa[];
