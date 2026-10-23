@@ -131,6 +131,140 @@ MSG(
 )
 )
 
+/* Web Remix: the Shrine of Seven Years (En_Remix_Years) */
+DEFINE_MESSAGE(0x7FA5, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"マスターソードを　ぬいた！\n"
+"７ねんのときが　ながれる・・・"
+)
+,
+MSG(
+"You draw the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "...\n"
+"Seven years pass in a heartbeat."
+)
+,
+MSG(
+"You draw the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "...\n"
+"Seven years pass in a heartbeat."
+)
+,
+MSG(
+"You draw the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "...\n"
+"Seven years pass in a heartbeat."
+)
+)
+
+/* Web Remix: the Shrine of Seven Years (En_Remix_Years) */
+DEFINE_MESSAGE(0x7FA6, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"マスターソードを　だいざに　もどした。\n"
+"７ねんのときが　さかのぼる・・・"
+)
+,
+MSG(
+"You return the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "\n"
+"to its pedestal...\n"
+"Seven years fall away."
+)
+,
+MSG(
+"You return the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "\n"
+"to its pedestal...\n"
+"Seven years fall away."
+)
+,
+MSG(
+"You return the " COLOR(BLUE) "Master Sword" COLOR(DEFAULT) "\n"
+"to its pedestal...\n"
+"Seven years fall away."
+)
+)
+
+/* Web Remix: the Shrine of Seven Years (En_Remix_Years) */
+DEFINE_MESSAGE(0x7FA7, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"７ねんの　ほこら\n"
+"けんを　おさめれば　こどもに\n"
+"けんを　ぬけば　おとなに　もどる"
+)
+,
+MSG(
+"The " COLOR(RED) "Shrine of Seven Years" COLOR(DEFAULT) ".\n"
+"Place the sword to become a child,\n"
+"draw it to grow up again."
+BOX_BREAK
+"Only here does time turn.\n"
+"What the child changes, seven years\n"
+"will age."
+)
+,
+MSG(
+"The " COLOR(RED) "Shrine of Seven Years" COLOR(DEFAULT) ".\n"
+"Place the sword to become a child,\n"
+"draw it to grow up again."
+BOX_BREAK
+"Only here does time turn.\n"
+"What the child changes, seven years\n"
+"will age."
+)
+,
+MSG(
+"The " COLOR(RED) "Shrine of Seven Years" COLOR(DEFAULT) ".\n"
+"Place the sword to become a child,\n"
+"draw it to grow up again."
+BOX_BREAK
+"Only here does time turn.\n"
+"What the child changes, seven years\n"
+"will age."
+)
+)
+
+/* Web Remix: the Shrine of Seven Years (En_Remix_Years) */
+DEFINE_MESSAGE(0x7FA8, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"いちども　たびだたなかった　ものだけが\n"
+"みちを　ひらける"
+)
+,
+MSG(
+"Only the one who has never left\n"
+"may open the way."
+)
+,
+MSG(
+"Only the one who has never left\n"
+"may open the way."
+)
+,
+MSG(
+"Only the one who has never left\n"
+"may open the way."
+)
+)
+
+/* Web Remix: the Shrine of Seven Years (En_Remix_Years) */
+DEFINE_MESSAGE(0x7FA9, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"きょう　うめた　たからは\n"
+"あした　みつかる　たからになる"
+)
+,
+MSG(
+"A treasure buried today\n"
+"is a treasure discovered tomorrow."
+)
+,
+MSG(
+"A treasure buried today\n"
+"is a treasure discovered tomorrow."
+)
+,
+MSG(
+"A treasure buried today\n"
+"is a treasure discovered tomorrow."
+)
+)
+
 /* Web Remix: the Temple of Two Truths (En_Remix_Time) */
 DEFINE_MESSAGE(0x7FA4, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
 MSG(

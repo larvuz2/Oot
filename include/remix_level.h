@@ -35,6 +35,10 @@ void RemixLevel_DrawConfigForge(struct PlayState* play);
 // torches have burned, in the present), each phase's lines once done.
 void RemixLevel_DrawConfigTime(struct PlayState* play);
 
+// Scene draw config of the Shrine of Seven Years (SDC_REMIX_YEARS, level 7, tools/remix/make_years.py): the lines
+// in the era's colour (blue in the past, orange in the present).
+void RemixLevel_DrawConfigYears(struct PlayState* play);
+
 // Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
 // way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
 // soon as he is anywhere else.
@@ -43,8 +47,9 @@ void RemixLevel_OnSceneStart(struct PlayState* play);
 void RemixLevel_TrialSaveSwap(void);
 // A save was loaded or made: there is no trial in progress.
 void RemixLevel_TrialForget(void);
-// The Temple of Two Truths lends Link a kit for both his ages and switches his age with the Song of Time: the age he
-// came in at (he leaves at that age, En_Remix_Time sees to it).
+// The Temple of Two Truths lends Link a kit for both his ages and switches his age with the Song of Time, the Shrine
+// of Seven Years takes his items (swords and shields only) and switches it at the Master Sword's pedestal: the age he
+// came in at (he leaves at that age, En_Remix_Time and En_Remix_Years see to it).
 s32 RemixLevel_TimeEntryAge(void);
 
 // Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
@@ -64,6 +69,8 @@ void RemixLevel_GoToMagnet(struct PlayState* play);
 void RemixLevel_GoToForge(struct PlayState* play);
 // And into the Temple of Two Truths.
 void RemixLevel_GoToTime(struct PlayState* play);
+// And into the Shrine of Seven Years.
+void RemixLevel_GoToYears(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -90,6 +97,10 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_TIME_TEST 13   // the Temple of Two Truths, adult Link on the clock-plate (tests: the Song of Time)
 #define REMIX_BOOT_TIME_SUN 14    // ...on the sunlight's spot, the mirror block grown in the sunbeam (tests)
 #define REMIX_BOOT_TIME_CHILD 15  // ...as child Link, on his pad on the dais (tests)
+#define REMIX_BOOT_YEARS 16       // level 7: the Shrine of Seven Years, the same way as the others
+#define REMIX_BOOT_YEARS_TEST 17  // the Shrine of Seven Years, adult Link before the Master Sword's pedestal (tests)
+#define REMIX_BOOT_YEARS_CHILD 18 // ...child Link before it (tests)
+#define REMIX_BOOT_YEARS_FUTURE 19 // ...adult Link on the upper floor, everything prepared in the past (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

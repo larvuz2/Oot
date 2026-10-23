@@ -32,6 +32,7 @@ SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE, BOOT_SEEKER = 1, 2, 3, 4, 5, 6  # include/remix_level.h
 BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST, BOOT_FORGE, BOOT_FORGE_TEST = 7, 8, 9, 10, 11
 BOOT_TIME, BOOT_TIME_TEST, BOOT_TIME_SUN, BOOT_TIME_CHILD = 12, 13, 14, 15
+BOOT_YEARS, BOOT_YEARS_TEST, BOOT_YEARS_CHILD, BOOT_YEARS_FUTURE = 16, 17, 18, 19
 # EmulatorJS input indices (web/js/app.js KEYS)
 IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
 
@@ -284,7 +285,7 @@ def main():
         # hall (pictures, crash and memory checks)
         # (and level 3, the Seeker's Shrine, the same way)
         for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET),
-                           ("forge", BOOT_FORGE), ("time", BOOT_TIME)):
+                           ("forge", BOOT_FORGE), ("time", BOOT_TIME), ("years", BOOT_YEARS)):
             print(f"smoke: {name}")
             srom = bytearray(args.rom.read_bytes())
             set_boot_flag(srom, mode)
@@ -319,7 +320,15 @@ def main():
                 # the sun symbol, the statue's mouth opens
                 ("time-sun", BOOT_TIME_SUN, [420, 560, 760, 1000], [(440, IN_R, 1), (990, IN_R, 0)]),
                 # child Link on his pad on the dais (the kit for his age, the past's pieces)
-                ("time-child", BOOT_TIME_CHILD, [400, 700], []))
+                ("time-child", BOOT_TIME_CHILD, [400, 700], []),
+                # Level 7: adult Link before the Master Sword's pedestal places the sword (A, then A through the
+                # text): the hall comes back seven years ago, child Link before the pedestal, the sword in it
+                ("years-sword", BOOT_YEARS_TEST, [420, 560, 760, 1000, 1250],
+                 [(440, IN_A, 1), (470, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0), (600, IN_A, 1), (630, IN_A, 0)]),
+                # everything prepared in the past: the adult on the upper floor sees the final staircase whole (its
+                # support under it), the door open; the tree grown by the upper floor
+                ("years-future", BOOT_YEARS_FUTURE, [400, 700], []),
+                ("years-child", BOOT_YEARS_CHILD, [400, 700], []))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
             mrom = bytearray(args.rom.read_bytes())

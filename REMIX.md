@@ -390,6 +390,45 @@ game's own: crystal and floor switches (Obj_Switch), timed torches (Obj_Syokudai
 `src/code/z_remix_level.c` lends the kit and keeps the age Link came in at; four new texts in
 `assets/text/message_data.h`.
 
+## Level 7: the Shrine of Seven Years (no items, only the Master Sword)
+
+A sixth shrine under the Plateau, by the west road nearer the town. On the website, **7 · Shrine of Seven Years**
+(or the key <kbd>7</kbd>); from your own save, Remix menu &rarr; *Go to: Shrine of Seven Years*. Link goes in with
+nothing but the sword and shield of his age; his own things, and the age he came in at, come back when he leaves.
+
+The Temple of Time's language (pale stone, tall pillars, stained glass, the Door of Time) and behind the Master
+Sword's pedestal one puzzle chamber in two timelines. The pedestal is the only place time turns: **place the sword**
+(talk to the pedestal) to be the child seven years ago, **draw it** to be the adult again. Objects don't turn into
+other objects; seven years age them: a sapling grows into a tree, stairs without their support fall, a wall crumbles
+into rubble, roots seal a crack, and a stone block stays a stone block.
+
+1. **The small door.** An aperture in the west wall, too small for the adult. The child goes in, finds a stone cube
+   and pushes it out through the hole into the chamber. In the future it is still where he left it.
+2. **The seven-year block.** In the future the garden's wall has fallen into a mound of rubble too high to climb:
+   push the cube against it and climb over. In the past the wall stands, with a doorway only the child fits through.
+3. **The growing tree.** In the garden the child moves a sapling's planter between three marks. Seven years later a
+   tree stands there, and its branch reaches what is near: the upper floor (from the north mark), a ledge with a
+   chest (the west mark), or nothing. The adult climbs its ivy.
+4. **The broken staircase.** The final staircase climbs from the upper floor to the exit; whole in the past, broken
+   in the future, unless the child (who reaches the upper floor by the east stairs, rotted away in the future)
+   pushes the stone support under its middle.
+5. **The solution is behind you.** The exit door has no handle: *"Only the one who has never left may open the
+   way."* Through the narrow opening beside it a floor switch can be seen, and only the child fits. Pressed, the door
+   opens and stays open, but the reward stands too high for the child: back to the pedestal, and the adult claims it.
+6. **The hidden treasure.** In the past a crack in the east wall leads into an alcove: *"A treasure buried today is
+   a treasure discovered tomorrow."* Lift the loose stone and drop the golden medallion (from the little room behind
+   the small door) into the hole under it. Seven years later roots seal the alcove; the adult pushes them aside, and
+   a chest stands where the medallion was buried.
+
+How it is made: `tools/remix/make_years.py` generates `assets/scenes/remix/years/` and checks the layout (the rubble
+too high without the cube, the plinth too high for the child, the broken stairs too wide to jump, the tree's branch
+reaching only from the right marks); `tools/remix/years_plan.py` is the plan it and `make_years_parts.py` (the
+pieces, `object_remix_years`) share. `ovl_En_Remix_Years` does the pedestal (the Temple of Time's
+`play->linkAgeOnLoad`, then an entrance whose spawn stands before the pedestal), the pushed blocks (the cube moves in
+both ages, the planter and the support only in the past; each place is kept in switch flags), what seven years
+change, the blocks that keep the adult out of the small openings, the medallion and the loose stone, the future's
+chest. The door's switch, the chests and the torches are the game's own.
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
@@ -563,6 +602,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/make_magnet.py`, `make_magnet_parts.py`, `make_slate.py`, `assets/scenes/remix/magnet/`, `src/overlays/actors/ovl_En_Remix_Magnet/`, `assets/objects/object_remix_magnet/`, `assets/objects/object_remix_slate/` | Level 4, the Lodestone Shrine: Magnesis and the moving pieces, and the fal-made rune. `GI_REMIX_MAGNESIS` in `include/item.h`, `z_draw.c`, `z_player.c` (get-item table, text id now 16 bits) and `assets/text/message_data.h` |
 | `tools/remix/make_forge.py`, `assets/scenes/remix/forge/` | Level 5, the Forge Shrine (the fire basket, gates and spans are `ovl_En_Remix_Magnet` too) |
 | `tools/remix/make_time.py`, `make_time_parts.py`, `time_plan.py`, `assets/scenes/remix/time/`, `src/overlays/actors/ovl_En_Remix_Time/`, `assets/objects/object_remix_time/` | Level 6, the Temple of Two Truths: the hall, its pieces and the age switch; the kit in `z_remix_level.c`, texts in `assets/text/message_data.h` |
+| `tools/remix/make_years.py`, `make_years_parts.py`, `years_plan.py`, `assets/scenes/remix/years/`, `src/overlays/actors/ovl_En_Remix_Years/`, `assets/objects/object_remix_years/` | Level 7, the Shrine of Seven Years: the hall, its pieces and the Master Sword's pedestal; the swords-only kit in `z_remix_level.c` |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

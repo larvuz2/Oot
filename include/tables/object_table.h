@@ -413,3 +413,4 @@
 /* 0x0193 */ DEFINE_OBJECT(object_remix_slate, OBJECT_REMIX_SLATE) // Web Remix
 /* 0x0194 */ DEFINE_OBJECT(object_remix_magnet, OBJECT_REMIX_MAGNET) // Web Remix
 /* 0x0195 */ DEFINE_OBJECT(object_remix_time, OBJECT_REMIX_TIME) // Web Remix
+/* 0x0196 */ DEFINE_OBJECT(object_remix_years, OBJECT_REMIX_YEARS) // Web Remix

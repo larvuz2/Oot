@@ -14,7 +14,7 @@ import { n64Checksum } from "../js/n64crc.js";
 import { applyBps } from "../js/bps.js";
 import { decompressRom, toBigEndian } from "../js/rom.js";
 import { parseEnhance, rigOutputs, rigInput, imagesInput, isFalMediaUrl, isFalQueueUrl } from "../js/studio-pipeline.js";
-import { findBootConfig, setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE, BOOT_FORGE_SHRINE, BOOT_TIME_TEMPLE } from "../js/boot.js";
+import { findBootConfig, setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE, BOOT_FORGE_SHRINE, BOOT_TIME_TEMPLE, BOOT_SEVEN_YEARS } from "../js/boot.js";
 import { uploadRom, downloadRom, deleteRom, deriveKeys, cloudInfo, PART_SIZE } from "../js/cloud.js";
 import { handle as romHandler } from "../netlify/functions/rom.mjs";
 
@@ -108,6 +108,7 @@ for (const r of manifest.roms) {
     check("level 4 boot mode (include/remix_level.h REMIX_BOOT_MAGNET)", setBootMode(rom, BOOT_LODESTONE_SHRINE) && rom[0x2f3f8 + 8] === 7);
     check("level 5 boot mode (include/remix_level.h REMIX_BOOT_FORGE)", setBootMode(rom, BOOT_FORGE_SHRINE) && rom[0x2f3f8 + 8] === 10);
     check("level 6 boot mode (include/remix_level.h REMIX_BOOT_TIME)", setBootMode(rom, BOOT_TIME_TEMPLE) && rom[0x2f3f8 + 8] === 12);
+    check("level 7 boot mode (include/remix_level.h REMIX_BOOT_YEARS)", setBootMode(rom, BOOT_SEVEN_YEARS) && rom[0x2f3f8 + 8] === 16);
     const header = new Uint8Array(0x2000);
     header.set(magic, 0x10); // inside the ROM header area: ignored
     check("boot config ignores the header", findBootConfig(header) === -1 && !setBootMode(header, 1));

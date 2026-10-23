@@ -294,6 +294,7 @@ static MapSelectEntry sMapSelectEntries[] = {
     { "NEW:LODESTONE SHRINE", MapSelect_LoadGame, ENTR_REMIX_MAGNET_0 },
     { "NEW:FORGE SHRINE", MapSelect_LoadGame, ENTR_REMIX_FORGE_0 },
     { "NEW:TEMPLE OF TWO TRUTHS", MapSelect_LoadGame, ENTR_REMIX_TIME_0 },
+    { "NEW:SHRINE OF SEVEN YEARS", MapSelect_LoadGame, ENTR_REMIX_YEARS_0 },
 };
 
 void MapSelect_UpdateMenu(MapSelectState* this) {

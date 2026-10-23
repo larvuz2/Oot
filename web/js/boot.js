@@ -11,6 +11,7 @@ export const BOOT_SEEKER_SHRINE = 6; // level 3: the Seeker's Shrine (with nothi
 export const BOOT_LODESTONE_SHRINE = 7; // level 4: the Lodestone Shrine (Magnesis)
 export const BOOT_FORGE_SHRINE = 10; // level 5: the Forge Shrine (Magnesis and fire)
 export const BOOT_TIME_TEMPLE = 12; // level 6: the Temple of Two Truths (the Song of Time, child and adult)
+export const BOOT_SEVEN_YEARS = 16; // level 7: the Shrine of Seven Years (the Master Sword's pedestal)
 
 /** Find the boot struct in a big-endian (.z64) ROM. Returns its offset, or -1. */
 export function findBootConfig(rom) {

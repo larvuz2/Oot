@@ -31,6 +31,8 @@
  *     the lines of the first eye (0x09) and of the awakened statue (0x0A). The shrine's pieces are En_Remix_Time.
  *   - The Temple of Two Truths' kit: both ages' tools while Link is inside (and the Song of Time), his own items and
  *     age back when he leaves.
+ *   - The Shrine of Seven Years' draw config (level 7): the lines in the era's colour (0x0B). Its trial: swords and
+ *     shields only (no items), Link's own things and age back when he leaves. The pieces are En_Remix_Years.
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -60,6 +62,7 @@
 #include "assets/scenes/remix/magnet/magnet_room_0.h"
 #include "assets/scenes/remix/forge/forge_room_0.h"
 #include "assets/scenes/remix/time/time_room_0.h"
+#include "assets/scenes/remix/years/years_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -559,6 +562,54 @@ void RemixLevel_DrawConfigTime(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToYears(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_YEARS_HOLE_X, ANCIENT_YEARS_HOLE_Y, ANCIENT_YEARS_HOLE_Z,
+                               ANCIENT_YEARS_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_YEARS_0);
+}
+
+void RemixLevel_DrawConfigYears(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* era = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 120, 215 + (s32)(wave * 25.0f), 255, 170 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 170 - (s32)(wave * 30.0f), 60, 220 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+    gDPPipeSync(era);
+    if (!LINK_IS_ADULT) {
+        gDPSetPrimColor(era + 1, 0, 0, 90, 180, 255, 210 + (s32)(wave * 40.0f));
+    } else {
+        gDPSetPrimColor(era + 1, 0, 0, 255, 160 - (s32)(wave * 30.0f), 60, 210 + (s32)(wave * 40.0f));
+    }
+    gSPEndDisplayList(era + 2);
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, era);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, era);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
 // ---- the Temple of Two Truths' kit: both ages' tools inside, Link's own things back outside ----
 
 typedef struct RemixTimeKit {
@@ -681,6 +732,32 @@ static void RemixTimeKit_End(void) {
     sTimeKit.active = false;
 }
 
+/** The Shrine of Seven Years: no items at all, the sword and shield of Link's age. */
+static void RemixTimeKit_EquipYears(void) {
+    Inventory* inv = &gSaveContext.save.info.inventory;
+    ItemEquips* eq = &gSaveContext.save.info.equips;
+    s32 child = !LINK_IS_ADULT;
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(inv->items); i++) {
+        inv->items[i] = ITEM_NONE;
+    }
+    for (i = 0; i < ARRAY_COUNT(inv->ammo); i++) {
+        inv->ammo[i] = 0;
+    }
+    inv->equipment =
+        OWN_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) | OWN_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER) |
+        OWN_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_DEKU) | OWN_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_HYLIAN) |
+        OWN_EQUIP(EQUIP_TYPE_TUNIC, EQUIP_INV_TUNIC_KOKIRI) | OWN_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_KOKIRI);
+    eq->buttonItems[0] = child ? ITEM_SWORD_KOKIRI : ITEM_SWORD_MASTER;
+    for (i = 1; i < 4; i++) {
+        eq->buttonItems[i] = ITEM_NONE;
+        eq->cButtonSlots[i - 1] = SLOT_NONE;
+    }
+    eq->equipment = child ? EQUIP_VALUES(EQUIP_VALUE_SWORD_KOKIRI, EQUIP_VALUE_SHIELD_DEKU)
+                          : EQUIP_VALUES(EQUIP_VALUE_SWORD_MASTER, EQUIP_VALUE_SHIELD_HYLIAN);
+}
+
 s32 RemixLevel_TimeEntryAge(void) {
     return sTimeKit.active ? sTimeKit.entryAge : gSaveContext.save.linkAge;
 }
@@ -757,11 +834,15 @@ static void RemixTrial_End(void) {
 }
 
 void RemixLevel_OnSceneStart(PlayState* play) {
-    if (play->sceneId == SCENE_REMIX_TIME) {
+    if ((play->sceneId == SCENE_REMIX_TIME) || (play->sceneId == SCENE_REMIX_YEARS)) {
         if (!sTimeKit.active) {
             RemixTimeKit_Begin();
         }
-        RemixTimeKit_Equip();
+        if (play->sceneId == SCENE_REMIX_TIME) {
+            RemixTimeKit_Equip();
+        } else {
+            RemixTimeKit_EquipYears();
+        }
     } else if (sTimeKit.active) {
         RemixTimeKit_End();
     }
@@ -856,14 +937,16 @@ void RemixBoot_Start(GameState* gameState) {
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0);
     // Mode 2 (Hyrule Field) is for tests: the same quick boot into a level of the original game.
     gSaveContext.save.entranceIndex =
-        (mode == REMIX_BOOT_HYRULE_FIELD)                                    ? ENTR_HYRULE_FIELD_0
-        : (mode == REMIX_BOOT_SHRINE)                                        ? ENTR_REMIX_SHRINE_0
-        : (mode == REMIX_BOOT_SEEKER)                                        ? ENTR_REMIX_SEEKER_0
-        : ((mode >= REMIX_BOOT_MAGNET) && (mode <= REMIX_BOOT_MAGNET_CHEST)) ? ENTR_REMIX_MAGNET_0
-        : ((mode >= REMIX_BOOT_FORGE) && (mode <= REMIX_BOOT_FORGE_TEST))    ? ENTR_REMIX_FORGE_0
-        : (mode == REMIX_BOOT_TIME_CHILD)                                    ? ENTR_REMIX_TIME_1
-        : (mode >= REMIX_BOOT_TIME)                                          ? ENTR_REMIX_TIME_0
-                                                                             : ENTR_REMIX_ANCIENT_0;
+        (mode == REMIX_BOOT_HYRULE_FIELD)                                       ? ENTR_HYRULE_FIELD_0
+        : (mode == REMIX_BOOT_SHRINE)                                           ? ENTR_REMIX_SHRINE_0
+        : (mode == REMIX_BOOT_SEEKER)                                           ? ENTR_REMIX_SEEKER_0
+        : ((mode >= REMIX_BOOT_MAGNET) && (mode <= REMIX_BOOT_MAGNET_CHEST))    ? ENTR_REMIX_MAGNET_0
+        : ((mode >= REMIX_BOOT_FORGE) && (mode <= REMIX_BOOT_FORGE_TEST))       ? ENTR_REMIX_FORGE_0
+        : (mode == REMIX_BOOT_TIME_CHILD)                                       ? ENTR_REMIX_TIME_1
+        : ((mode >= REMIX_BOOT_TIME) && (mode <= REMIX_BOOT_TIME_SUN))          ? ENTR_REMIX_TIME_0
+        : ((mode == REMIX_BOOT_YEARS_TEST) || (mode == REMIX_BOOT_YEARS_CHILD)) ? ENTR_REMIX_YEARS_1
+        : (mode >= REMIX_BOOT_YEARS)                                            ? ENTR_REMIX_YEARS_0
+                                                                                : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
     if (mode == REMIX_BOOT_MAGNET_TEST || mode == REMIX_BOOT_MAGNET_CHEST) {
@@ -924,8 +1007,28 @@ void RemixBoot_Start(GameState* gameState) {
         r->tempSwchFlags = r->tempCollectFlags = 0;
         gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
     }
-    if (mode == REMIX_BOOT_TIME_CHILD) {
-        gSaveContext.save.linkAge = LINK_AGE_CHILD; // (onto his pad on the dais: ENTR_REMIX_TIME_1, spawn 1)
+    if ((mode == REMIX_BOOT_TIME_CHILD) || (mode == REMIX_BOOT_YEARS_CHILD)) {
+        gSaveContext.save.linkAge = LINK_AGE_CHILD; // (onto his pad / before the pedestal: spawn 1)
+    }
+    if (mode == REMIX_BOOT_YEARS_FUTURE) {
+        // Test: everything prepared in the past (the cube against the rubble, the planter by the upper floor, the
+        // support under the final staircase), the door opened; adult Link on the upper floor facing the staircase
+        SavedSceneFlags* flags = &gSaveContext.save.info.sceneFlags[SCENE_REMIX_YEARS];
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+
+        flags->swch |= (1 << YEARS_SHRINE_FLAG_DOOR) | (YEARS_SHRINE_CUBE_LAST << YEARS_SHRINE_FLAG_CUBE) |
+                       (YEARS_SHRINE_PLANTER_NORTH << YEARS_SHRINE_FLAG_PLANTER) |
+                       (YEARS_SHRINE_SUPPORT_UNDER << YEARS_SHRINE_FLAG_SUPPORT);
+        r->pos.x = YEARS_TEST_UPPER_X;
+        r->pos.y = YEARS_TEST_UPPER_Y;
+        r->pos.z = YEARS_TEST_UPPER_Z;
+        r->yaw = 0x4000;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_YEARS_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
     }
     if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
         // Tests: start somewhere else in the level, the way Link comes back after a void out (z_player.c).
@@ -951,6 +1054,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if ((mode == REMIX_BOOT_YEARS) || (mode == REMIX_BOOT_YEARS_TEST) || (mode == REMIX_BOOT_YEARS_CHILD)) {
+        RemixLevel_SetShrineReturn(ANCIENT_YEARS_HOLE_X, ANCIENT_YEARS_HOLE_Y, ANCIENT_YEARS_HOLE_Z,
+                                   ANCIENT_YEARS_HOLE_YAW);
     } else if ((mode == REMIX_BOOT_TIME) || (mode == REMIX_BOOT_TIME_CHILD)) {
         RemixLevel_SetShrineReturn(ANCIENT_TIME_HOLE_X, ANCIENT_TIME_HOLE_Y, ANCIENT_TIME_HOLE_Z,
                                    ANCIENT_TIME_HOLE_YAW);

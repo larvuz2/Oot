@@ -485,3 +485,4 @@
 /* 0x01D7 */ DEFINE_ACTOR(En_Remix_Model, ACTOR_EN_REMIX_MODEL, ACTOROVL_ALLOC_NORMAL, "En_Remix_Model") // Web Remix
 /* 0x01D8 */ DEFINE_ACTOR(En_Remix_Magnet, ACTOR_EN_REMIX_MAGNET, ACTOROVL_ALLOC_NORMAL, "En_Remix_Magnet") // Web Remix
 /* 0x01D9 */ DEFINE_ACTOR(En_Remix_Time, ACTOR_EN_REMIX_TIME, ACTOROVL_ALLOC_NORMAL, "En_Remix_Time") // Web Remix
+/* 0x01DA */ DEFINE_ACTOR(En_Remix_Years, ACTOR_EN_REMIX_YEARS, ACTOROVL_ALLOC_NORMAL, "En_Remix_Years") // Web Remix
