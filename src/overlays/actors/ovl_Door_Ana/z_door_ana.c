@@ -69,6 +69,7 @@ static s16 sGrottoEntrances[] = {
     ENTR_REMIX_SEEKER_0, // Web Remix: the Seeker's Shrine (home.rot.z 15)
     ENTR_REMIX_MAGNET_0, // Web Remix: the Lodestone Shrine (home.rot.z 16)
     ENTR_REMIX_FORGE_0,  // Web Remix: the Forge Shrine (home.rot.z 17)
+    ENTR_REMIX_TIME_0,   // Web Remix: the Temple of Two Truths (home.rot.z 18)
 };
 
 void DoorAna_SetupAction(DoorAna* this, DoorAnaActionFunc actionFunc) {

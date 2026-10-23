@@ -14,3 +14,10 @@ beginseg
     flags OVERLAY
     include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Magnet/z_en_remix_magnet.o"
 endseg
+
+beginseg
+    name "ovl_En_Remix_Time"
+    compress
+    flags OVERLAY
+    include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Time/z_en_remix_time.o"
+endseg

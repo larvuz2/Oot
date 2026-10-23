@@ -30,6 +30,11 @@ void RemixLevel_DrawConfigMagnet(struct PlayState* play);
 // lines once its torch is lit, the rune ring over the exit.
 void RemixLevel_DrawConfigForge(struct PlayState* play);
 
+// Scene draw config of the Temple of Two Truths (SDC_REMIX_TIME, level 6, tools/remix/make_time.py): the floor's
+// circuit in the era's colour (blue in the past, orange in the present), the waterfall flowing up (down once the
+// torches have burned, in the present), each phase's lines once done.
+void RemixLevel_DrawConfigTime(struct PlayState* play);
+
 // Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
 // way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
 // soon as he is anywhere else.
@@ -38,6 +43,9 @@ void RemixLevel_OnSceneStart(struct PlayState* play);
 void RemixLevel_TrialSaveSwap(void);
 // A save was loaded or made: there is no trial in progress.
 void RemixLevel_TrialForget(void);
+// The Temple of Two Truths lends Link a kit for both his ages and switches his age with the Song of Time: the age he
+// came in at (he leaves at that age, En_Remix_Time sees to it).
+s32 RemixLevel_TimeEntryAge(void);
 
 // Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
 // objects and adult Link, so it reserves less than the usual 1000 KB and the rest goes to actor memory (the
@@ -54,6 +62,8 @@ void RemixLevel_GoToSeeker(struct PlayState* play);
 void RemixLevel_GoToMagnet(struct PlayState* play);
 // And into the Forge Shrine.
 void RemixLevel_GoToForge(struct PlayState* play);
+// And into the Temple of Two Truths.
+void RemixLevel_GoToTime(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -76,6 +86,10 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_MAGNET_CHEST 9 // the Lodestone Shrine, in front of the rune's chest (tests)
 #define REMIX_BOOT_FORGE 10       // level 5: the Forge Shrine, the same way as the others
 #define REMIX_BOOT_FORGE_TEST 11  // the Forge Shrine, behind the burning basket, facing the first gate (tests)
+#define REMIX_BOOT_TIME 12        // level 6: the Temple of Two Truths, the same way as the others
+#define REMIX_BOOT_TIME_TEST 13   // the Temple of Two Truths, adult Link on the clock-plate (tests: the Song of Time)
+#define REMIX_BOOT_TIME_SUN 14    // ...on the sunlight's spot, the mirror block grown in the sunbeam (tests)
+#define REMIX_BOOT_TIME_CHILD 15  // ...as child Link, on his pad on the dais (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

@@ -211,6 +211,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     RemixLevel_DrawConfigSeeker,                 // SDC_REMIX_SEEKER
     RemixLevel_DrawConfigMagnet,                 // SDC_REMIX_MAGNET
     RemixLevel_DrawConfigForge,                  // SDC_REMIX_FORGE
+    RemixLevel_DrawConfigTime,                   // SDC_REMIX_TIME
 };
 
 void Scene_Draw(PlayState* play) {
@@ -1782,6 +1783,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     RemixLevel_DrawConfigSeeker,                 // SDC_REMIX_SEEKER
     RemixLevel_DrawConfigMagnet,                 // SDC_REMIX_MAGNET
     RemixLevel_DrawConfigForge,                  // SDC_REMIX_FORGE
+    RemixLevel_DrawConfigTime,                   // SDC_REMIX_TIME
 };
 
 void Scene_Draw(PlayState* play) {
