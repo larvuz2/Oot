@@ -525,8 +525,8 @@ def title_card():
 
 def light_settings():
     """Inside, one dim blue light setting (the glow lines and the torches do the rest), dark blue fog."""
-    row = ("{ { 46, 52, 74 }, { 73, 73, 73 }, { 118, 132, 168 }, { -73, -73, -73 }, { 70, 54, 40 }, "
-           "{ 10, 14, 26 }, BLEND_RATE_AND_FOG_NEAR(4, 985), 3600 },\n")
+    row = ("{ { 66, 72, 98 }, { 73, 73, 73 }, { 150, 164, 200 }, { -73, -73, -73 }, { 84, 66, 50 }, "
+           "{ 14, 18, 32 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 3600 },\n")
     return f"EnvLightSettings {SCENE}LightSettings[] = {{\n" + "    " + row * 1 + "    " + row + "    " + row + "    " + row + "};\n\n"
 
 
