@@ -36,10 +36,10 @@ BOOT_TIME, BOOT_TIME_TEST, BOOT_TIME_SUN, BOOT_TIME_CHILD = 12, 13, 14, 15
 IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
 
 
-def song_of_time(start, gap=36, hold=14):
+def song_of_time(start, gap=40, hold=16):
     """Inputs that take out the Ocarina (C-Down) and play the Song of Time: C-Right, A, C-Down, twice."""
-    out = [(start, IN_C_DOWN, 0x7FFF), (start + hold, IN_C_DOWN, 0)]
-    t = start + 90
+    out = [(start, IN_C_DOWN, 0x7FFF), (start + 30, IN_C_DOWN, 0)]  # (held long: a missed press would cast Din's Fire)
+    t = start + 130
     for k, (button, value) in enumerate([(IN_C_RIGHT, 0x7FFF), (IN_A, 1), (IN_C_DOWN, 0x7FFF)] * 2):
         out += [(t, button, value), (t + hold, button, 0)]
         t += gap
@@ -314,7 +314,7 @@ def main():
                  [(440, IN_L, 1), (470, IN_STICK_UP, 0x7FFF), (580, IN_STICK_UP, 0), (640, IN_L, 0)]),
                 # Level 6: adult Link plays the Song of Time on the clock-plate and comes back as a child (the room in
                 # the past: the bridge to the dais, the ramp up the statue, the seed, the hourglass upside down)
-                ("time-song", BOOT_TIME_TEST, [420, 640, 900, 1150, 1450], song_of_time(430)),
+                ("time-song", BOOT_TIME_TEST, [440, 680, 1000, 1300, 1600], song_of_time(460)),
                 # the mirror block grown in the sunbeam: Link on the light's spot raises the Mirror Shield (R) towards
                 # the sun symbol, the statue's mouth opens
                 ("time-sun", BOOT_TIME_SUN, [420, 560, 760, 1000], [(440, IN_R, 1), (990, IN_R, 0)]),
