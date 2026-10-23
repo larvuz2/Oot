@@ -59,6 +59,17 @@ jobs:
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
 
+      - name: Level 5 (Forge Shrine) compiles
+        run: |
+          V=${{ matrix.version }}
+          G=build/$V/assets/scenes/remix/forge
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/forge/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $G/forge_scene.o $G/forge_room_0.o $G/forge_title.o
+          for f in scene:forge_sceneCommands room_0:forge_room_0Commands; do
+            mips-linux-gnu-nm $G/forge_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of forge_${f%%:*}"; exit 1; }
+          done
+
       - name: Level 4 (Lodestone Shrine), Magnesis and its objects compile
         run: |
           V=${{ matrix.version }}
@@ -141,6 +152,7 @@ jobs:
           grep -q '"ember_room_0"' build/${{ matrix.version }}/spec
           grep -q '"seeker_room_0"' build/${{ matrix.version }}/spec
           grep -q '"magnet_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"forge_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ovl_En_Remix_Magnet"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.

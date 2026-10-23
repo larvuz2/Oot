@@ -24,6 +24,8 @@
  *   - The Lodestone Shrine's draw config (level 4): Magnesis's circuit lines (0x09: dim until the rune's chest is
  *     open, then magenta), the lift's (0x0A: orange while its switch is held), the rune ring over the altar (0x0F).
  *     Magnesis itself and the shrine's moving pieces are En_Remix_Magnet actors.
+ *   - The Forge Shrine's draw config (level 5): each stage's circuit lines (0x09, 0x0A, 0x0B, 0x0E: dim until the
+ *     stage's torch is lit, then burning orange) and the rune ring over the exit (0x0F).
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -51,6 +53,7 @@
 #include "assets/scenes/remix/ember/ember_room_0.h"
 #include "assets/scenes/remix/seeker/seeker_room_0.h"
 #include "assets/scenes/remix/magnet/magnet_room_0.h"
+#include "assets/scenes/remix/forge/forge_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -431,6 +434,66 @@ void RemixLevel_DrawConfigMagnet(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToForge(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_FORGE_HOLE_X, ANCIENT_FORGE_HOLE_Y, ANCIENT_FORGE_HOLE_Z,
+                               ANCIENT_FORGE_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_FORGE_0);
+}
+
+void RemixLevel_DrawConfigForge(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    s32 done = Flags_GetSwitch(play, FORGE_FLAG_4);
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+    Gfx* stage1 = RemixLevel_LineColor(play, Flags_GetSwitch(play, FORGE_FLAG_1), 255, 150, 40, wave);
+    Gfx* stage2 = RemixLevel_LineColor(play, Flags_GetSwitch(play, FORGE_FLAG_2), 255, 150, 40, wave);
+    Gfx* stage3 = RemixLevel_LineColor(play, Flags_GetSwitch(play, FORGE_FLAG_3), 255, 150, 40, wave);
+    Gfx* stage4 = RemixLevel_LineColor(play, done, 255, 150, 40, wave);
+    Mtx* ringMtx;
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 70, 215 + (s32)(wave * 25.0f), 255, 190 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 40, 230 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+
+    Matrix_Push();
+    Matrix_Translate(FORGE_RING_X, FORGE_RING_Y + Math_SinS((s16)(frames * 0x200)) * 10.0f, FORGE_RING_Z, MTXMODE_NEW);
+    Matrix_RotateY(frames * (done ? 0.04f : 0.008f), MTXMODE_APPLY);
+    ringMtx = MATRIX_FINALIZE(gfxCtx, "../z_remix_level.c", __LINE__);
+    Matrix_Pop();
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x09, stage1);
+    gSPSegment(POLY_OPA_DISP++, 0x0A, stage2);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, stage3);
+    gSPSegment(POLY_OPA_DISP++, 0x0E, stage4);
+    gSPSegment(POLY_OPA_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x09, stage1);
+    gSPSegment(POLY_XLU_DISP++, 0x0A, stage2);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, stage3);
+    gSPSegment(POLY_XLU_DISP++, 0x0E, stage4);
+    gSPSegment(POLY_XLU_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
 // ---- the Seeker's Shrine's trial: nothing but the sword going in ----
 
 typedef struct RemixTrial {
@@ -574,8 +637,10 @@ void RemixBoot_Start(GameState* gameState) {
     gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0
                                       : (mode == REMIX_BOOT_SHRINE)     ? ENTR_REMIX_SHRINE_0
                                       : (mode == REMIX_BOOT_SEEKER)     ? ENTR_REMIX_SEEKER_0
-                                      : (mode >= REMIX_BOOT_MAGNET)     ? ENTR_REMIX_MAGNET_0
-                                                                        : ENTR_REMIX_ANCIENT_0;
+                                      : ((mode >= REMIX_BOOT_MAGNET) && (mode <= REMIX_BOOT_MAGNET_CHEST))
+                                          ? ENTR_REMIX_MAGNET_0
+                                      : (mode >= REMIX_BOOT_FORGE) ? ENTR_REMIX_FORGE_0
+                                                                   : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
     if (mode == REMIX_BOOT_MAGNET_TEST || mode == REMIX_BOOT_MAGNET_CHEST) {
@@ -595,6 +660,21 @@ void RemixBoot_Start(GameState* gameState) {
         r->yaw = slab ? 0x8000 : 0xC000;
         r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
         r->entranceIndex = ENTR_REMIX_MAGNET_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
+    if (mode == REMIX_BOOT_FORGE_TEST) {
+        // Test: behind the Forge Shrine's basket (burning from the start), facing the first gate and its torch
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+
+        r->pos.x = FORGE_TEST_X;
+        r->pos.y = 0.0f;
+        r->pos.z = FORGE_TEST_Z;
+        r->yaw = 0x8000;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_FORGE_0;
         r->roomIndex = 0;
         r->data = 0;
         r->tempSwchFlags = r->tempCollectFlags = 0;
@@ -624,6 +704,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if (mode == REMIX_BOOT_FORGE) {
+        RemixLevel_SetShrineReturn(ANCIENT_FORGE_HOLE_X, ANCIENT_FORGE_HOLE_Y, ANCIENT_FORGE_HOLE_Z,
+                                   ANCIENT_FORGE_HOLE_YAW);
     } else if (mode == REMIX_BOOT_MAGNET) { // (not the tests: they use the same respawn data to place Link)
         RemixLevel_SetShrineReturn(ANCIENT_MAGNET_HOLE_X, ANCIENT_MAGNET_HOLE_Y, ANCIENT_MAGNET_HOLE_Z,
                                    ANCIENT_MAGNET_HOLE_YAW);

@@ -30,9 +30,9 @@ SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 
 BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE, BOOT_SEEKER = 1, 2, 3, 4, 5, 6  # include/remix_level.h
-BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST = 7, 8, 9
+BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST, BOOT_FORGE, BOOT_FORGE_TEST = 7, 8, 9, 10, 11
 # EmulatorJS input indices (web/js/app.js KEYS)
-IN_A, IN_L, IN_STICK_DOWN, IN_C_UP = 0, 10, 18, 23
+IN_A, IN_L, IN_STICK_DOWN, IN_STICK_UP, IN_C_UP = 0, 10, 18, 19, 23
 
 
 def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
@@ -272,7 +272,8 @@ def main():
         # Level 2: dropping into the Ember Shrine through its hole, then walking from the arrival chamber into the
         # hall (pictures, crash and memory checks)
         # (and level 3, the Seeker's Shrine, the same way)
-        for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET)):
+        for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET),
+                           ("forge", BOOT_FORGE)):
             print(f"smoke: {name}")
             srom = bytearray(args.rom.read_bytes())
             set_boot_flag(srom, mode)
@@ -288,14 +289,18 @@ def main():
                 except Exception as e:  # diagnostics only
                     print(f"smoke:   could not read them ({e})")
     if not args.no_boot_flag and ok:
-        # Level 4's new item: Magnesis. With the rune found, Link faces the iron slab in the north doorway: hold L
+        # Level 4's new item: Magnesis, and level 5's fire basket. With the rune found, Link faces the iron slab in the north doorway: hold L
         # (grab), C-Up (lift), pull the stick back (bring it out of the doorway), let go (drop). Then, from a fresh
         # start in front of the rune's chest: A opens it and Link holds up the Magnesis Rune (the fal-made model).
         runs = (("magnesis", BOOT_MAGNET_TEST, [420, 520, 640, 760],
                  [(440, IN_L, 1), (460, IN_C_UP, 0x7FFF), (510, IN_C_UP, 0), (530, IN_STICK_DOWN, 0x7FFF),
                   (620, IN_STICK_DOWN, 0), (700, IN_L, 0)]),
                 ("rune-chest", BOOT_MAGNET_CHEST, [420, 760, 900, 1020, 1150],
-                 [(440, IN_A, 1), (480, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0)]))
+                 [(440, IN_A, 1), (480, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0)]),
+                # Level 5: the burning basket (lit by its eternal torch), carried by Magnesis to the first gate's
+                # torch: the torch lights and the gate rises
+                ("forge-flame", BOOT_FORGE_TEST, [420, 520, 640, 760],
+                 [(440, IN_L, 1), (470, IN_STICK_UP, 0x7FFF), (580, IN_STICK_UP, 0), (640, IN_L, 0)]))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
             mrom = bytearray(args.rom.read_bytes())

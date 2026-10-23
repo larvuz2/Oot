@@ -1201,10 +1201,11 @@ _HOLE = {}
 HOLE_R = 150  # the shrine marker's platform
 # Where each shrine's hole goes: (road, distances along it, offsets to its side). 0: the Ember Shrine (level 2), west
 # of the south road across from the eye rock, where Link arrives; 1: the Seeker's Shrine (level 3), by the west road;
-# 2: the Lodestone Shrine (level 4), by the east road.
+# 2: the Lodestone Shrine (level 4), by the east road; 3: the Forge Shrine (level 5), by the north road.
 HOLE_SITES = [(0, (3200, 3120, 3300, 3040), (-560, -620, -500, -680)),
               (3, (3150, 3300, 3000, 3450), (420, 520, -420, -520)),
-              (1, (3150, 3300, 3000, 3450), (-420, -520, 420, 520))]
+              (1, (3150, 3300, 3000, 3450), (-420, -520, 420, 520)),
+              (2, (3150, 3300, 3000, 3450), (420, 520, -420, -520))]
 
 
 def shrine_hole(k=0):
@@ -1319,6 +1320,8 @@ def actors():
     add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=15)
     hx, hy, hz, _ = shrine_hole(2)  # the Lodestone Shrine: 16
     add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=16)
+    hx, hy, hz, _ = shrine_hole(3)  # the Forge Shrine: 17
+    add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=17)
     # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
     add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
@@ -1381,7 +1384,9 @@ def view_defines():
             f"#define ANCIENT_SEEKER_HOLE_X {shrine_hole(1)[0]:.1f}f\n#define ANCIENT_SEEKER_HOLE_Y {shrine_hole(1)[1]:.1f}f\n"
             f"#define ANCIENT_SEEKER_HOLE_Z {shrine_hole(1)[2]:.1f}f\n#define ANCIENT_SEEKER_HOLE_YAW 0x{shrine_hole(1)[3]:04X}\n"
             f"#define ANCIENT_MAGNET_HOLE_X {shrine_hole(2)[0]:.1f}f\n#define ANCIENT_MAGNET_HOLE_Y {shrine_hole(2)[1]:.1f}f\n"
-            f"#define ANCIENT_MAGNET_HOLE_Z {shrine_hole(2)[2]:.1f}f\n#define ANCIENT_MAGNET_HOLE_YAW 0x{shrine_hole(2)[3]:04X}\n")
+            f"#define ANCIENT_MAGNET_HOLE_Z {shrine_hole(2)[2]:.1f}f\n#define ANCIENT_MAGNET_HOLE_YAW 0x{shrine_hole(2)[3]:04X}\n"
+            f"#define ANCIENT_FORGE_HOLE_X {shrine_hole(3)[0]:.1f}f\n#define ANCIENT_FORGE_HOLE_Y {shrine_hole(3)[1]:.1f}f\n"
+            f"#define ANCIENT_FORGE_HOLE_Z {shrine_hole(3)[2]:.1f}f\n#define ANCIENT_FORGE_HOLE_YAW 0x{shrine_hole(3)[3]:04X}\n")
 
 
 TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
@@ -2323,6 +2328,7 @@ def main():
     build_shrine_marker(0)
     build_shrine_marker(1)
     build_shrine_marker(2)
+    build_shrine_marker(3)
     build_boundary()
     build_decor()
     npolys, nverts, entries, acts = write_sources()

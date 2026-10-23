@@ -296,6 +296,38 @@ to their start if they fall into the chasm. The game's own pieces: crystal switc
 GI_HEART_CONTAINER), torches and the arrival chamber's cow. The draw config (`RemixLevel_DrawConfigMagnet`) lights
 Magnesis's lines once the rune is found and the lift's while it runs. About 1030 triangles in seven room chunks.
 
+## Level 5: the Forge Shrine (Magnesis and fire)
+
+A fourth shrine under the Plateau, by the north road. On the website, **5 · Forge Shrine** (or the key <kbd>5</kbd>);
+from your own save, Remix menu &rarr; *Go to: Forge Shrine*. The shrine lends Link Magnesis (hold L).
+
+Built the way Breath of the Wild grows a puzzle: one new object, then more interactions and constraints in each
+room rather than new mechanics. The object is an **iron fire basket**: Magnesis carries it, a burning torch sets it
+alight, its flame lights the wooden torches it touches, and water puts it out. The trial, *The Iron Flame*:
+
+1. **Introduce.** The basket stands by an eternal torch, already burning. Carry it to the wooden torch by the gate:
+   the gate rises.
+2. **Apply.** The next torch stands across a chasm Link can't cross. Float the burning basket over to it: a bridge
+   rises out of the chasm.
+3. **Combine.** Three timed torches stand on posts in a pool, and all three must burn at once (each burns about 13
+   seconds). Link can't walk while he holds something, and the basket goes out if it drops into the water: find the
+   one spot on the shore that reaches all three (it is marked), keep the flame above the water, be quick.
+4. **Subvert.** The last torch is far out in a chasm, beyond Magnesis's reach. Hold the basket as far out as it
+   goes and **fling** it (B): it flies on, onto the torch's platform. The Heart Container drops by the exit.
+
+Every room has an eternal torch to rekindle the basket, and a basket that falls into a chasm comes back to the last
+place it was over solid ground, so the trial can't be lost. Deku sticks and fire arrows light the torches too, as
+they would anywhere in the game: other solutions are part of the fun.
+
+How it is made: `tools/remix/make_forge.py` generates `assets/scenes/remix/forge/` and checks the layout (every
+torch within Magnesis's reach of where Link can stand but the last, the pool's spot reaching all three posts, the
+fling from the last ledge landing on the platform, nothing that can be jumped). The basket, the gates and the
+bridge span are new kinds of `ovl_En_Remix_Magnet` (`MAGNET_BRAZIER`, `MAGNET_GATE`, `MAGNET_SPAN`, drawn from
+`object_remix_magnet`). The basket's flame is a collider that hits like Din's Fire: wooden torches (Obj_Syokudai)
+take it as they take a fire arrow, so the game's own torch logic does the rest (single torches, and the pool's
+"light all three in time" group). Its fire is the torches' own flame model, with a point light. The pool is a real
+water box (`make_shrine.py` writes them now). About 1160 triangles in seven room chunks.
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
@@ -467,6 +499,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/make_town.py`, `restyle.py`, `town_plan.py`, `survey_scenes.py`, `extracted_scene.py`, `test_make_town.py` | The Ancient Plateau's town: buildings borrowed from the game's towns at build time and restyled, the survey used to pick them, and the shared reader for extracted scenes. 4 lines in `src/code/z_scene.c` (the Plateau's object space) |
 | `tools/remix/smoke_test.py`, `tools/remix/smoke_capture.mjs`, `web/js/boot.js` | Emulator smoke test in CI (the website's player in headless Chromium); the site's "Jump into the new level" switch |
 | `tools/remix/make_magnet.py`, `make_magnet_parts.py`, `make_slate.py`, `assets/scenes/remix/magnet/`, `src/overlays/actors/ovl_En_Remix_Magnet/`, `assets/objects/object_remix_magnet/`, `assets/objects/object_remix_slate/` | Level 4, the Lodestone Shrine: Magnesis and the moving pieces, and the fal-made rune. `GI_REMIX_MAGNESIS` in `include/item.h`, `z_draw.c`, `z_player.c` (get-item table, text id now 16 bits) and `assets/text/message_data.h` |
+| `tools/remix/make_forge.py`, `assets/scenes/remix/forge/` | Level 5, the Forge Shrine (the fire basket, gates and spans are `ovl_En_Remix_Magnet` too) |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream
