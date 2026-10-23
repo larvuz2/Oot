@@ -96,6 +96,30 @@ beginseg
     include "$(BUILD_DIR)/assets/scenes/remix/magnet/magnet_title.o"
 endseg
 
+// Level 5: the Forge Shrine (tools/remix/make_forge.py, committed in assets/scenes/remix/forge/)
+beginseg
+    name "forge_scene"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/forge/forge_scene.o"
+    number 2
+endseg
+
+beginseg
+    name "forge_room_0"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/forge/forge_room_0.o"
+    number 3
+endseg
+
+beginseg
+    name "g_pn_remix_forge"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/forge/forge_title.o"
+endseg
+
 // Biomes:
 // tools/remix/make_biome.py copies Hyrule Field into extracted/VERSION/assets/scenes/remix/tundra/ after
 // `make setup`; the Makefile then sets REMIX_HAS_TUNDRA=1. Without that step the ROM is built without biomes.

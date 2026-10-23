@@ -26,6 +26,10 @@ void RemixLevel_DrawConfigSeeker(struct PlayState* play);
 // circuit lines once the rune is found, the lift's while it runs, the rune ring over the altar.
 void RemixLevel_DrawConfigMagnet(struct PlayState* play);
 
+// Scene draw config of the Forge Shrine (SDC_REMIX_FORGE, level 5, tools/remix/make_forge.py): each stage's circuit
+// lines once its torch is lit, the rune ring over the exit.
+void RemixLevel_DrawConfigForge(struct PlayState* play);
+
 // Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
 // way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
 // soon as he is anywhere else.
@@ -48,6 +52,8 @@ void RemixLevel_GoToShrine(struct PlayState* play);
 void RemixLevel_GoToSeeker(struct PlayState* play);
 // And into the Lodestone Shrine.
 void RemixLevel_GoToMagnet(struct PlayState* play);
+// And into the Forge Shrine.
+void RemixLevel_GoToForge(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -68,6 +74,8 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_MAGNET 7       // level 4: the Lodestone Shrine, the same way
 #define REMIX_BOOT_MAGNET_TEST 8  // the Lodestone Shrine with Magnesis, facing the iron slab (tests)
 #define REMIX_BOOT_MAGNET_CHEST 9 // the Lodestone Shrine, in front of the rune's chest (tests)
+#define REMIX_BOOT_FORGE 10       // level 5: the Forge Shrine, the same way as the others
+#define REMIX_BOOT_FORGE_TEST 11  // the Forge Shrine, behind the burning basket, facing the first gate (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

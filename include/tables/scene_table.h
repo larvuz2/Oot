@@ -129,3 +129,5 @@ DEFINE_SCENE(ember_scene, g_pn_remix_ember, SCENE_REMIX_SHRINE, SDC_REMIX_SHRINE
 DEFINE_SCENE(seeker_scene, g_pn_remix_seeker, SCENE_REMIX_SEEKER, SDC_REMIX_SEEKER, 0, 0)
 // Web Remix: level 4, the Lodestone Shrine (tools/remix/make_magnet.py)
 DEFINE_SCENE(magnet_scene, g_pn_remix_magnet, SCENE_REMIX_MAGNET, SDC_REMIX_MAGNET, 0, 0)
+// Web Remix: level 5, the Forge Shrine (tools/remix/make_forge.py)
+DEFINE_SCENE(forge_scene, g_pn_remix_forge, SCENE_REMIX_FORGE, SDC_REMIX_FORGE, 0, 0)

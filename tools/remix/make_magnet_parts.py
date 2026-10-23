@@ -6,6 +6,9 @@
   slab    the iron door slab in the north wall's doorway (magnetic)
   lift    160 x 160 platform that rides up to the balcony while its switch is held (powered, not magnetic)
   bridge  the L-shaped bridge on the chasm's pivot, turned by the crystal switches (powered, not magnetic)
+  brazier an iron fire basket (magnetic) that carries a flame from torch to torch (Forge Shrine, level 5)
+  gate    a powered shutter that rises into the wall when its switch flag is set (Forge Shrine)
+  span    a bridge span that rises out of a chasm when its switch flag is set (Forge Shrine)
   beam    the Magnesis beam (a unit tube along +z, scaled when drawn)
 
 Each piece has a display list and (but the beam) a collision header, all in model units = game units (the actor is
@@ -34,6 +37,9 @@ GIRDER = (340, 24, 60)  # length (x), height (y), width (z)
 SLAB = (250, 220, 30)  # width (x), height (y), thickness (z)
 LIFT = (160, 30, 160)  # top at y = 0
 BRIDGE_ARM, BRIDGE_W, BRIDGE_PAD, BRIDGE_T = 535, 120, 170, 40  # arm reach from the pivot, width, centre pad, depth
+BRAZIER = dict(r0=24, r1=40, y0=18, y1=55)  # bowl: radius at its foot and rim, height of foot and rim
+GATE = (250, 240, 30)  # width (x), height (y), thickness (z)
+SPAN = (200, 30, 500)  # width (x), thickness (y, top at 0), length (z)
 
 MAGENTA = (255, 60, 200)
 ORANGE = (255, 150, 40)
@@ -111,6 +117,24 @@ class Piece:
             if col:
                 self.col.append(tri)
 
+    @staticmethod
+    def _box_col(x0, x1, y0, y1, z0, z1):
+        """Collision triangles of a closed box (outward)."""
+        tmp = Piece("tmp")
+        tmp.box(x0, x1, y0, y1, z0, z1)
+        return tmp.col
+
+    def frustum(self, tex, r0, r1, y0, y1, n=8, col=False):
+        """Outward sides of an n-gon frustum (radius r0 at y0, r1 at y1), and its inside faces too (a bowl)."""
+        ring = [(np.sin(2 * np.pi * (k + 0.5) / n), np.cos(2 * np.pi * (k + 0.5) / n)) for k in range(n)]
+        for k in range(n):
+            (sa, ca), (sb, cb) = ring[k], ring[(k + 1) % n]
+            p = [(sa * r0, y0, ca * r0), (sb * r0, y0, cb * r0), (sb * r1, y1, cb * r1), (sa * r1, y1, ca * r1)]
+            mid = np.array([(sa + sb) / 2, 0.0, (ca + cb) / 2])
+            out = mid / np.linalg.norm(mid) * (y1 - y0) + np.array([0.0, -(r1 - r0), 0.0])
+            self.quad(tex, p, out, col)
+            self.quad(tex, [p[1], p[0], p[3], p[2]], -out, col)
+
     def box(self, x0, x1, y0, y1, z0, z1, top="magnet_iron", side="magnet_iron", bottom="magnet_iron", col=True):
         self.quad(top, [(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)], (0, 1, 0), col)
         self.quad(bottom, [(x0, y0, z1), (x1, y0, z1), (x1, y0, z0), (x0, y0, z0)], (0, -1, 0), col)
@@ -150,6 +174,29 @@ def build_pieces() -> list[Piece]:
     p.box(-c, c, -t, 0, -c, c, top="magnet_sun")
     p.box(-w, w, -t, 0, c, a, top="magnet_sun")
     p.box(-a, -c, -t, 0, -w, w, top="magnet_sun")
+    out.append(p)
+
+    b = BRAZIER
+    p = Piece("Brazier")
+    p.frustum("magnet_rune", b["r0"], b["r1"], b["y0"], b["y1"])
+    p.quad("magnet_iron", [(-b["r0"], b["y0"], b["r0"]), (b["r0"], b["y0"], b["r0"]), (b["r0"], b["y0"], -b["r0"]),
+                           (-b["r0"], b["y0"], -b["r0"])], (0, 1, 0), col=False)  # the bowl's floor (coals: drawn dark)
+    for k in range(3):  # three legs
+        a = 2 * np.pi * k / 3
+        x, z = np.sin(a) * 22, np.cos(a) * 22
+        p.box(x - 5, x + 5, 0, b["y0"] + 2, z - 5, z + 5, col=False)
+    h = b["r1"] - 6
+    p.col += [tri for tri in Piece._box_col(-h, h, 0, b["y1"], -h, h)]
+    out.append(p)
+
+    gw, gh, gt = GATE
+    p = Piece("Gate")
+    p.box(-gw / 2, gw / 2, 0, gh, -gt / 2, gt / 2, side=dict(n="magnet_sun", s="magnet_sun", e="magnet_iron", w="magnet_iron"))
+    out.append(p)
+
+    sw, st, sl = SPAN
+    p = Piece("Span")
+    p.box(-sw / 2, sw / 2, -st, 0, -sl / 2, sl / 2, top="magnet_sun")
     out.append(p)
     return out
 
@@ -262,6 +309,9 @@ HEADER = """#ifndef OBJECT_REMIX_MAGNET_H
 #define MAGNET_SLAB_HEIGHT {sh}
 #define MAGNET_SLAB_THICKNESS {st}
 #define MAGNET_LIFT_SIZE {lw}
+#define MAGNET_BRAZIER_HEIGHT {by}
+#define MAGNET_BRAZIER_RIM {br}
+#define MAGNET_GATE_HEIGHT {gateh}
 #define MAGNET_BEAM_LENGTH 1000
 
 {decls}
@@ -279,7 +329,8 @@ def main():
     decls = "".join(f"extern Gfx gMagnet{p.name}DL[];\nextern CollisionHeader gMagnet{p.name}Col;\n" for p in pieces)
     decls += "extern Gfx gMagnetBeamDL[];\n"
     (OUT / "object_remix_magnet.h").write_text(HEADER.format(crate=CRATE, gl=GIRDER[0], gh=GIRDER[1], gw=GIRDER[2],
-                                                             sw=SLAB[0], sh=SLAB[1], st=SLAB[2], lw=LIFT[0], decls=decls))
+                                                             sw=SLAB[0], sh=SLAB[1], st=SLAB[2], lw=LIFT[0], by=BRAZIER["y1"],
+                                                             br=BRAZIER["r1"], gateh=GATE[1], decls=decls))
     fmt = shutil.which("clang-format-14") or shutil.which("clang-format")
     if fmt:
         subprocess.run([fmt, "-i", "--style=file", str(OUT / "object_remix_magnet.c"), str(OUT / "object_remix_magnet.h")],

@@ -1,7 +1,7 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
-import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE } from "./boot.js";
+import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE, BOOT_FORGE_SHRINE } from "./boot.js";
 import { cloudInfo, uploadRom, downloadRom } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
@@ -82,6 +82,7 @@ function renderReady() {
     $("play-shrine").hidden = !patch;
     $("play-seeker").hidden = !patch;
     $("play-magnet").hidden = !patch;
+    $("play-forge").hidden = !patch;
     $("play-level-note").hidden = !patch;
     const modes = $("modes");
     const options = [];
@@ -578,11 +579,12 @@ $("play-level").addEventListener("click", () => play("remix", { newLevel: true, 
 $("play-shrine").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_EMBER_SHRINE }));
 $("play-seeker").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_SEEKER_SHRINE }));
 $("play-magnet").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_LODESTONE_SHRINE }));
-// Shortcuts on the start screen: 1 to 4 jump into levels 1 to 4.
+$("play-forge").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_FORGE_SHRINE }));
+// Shortcuts on the start screen: 1 to 5 jump into levels 1 to 5.
 window.addEventListener("keydown", (e) => {
     if (document.body.dataset.state !== "ready" || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-    const button = { 1: "play-level", 2: "play-shrine", 3: "play-seeker", 4: "play-magnet" }[e.key];
+    const button = { 1: "play-level", 2: "play-shrine", 3: "play-seeker", 4: "play-magnet", 5: "play-forge" }[e.key];
     if (button && !$(button).hidden) {
         e.preventDefault();
         $(button).click();

@@ -1201,10 +1201,11 @@ _HOLE = {}
 HOLE_R = 150  # the shrine marker's platform
 # Where each shrine's hole goes: (road, distances along it, offsets to its side). 0: the Ember Shrine (level 2), west
 # of the south road across from the eye rock, where Link arrives; 1: the Seeker's Shrine (level 3), by the west road;
-# 2: the Lodestone Shrine (level 4), by the east road.
+# 2: the Lodestone Shrine (level 4), by the east road; 3: the Forge Shrine (level 5), by the north road.
 HOLE_SITES = [(0, (3200, 3120, 3300, 3040), (-560, -620, -500, -680)),
               (3, (3150, 3300, 3000, 3450), (420, 520, -420, -520)),
-              (1, (3150, 3300, 3000, 3450), (-420, -520, 420, 520))]
+              (1, (3150, 3300, 3000, 3450), (-420, -520, 420, 520)),
+              (2, (3150, 3300, 3000, 3450), (420, 520, -420, -520))]
 
 
 def shrine_hole(k=0):
@@ -1226,6 +1227,8 @@ def shrine_hole(k=0):
                 top = max(float(mesh_height(x + math.sin(a) * HOLE_R, z + math.cos(a) * HOLE_R))
                           for a in np.linspace(0, 2 * math.pi, 12, endpoint=False))
                 top = max(top, float(mesh_height(x, z))) + 8
+                if k >= 2:  # (a plain ring on the grass, no platform: the hole sits on the ground)
+                    top = float(mesh_height(x, z)) + 1
                 rx, rz = math.sin(ang) * r, math.cos(ang) * r
                 _HOLE[k] = (x, top, z, int(math.atan2(rx - x, rz - z) / (2 * math.pi) * 0x10000) & 0xFFFF)
                 break
@@ -1240,14 +1243,21 @@ def build_shrine_marker(k=0):
     the game's grotto hole (Door_Ana: actors()). Kept small: every vertex here is room data, which comes out of the
     actors' memory."""
     x, top, z, _ = shrine_hole(k)
-    if k < 2:
-        e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
-    else:  # (the room has no chunks to spare: later markers go in the terrain chunk under them)
+    if k >= 2:
+        # Later shrines: only the ring of orange light, on the grass round the hole. The room has no chunks to spare
+        # (it goes in the terrain chunk under it), and every byte of room data comes out of the actors' memory: a
+        # platform costs about 2.5 KB of the town's last few.
         xs = _GRID["xs"]
         i = min(max(int(np.searchsorted(xs, x)) - 1, 0), len(xs) - 2)
         j = min(max(int(np.searchsorted(xs, z)) - 1, 0), len(xs) - 2)
         key = _GRID["chunk_of"][(i, j)]
         e = next(en for en in ENTRIES if en.name == f"terrain_{key[0]}_{key[1]}")
+        r = HOLE_R - 50
+        ring = [(x + r * math.sin(t), float(mesh_height(x + r * math.sin(t), z + r * math.cos(t))) + 3,
+                 z + r * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 11)[:-1]]
+        strip(e, GLOW_ORANGE, ring, [(0, 1, 0)] * len(ring), 14, lift=1.2, closed=True)
+        return
+    e = new_entry("shrine_marker" if k == 0 else f"shrine_marker{k}")
     gy = float(mesh_height(x, z))
     prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 10, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
     ring = [(x + (HOLE_R - 22) * math.sin(t), top, z + (HOLE_R - 22) * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 13)[:-1]]
@@ -1319,6 +1329,8 @@ def actors():
     add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=15)
     hx, hy, hz, _ = shrine_hole(2)  # the Lodestone Shrine: 16
     add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=16)
+    hx, hy, hz, _ = shrine_hole(3)  # the Forge Shrine: 17
+    add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=17)
     # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
     add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
@@ -1381,7 +1393,9 @@ def view_defines():
             f"#define ANCIENT_SEEKER_HOLE_X {shrine_hole(1)[0]:.1f}f\n#define ANCIENT_SEEKER_HOLE_Y {shrine_hole(1)[1]:.1f}f\n"
             f"#define ANCIENT_SEEKER_HOLE_Z {shrine_hole(1)[2]:.1f}f\n#define ANCIENT_SEEKER_HOLE_YAW 0x{shrine_hole(1)[3]:04X}\n"
             f"#define ANCIENT_MAGNET_HOLE_X {shrine_hole(2)[0]:.1f}f\n#define ANCIENT_MAGNET_HOLE_Y {shrine_hole(2)[1]:.1f}f\n"
-            f"#define ANCIENT_MAGNET_HOLE_Z {shrine_hole(2)[2]:.1f}f\n#define ANCIENT_MAGNET_HOLE_YAW 0x{shrine_hole(2)[3]:04X}\n")
+            f"#define ANCIENT_MAGNET_HOLE_Z {shrine_hole(2)[2]:.1f}f\n#define ANCIENT_MAGNET_HOLE_YAW 0x{shrine_hole(2)[3]:04X}\n"
+            f"#define ANCIENT_FORGE_HOLE_X {shrine_hole(3)[0]:.1f}f\n#define ANCIENT_FORGE_HOLE_Y {shrine_hole(3)[1]:.1f}f\n"
+            f"#define ANCIENT_FORGE_HOLE_Z {shrine_hole(3)[2]:.1f}f\n#define ANCIENT_FORGE_HOLE_YAW 0x{shrine_hole(3)[3]:04X}\n")
 
 
 TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
@@ -2323,6 +2337,7 @@ def main():
     build_shrine_marker(0)
     build_shrine_marker(1)
     build_shrine_marker(2)
+    build_shrine_marker(3)
     build_boundary()
     build_decor()
     npolys, nverts, entries, acts = write_sources()

@@ -701,4 +701,8 @@ DECLARE_ROM_SEGMENT(seeker_room_0)
 DECLARE_ROM_SEGMENT(magnet_scene)
 DECLARE_ROM_SEGMENT(magnet_room_0)
 
+// Web Remix level 5: the Forge Shrine (spec/remix_scenes.inc, tools/remix/make_forge.py)
+DECLARE_ROM_SEGMENT(forge_scene)
+DECLARE_ROM_SEGMENT(forge_room_0)
+
 #endif

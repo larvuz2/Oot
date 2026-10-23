@@ -14,6 +14,9 @@
 #define MAGNET_SLAB_HEIGHT 220
 #define MAGNET_SLAB_THICKNESS 30
 #define MAGNET_LIFT_SIZE 160
+#define MAGNET_BRAZIER_HEIGHT 55
+#define MAGNET_BRAZIER_RIM 40
+#define MAGNET_GATE_HEIGHT 240
 #define MAGNET_BEAM_LENGTH 1000
 
 extern Gfx gMagnetCrateDL[];
@@ -26,6 +29,12 @@ extern Gfx gMagnetLiftDL[];
 extern CollisionHeader gMagnetLiftCol;
 extern Gfx gMagnetBridgeDL[];
 extern CollisionHeader gMagnetBridgeCol;
+extern Gfx gMagnetBrazierDL[];
+extern CollisionHeader gMagnetBrazierCol;
+extern Gfx gMagnetGateDL[];
+extern CollisionHeader gMagnetGateCol;
+extern Gfx gMagnetSpanDL[];
+extern CollisionHeader gMagnetSpanCol;
 extern Gfx gMagnetBeamDL[];
 
 #endif

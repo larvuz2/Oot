@@ -512,6 +512,7 @@ MEMSIZE_MACRO = "EMBER_SCENE_BGCHECK_MEMSIZE"
 MUSIC = "NA_BGM_ICE_CAVERN"
 EXTRA_ROOM_C = []  # more C after the display lists (lists that call segments, for room entries of their own)
 EXTRA_ENTRIES = []  # more room entries: (center, radius, opa list, xlu list)
+WATERBOXES = []  # (x0, x1, z0, z1, surface y): water (tools/remix/make_forge.py's pool)
 
 
 def room_defines():
@@ -641,9 +642,16 @@ def write_sources():
                      "CONVEYOR_SPEED_DISABLED, 0, false) } },\n"
                      for sf in SURFACES) + "};\n\n")
     s.append(f"BgCamInfo {SCENE}BgCamList[] = {{\n    {{ CAM_SET_DUNGEON0, 0, NULL }},\n}};\n\n")
+    water = ("0,\n    NULL", "")
+    if WATERBOXES:
+        water = (f"ARRAY_COUNT({SCENE}WaterBoxes),\n    {SCENE}WaterBoxes",
+                 f"WaterBox {SCENE}WaterBoxes[] = {{\n" + "".join(
+                     f"    {{ {x0}, {y}, {z0}, {x1 - x0}, {z1 - z0}, WATERBOX_PROPERTIES(0, 0, WATERBOX_ROOM_ALL, false) }},\n"
+                     for x0, x1, z0, z1, y in WATERBOXES) + "};\n\n")
+    s.append(water[1])
     s.append(f"CollisionHeader {SCENE}CollisionHeader = {{\n    {{ {lo[0]}, {lo[1]}, {lo[2]} }},\n    {{ {hi[0]}, {hi[1]}, {hi[2]} }},\n"
              f"    ARRAY_COUNT({SCENE}CollisionVtx),\n    {SCENE}CollisionVtx,\n    ARRAY_COUNT({SCENE}CollisionPolys),\n"
-             f"    {SCENE}CollisionPolys,\n    {SCENE}SurfaceTypes,\n    {SCENE}BgCamList,\n    0,\n    NULL,\n}};\n")
+             f"    {SCENE}CollisionPolys,\n    {SCENE}SurfaceTypes,\n    {SCENE}BgCamList,\n    {water[0]},\n}};\n")
     (OUT / f"{SCENE}.h").write_text(scene_h)
     (OUT / f"{SCENE}.c").write_text("".join(s))
     (OUT / f"{TITLE_STEM}.c").write_text(

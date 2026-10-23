@@ -1,8 +1,8 @@
 /*
  * File: z_en_remix_magnet.c
  * Overlay: ovl_En_Remix_Magnet
- * Description: Web Remix level 4, the Lodestone Shrine: Magnesis (a Breath of the Wild rune) and the shrine's moving
- *              pieces (object_remix_magnet, tools/remix/make_magnet_parts.py).
+ * Description: Web Remix levels 4 and 5, the Lodestone and Forge Shrines: Magnesis (a Breath of the Wild rune) and
+ *              the shrines' moving pieces (object_remix_magnet, tools/remix/make_magnet_parts.py).
  *
  *   MAGNET_CONTROLLER  Magnesis. Once the chest with its treasure flag is open, hold L to grab the iron piece (or the
  *                      iron chest) Link faces: it hangs in the air while L is held. The Control Stick swings it around
@@ -12,10 +12,15 @@
  *   MAGNET_CRATE, MAGNET_GIRDER, MAGNET_SLAB
  *                      Iron pieces. When not held they fall and rest on the highest floor under any of their sample
  *                      points (a girder rests on its two ends across a gap) and press the floor switches they rest on.
- *                      One that falls far below where it started comes back to its start.
+ *                      One that falls into a chasm comes back to the last place it was over solid ground.
  *   MAGNET_LIFT        Rides up and down while its switch flag is set (a floor switch held down by a crate).
  *   MAGNET_BRIDGE      Turns a quarter (carrying Link) each time one of its two switch flags changes (crystal
  *                      switches that toggle).
+ *   MAGNET_BRAZIER     An iron fire basket (magnetic, like the pieces above). It catches fire next to a burning torch
+ *                      (Obj_Syokudai), and its flame is a Din's Fire hit to the torches it touches: wooden torches
+ *                      light (and a lit one burns longer) as if a fire arrow hit them. Water puts it out.
+ *   MAGNET_GATE, MAGNET_SPAN
+ *                      A shutter, and a bridge span: each rises home.rot.z units, and stays, once its flag is set.
  */
 
 #include "z_en_remix_magnet.h"
@@ -37,8 +42,12 @@
 #include "message.h"
 #include "play_state.h"
 #include "player.h"
+#include "camera.h"
+#include "src/overlays/actors/ovl_Obj_Syokudai/z_obj_syokudai.h"
 
 #include "assets/objects/object_remix_magnet/object_remix_magnet.h"
+
+extern Gfx gEffFire1DL[]; // gameplay_keep: the torches' flame
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
@@ -66,22 +75,52 @@ ActorProfile En_Remix_Magnet_Profile = {
 };
 
 static CollisionHeader* sCollision[] = {
-    NULL, &gMagnetCrateCol, &gMagnetGirderCol, &gMagnetSlabCol, &gMagnetLiftCol, &gMagnetBridgeCol,
+    NULL,
+    &gMagnetCrateCol,
+    &gMagnetGirderCol,
+    &gMagnetSlabCol,
+    &gMagnetLiftCol,
+    &gMagnetBridgeCol,
+    &gMagnetBrazierCol,
+    &gMagnetGateCol,
+    &gMagnetSpanCol,
 };
 
 static Gfx* sDisplayLists[] = {
-    NULL, gMagnetCrateDL, gMagnetGirderDL, gMagnetSlabDL, gMagnetLiftDL, gMagnetBridgeDL,
+    NULL,          gMagnetCrateDL, gMagnetGirderDL, gMagnetSlabDL, gMagnetLiftDL, gMagnetBridgeDL, gMagnetBrazierDL,
+    gMagnetGateDL, gMagnetSpanDL,
 };
 
 static f32 sHeights[] = {
-    0.0f, MAGNET_CRATE_SIZE, MAGNET_GIRDER_HEIGHT, MAGNET_SLAB_HEIGHT, 0.0f, 0.0f,
+    0.0f, MAGNET_CRATE_SIZE, MAGNET_GIRDER_HEIGHT, MAGNET_SLAB_HEIGHT, 0.0f, 0.0f, MAGNET_BRAZIER_HEIGHT, 0.0f, 0.0f,
+};
+
+// The brazier's flame: hits like Din's Fire (torch flames take it; the torches' posts, pots and the like do not)
+static ColliderCylinderInit sFireInit = {
+    {
+        COL_MATERIAL_NONE,
+        AT_ON | AT_TYPE_PLAYER,
+        AC_NONE,
+        OC1_NONE,
+        OC2_NONE,
+        COLSHAPE_CYLINDER,
+    },
+    {
+        ELEM_MATERIAL_UNK0,
+        { DMG_MAGIC_FIRE, HIT_SPECIAL_EFFECT_NONE, 0x00 },
+        { 0x00000000, HIT_BACKLASH_NONE, 0x00 },
+        ATELEM_ON | ATELEM_SFX_NONE,
+        ACELEM_NONE,
+        OCELEM_NONE,
+    },
+    { 85, 100, -10, { 0, 0, 0 } },
 };
 
 static s32 EnRemixMagnet_IsMagnetic(Actor* actor) {
     if (actor->id == ACTOR_EN_REMIX_MAGNET) {
         s32 type = ((EnRemixMagnet*)actor)->type;
 
-        return (type == MAGNET_CRATE) || (type == MAGNET_GIRDER) || (type == MAGNET_SLAB);
+        return (type == MAGNET_CRATE) || (type == MAGNET_GIRDER) || (type == MAGNET_SLAB) || (type == MAGNET_BRAZIER);
     }
     return false;
 }
@@ -91,7 +130,7 @@ void EnRemixMagnet_Init(Actor* thisx, PlayState* play) {
     CollisionHeader* colHeader = NULL;
 
     this->type = MAGNET_TYPE(thisx->params);
-    if (this->type > MAGNET_BRIDGE) {
+    if (this->type > MAGNET_SPAN) {
         this->type = MAGNET_CRATE;
     }
     this->extra = thisx->home.rot.z;
@@ -101,6 +140,7 @@ void EnRemixMagnet_Init(Actor* thisx, PlayState* play) {
     this->targetYaw = thisx->shape.rot.y;
     this->resting = false;
     this->target = this->aim = this->falling = NULL;
+    this->lastSafe = thisx->world.pos;
 
     if (this->type == MAGNET_CONTROLLER) {
         return; // (no collision: it only draws the beam and the hint)
@@ -115,6 +155,19 @@ void EnRemixMagnet_Init(Actor* thisx, PlayState* play) {
         this->switchState[0] = Flags_GetSwitch(play, MAGNET_FLAG(thisx->params));
         this->switchState[1] = Flags_GetSwitch(play, this->extra);
     }
+    if (this->type == MAGNET_BRAZIER) {
+        Collider_InitCylinder(play, &this->fire);
+        Collider_SetCylinder(play, &this->fire, thisx, &sFireInit);
+        Lights_PointGlowSetInfo(&this->lightInfo, thisx->world.pos.x, thisx->world.pos.y + 70.0f, thisx->world.pos.z,
+                                255, 170, 70, -1);
+        this->lightNode = LightContext_InsertLight(play, &play->lightCtx, &this->lightInfo);
+    }
+    if ((this->type == MAGNET_GATE) || (this->type == MAGNET_SPAN)) {
+        if (Flags_GetSwitch(play, MAGNET_FLAG(thisx->params))) {
+            this->lift = this->extra; // already open
+            thisx->world.pos.y = thisx->home.pos.y + this->lift;
+        }
+    }
 }
 
 void EnRemixMagnet_Destroy(Actor* thisx, PlayState* play) {
@@ -122,6 +175,10 @@ void EnRemixMagnet_Destroy(Actor* thisx, PlayState* play) {
 
     if (this->type != MAGNET_CONTROLLER) {
         DynaPoly_DeleteBgActor(play, &play->colCtx.dyna, this->dyna.bgId);
+    }
+    if (this->type == MAGNET_BRAZIER) {
+        Collider_DestroyCylinder(play, &this->fire);
+        LightContext_RemoveLight(play, &play->lightCtx, this->lightNode);
     }
 }
 
@@ -137,6 +194,8 @@ static f32 EnRemixMagnet_Floor(EnRemixMagnet* this, PlayState* play, Vec3f* at, 
     f32 floors[MAGNET_SAMPLES];
     s32 bgIds[MAGNET_SAMPLES];
     CollisionPoly* poly;
+    CollisionPoly* bestPoly = NULL;
+    s32 bestBgId = BGCHECK_SCENE;
     f32 sin = Math_SinS(thisx->shape.rot.y);
     f32 cos = Math_CosS(thisx->shape.rot.y);
     f32 best = BGCHECK_Y_MIN;
@@ -144,8 +203,8 @@ static f32 EnRemixMagnet_Floor(EnRemixMagnet* this, PlayState* play, Vec3f* at, 
     s32 n;
     s32 i;
 
-    if (this->type == MAGNET_CRATE) {
-        h = MAGNET_CRATE_SIZE / 2 - 8;
+    if ((this->type == MAGNET_CRATE) || (this->type == MAGNET_BRAZIER)) {
+        h = (this->type == MAGNET_CRATE) ? (MAGNET_CRATE_SIZE / 2 - 8) : (MAGNET_BRAZIER_RIM - 12);
         offsets[0][0] = 0.0f, offsets[0][1] = 0.0f;
         offsets[1][0] = h, offsets[1][1] = h;
         offsets[2][0] = -h, offsets[2][1] = h;
@@ -171,8 +230,14 @@ static f32 EnRemixMagnet_Floor(EnRemixMagnet* this, PlayState* play, Vec3f* at, 
         floors[i] = BgCheck_EntityRaycastDown4(&play->colCtx, &poly, &bgIds[i], thisx, &pos);
         if (floors[i] > best) {
             best = floors[i];
+            bestPoly = poly;
+            bestBgId = bgIds[i];
         }
     }
+    // solid ground (not a chasm's void floor, nor far below where the piece started)
+    this->floorY = best;
+    this->floorSafe = (bestPoly != NULL) && (best > thisx->home.pos.y - 300.0f) &&
+                      (SurfaceType_GetFloorProperty(&play->colCtx, bestPoly, bestBgId) != FLOOR_PROPERTY_12);
 
     if (press) {
         for (i = 0; i < n; i++) {
@@ -192,11 +257,11 @@ static f32 EnRemixMagnet_Floor(EnRemixMagnet* this, PlayState* play, Vec3f* at, 
 static void EnRemixMagnet_Respawn(EnRemixMagnet* this) {
     Actor* thisx = &this->dyna.actor;
 
-    thisx->world.pos = thisx->home.pos;
+    thisx->world.pos = this->lastSafe;
     thisx->world.pos.y += 60.0f;
-    thisx->shape.rot.y = thisx->world.rot.y = thisx->home.rot.y;
     this->vel.x = this->vel.y = this->vel.z = 0.0f;
     this->resting = false;
+    this->lit = false;
     Actor_PlaySfx(thisx, NA_SE_SY_TRE_BOX_APPEAR);
 }
 
@@ -231,6 +296,11 @@ static void EnRemixMagnet_UpdatePiece(EnRemixMagnet* this, PlayState* play) {
     if (this->held) {
         this->resting = false;
         this->vel.x = this->vel.y = this->vel.z = 0.0f;
+        if (this->floorSafe) { // (Magnesis measured the floor under it this frame)
+            this->lastSafe.x = thisx->world.pos.x;
+            this->lastSafe.y = this->floorY;
+            this->lastSafe.z = thisx->world.pos.z;
+        }
         return;
     }
 
@@ -240,6 +310,9 @@ static void EnRemixMagnet_UpdatePiece(EnRemixMagnet* this, PlayState* play) {
             this->resting = false; // what it stood on moved away
         } else {
             thisx->world.pos.y = floor; // rides what it stands on up and down
+            if (this->floorSafe) {
+                this->lastSafe = thisx->world.pos;
+            }
         }
     }
     if (!this->resting) {
@@ -258,8 +331,8 @@ static void EnRemixMagnet_UpdatePiece(EnRemixMagnet* this, PlayState* play) {
             this->vel.x = this->vel.y = this->vel.z = 0.0f;
             this->resting = true;
         }
-        if (thisx->world.pos.y < thisx->home.pos.y - 450.0f) {
-            EnRemixMagnet_Respawn(this); // fell into the chasm
+        if (thisx->world.pos.y < this->lastSafe.y - 450.0f) {
+            EnRemixMagnet_Respawn(this); // fell into a chasm
         }
     }
 }
@@ -324,6 +397,62 @@ static void EnRemixMagnet_UpdateBridge(EnRemixMagnet* this, PlayState* play) {
         }
     }
     thisx->world.rot.y = thisx->shape.rot.y;
+}
+
+static void EnRemixMagnet_UpdateMover(EnRemixMagnet* this, PlayState* play) {
+    Actor* thisx = &this->dyna.actor;
+    f32 goal = Flags_GetSwitch(play, MAGNET_FLAG(thisx->params)) ? this->extra : 0.0f;
+
+    if (this->lift != goal) {
+        if (Math_StepToF(&this->lift, goal, 4.0f)) {
+            Actor_PlaySfx(thisx, (this->type == MAGNET_GATE) ? NA_SE_EV_STONEDOOR_STOP : NA_SE_EV_BLOCK_BOUND);
+        } else {
+            Actor_PlaySfx_Flagged(thisx, NA_SE_EV_STONE_STATUE_OPEN - SFX_FLAG);
+        }
+    }
+    thisx->world.pos.y = thisx->home.pos.y + this->lift;
+}
+
+static void EnRemixMagnet_UpdateBrazier(EnRemixMagnet* this, PlayState* play) {
+    Actor* thisx = &this->dyna.actor;
+    WaterBox* waterBox;
+    f32 surface;
+
+    EnRemixMagnet_UpdatePiece(this, play);
+
+    if (this->lit) {
+        // water puts it out
+        if (BgCheck_GetWaterSurface(play, &play->colCtx, thisx->world.pos.x, thisx->world.pos.z, &surface, &waterBox) &&
+            (surface > thisx->world.pos.y + MAGNET_BRAZIER_HEIGHT - 15.0f)) {
+            this->lit = false;
+            Actor_PlaySfx(thisx, NA_SE_EN_EXTINCT);
+        }
+    } else {
+        // a burning torch next to its bowl sets it alight
+        Actor* torch = play->actorCtx.actorLists[ACTORCAT_PROP].head;
+
+        for (; torch != NULL; torch = torch->next) {
+            if ((torch->id == ACTOR_OBJ_SYOKUDAI) && (((ObjSyokudai*)torch)->litTimer != 0)) {
+                f32 dx = torch->world.pos.x - thisx->world.pos.x;
+                f32 dy = (torch->world.pos.y + 67.0f) - (thisx->world.pos.y + MAGNET_BRAZIER_HEIGHT);
+                f32 dz = torch->world.pos.z - thisx->world.pos.z;
+
+                if ((SQ(dx) + SQ(dz) < SQ(70.0f)) && (fabsf(dy) < 60.0f)) {
+                    this->lit = true;
+                    Actor_PlaySfx(thisx, NA_SE_EV_FLAME_IGNITION);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (this->lit) {
+        Collider_UpdateCylinder(thisx, &this->fire);
+        CollisionCheck_SetAT(play, &play->colChkCtx, &this->fire.base);
+        Actor_PlaySfx_Flagged(thisx, NA_SE_EV_TORCH - SFX_FLAG);
+    }
+    Lights_PointGlowSetInfo(&this->lightInfo, thisx->world.pos.x, thisx->world.pos.y + 70.0f, thisx->world.pos.z, 255,
+                            170, 70, this->lit ? (200 + (s32)(20.0f * Math_SinS(this->timer * 0x1800))) : -1);
 }
 
 // ---------------------------------------------------------------- Magnesis
@@ -508,7 +637,8 @@ static void EnRemixMagnet_UpdateController(EnRemixMagnet* this, PlayState* play)
 
     EnRemixMagnet_UpdateFallingChest(this, play);
 
-    this->hasMagnesis = Flags_GetTreasure(play, MAGNET_FLAG(this->dyna.actor.params));
+    this->hasMagnesis = (MAGNET_FLAG(this->dyna.actor.params) == MAGNET_ALWAYS) ||
+                        Flags_GetTreasure(play, MAGNET_FLAG(this->dyna.actor.params));
     if (this->aim != NULL && this->aim->id == ACTOR_EN_REMIX_MAGNET) {
         ((EnRemixMagnet*)this->aim)->aimed = false;
     }
@@ -575,6 +705,13 @@ void EnRemixMagnet_Update(Actor* thisx, PlayState* play) {
             break;
         case MAGNET_BRIDGE:
             EnRemixMagnet_UpdateBridge(this, play);
+            break;
+        case MAGNET_BRAZIER:
+            EnRemixMagnet_UpdateBrazier(this, play);
+            break;
+        case MAGNET_GATE:
+        case MAGNET_SPAN:
+            EnRemixMagnet_UpdateMover(this, play);
             break;
         default:
             EnRemixMagnet_UpdatePiece(this, play);
@@ -680,6 +817,12 @@ void EnRemixMagnet_Draw(Actor* thisx, PlayState* play) {
     } else if ((this->type == MAGNET_BRIDGE) && (thisx->shape.rot.y != this->targetYaw)) {
         glow = 70;
         r = 255, g = 140, b = 30;
+    } else if ((this->type == MAGNET_GATE) || (this->type == MAGNET_SPAN)) {
+        glow = (this->lift != 0.0f) ? 60 : 0; // powered once its torch is lit
+        r = 255, g = 140, b = 30;
+    } else if ((this->type == MAGNET_BRAZIER) && this->lit) {
+        glow = 50 + (s32)(20.0f * Math_SinS(this->timer * 0x1800)); // the fire's glow on the iron
+        r = 255, g = 120, b = 20;
     }
     if (this->type == MAGNET_LIFT) {
         this->timer++;
@@ -691,6 +834,22 @@ void EnRemixMagnet_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_OPA_DISP++, r * glow / 255, g * glow / 255, b * glow / 255, 255);
     MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx, "../z_en_remix_magnet.c", __LINE__);
     gSPDisplayList(POLY_OPA_DISP++, sDisplayLists[this->type]);
+
+    if ((this->type == MAGNET_BRAZIER) && this->lit) {
+        // the torches' own flame (Obj_Syokudai), in the bowl
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
+        gSPSegment(POLY_XLU_DISP++, 0x08,
+                   Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0, 0, 0x20, 0x40, 1, 0,
+                                    (this->timer * -20) & 0x1FF, 0x20, 0x80));
+        gDPSetPrimColor(POLY_XLU_DISP++, 0x80, 0x80, 255, 255, 0, 255);
+        gDPSetEnvColor(POLY_XLU_DISP++, 255, 0, 0, 0);
+        Matrix_Translate(0.0f, MAGNET_BRAZIER_HEIGHT - 12.0f, 0.0f, MTXMODE_APPLY);
+        Matrix_RotateY(BINANG_TO_RAD((s16)(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)) - thisx->shape.rot.y + 0x8000)),
+                       MTXMODE_APPLY);
+        Matrix_Scale(0.0035f, 0.0035f, 0.0035f, MTXMODE_APPLY);
+        MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, play->state.gfxCtx, "../z_en_remix_magnet.c", __LINE__);
+        gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
+    }
 
     CLOSE_DISPS(play->state.gfxCtx, "../z_en_remix_magnet.c", __LINE__);
 }
