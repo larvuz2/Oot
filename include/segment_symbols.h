@@ -709,4 +709,8 @@ DECLARE_ROM_SEGMENT(forge_room_0)
 DECLARE_ROM_SEGMENT(time_scene)
 DECLARE_ROM_SEGMENT(time_room_0)
 
+// Web Remix level 7: the Shrine of Seven Years (spec/remix_scenes.inc, tools/remix/make_years.py)
+DECLARE_ROM_SEGMENT(years_scene)
+DECLARE_ROM_SEGMENT(years_room_0)
+
 #endif

@@ -35,3 +35,12 @@ beginseg
     include "$(BUILD_DIR)/assets/objects/object_remix_time/object_remix_time.o"
     number 6
 endseg
+
+// The Shrine of Seven Years' pieces (tools/remix/make_years_parts.py), for ovl_En_Remix_Years
+beginseg
+    name "object_remix_years"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/objects/object_remix_years/object_remix_years.o"
+    number 6
+endseg
