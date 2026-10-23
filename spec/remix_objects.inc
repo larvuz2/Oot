@@ -26,3 +26,12 @@ beginseg
     include "$(BUILD_DIR)/assets/objects/object_remix_magnet/object_remix_magnet.o"
     number 6
 endseg
+
+// The Temple of Two Truths' pieces (tools/remix/make_time_parts.py), for ovl_En_Remix_Time
+beginseg
+    name "object_remix_time"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/objects/object_remix_time/object_remix_time.o"
+    number 6
+endseg

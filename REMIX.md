@@ -328,6 +328,68 @@ take it as they take a fire arrow, so the game's own torch logic does the rest (
 "light all three in time" group). Its fire is the torches' own flame model, with a point light. The pool is a real
 water box (`make_shrine.py` writes them now). About 1160 triangles in seven room chunks.
 
+## Level 6: the Temple of Two Truths (child and adult)
+
+A fifth shrine under the Plateau, by the south road nearer the town. On the website, **6 · Temple of Two Truths**
+(or the key <kbd>6</kbd>); from your own save, Remix menu &rarr; *Go to: Temple of Two Truths*. Inside, the temple
+lends Link a kit for both his ages (the Ocarina of Time and the Song of Time, the boomerang, slingshot, Deku sticks,
+bombs and Bombchus, the bow and fire arrows, Din's Fire and a full magic meter, the longshot, the Megaton Hammer, the
+Mirror Shield, iron and hover boots); his own things, and the age he came in at, come back when he leaves.
+
+One enormous round hall in sandstone, the way the Spirit Temple's are, and everything is in view from the entrance:
+the bottomless pit and the dais in its middle under a hanging hourglass and its three turning rings, the golden
+sphere on its pedestal, ring 1 (a stone band round the dais with four openings), four unlit torches at different
+heights, a waterfall that flows **upwards**, the basin where the sun comes through the ceiling, a great statue in
+the north wall (a locked mouth, an empty eye), the scale by its shoulder, a clock whose hand points to **CHILD** or
+**ADULT**, and two identical pads on the dais, one blue, one orange.
+
+**Time echo.** Play the Song of Time on the clock-plate in the middle of the dais: the hall comes back in the other
+era, and Link with it, as a child on the blue pad or as an adult on the orange one. What he moves in the past stays
+moved in the present. Some things grow over the years (a small block becomes a pillar), some decay (the child's
+bridge to the dais and his ramp up the statue are ruins in the present, a block left in the drain wears away), some
+don't change (the scale, the ring). In the past the golden sphere is a small golden seed.
+
+1. **The sphere.** Hookshot to the lintel over the sphere: landing on the dais sinks its pedestal and the sphere
+   falls into the pit (it comes back). A crystal hides under the pedestal: strike it (boomerang, an arrow) and the
+   pedestal is locked. Push the sphere: it rolls down the curved track into ring 1's cradle, the plate there starts
+   the ring turning, and the sphere is trapped in it.
+2. **The four flames.** Four timed torches stand round the dais, each at its own height; each burns 8 seconds, and
+   the ring's openings line up with them at different times (fire arrows through the openings is very hard). From
+   the middle of the dais Din's Fire reaches them all at once. With all four burning the waterfall turns and falls,
+   water fills the pit and the basin, and the sphere floats up in a bubble into the statue's head.
+3. **Yesterday.** The sun falls on an old block in the basin: under water, worn, far too heavy. The inscription
+   says *"What cannot be moved today may be moved yesterday."* As a child the basin is dry and the block small: push
+   it into the sunbeam. Back in the present it has grown into a pillar standing in the light, a mirror on top that
+   throws the sunlight onto the walkway. Stand in the light and raise the Mirror Shield towards the sun symbol over
+   the way out: the statue's mouth opens.
+4. **The first eye.** Inside the statue: a gap (longshot, or hover boots), stairs, a narrow bridge to the first
+   eye. The sphere waits above a grate; the hammer switch drops it onto the eye's plate. The eye lights, the way out
+   opens, a second eye opens on the statue's forehead: *"You have opened the way. But have you understood the
+   truth?"* The sphere goes back to its pedestal; the chest is still nowhere.
+5. **The truth.** As a child, push the old block out of the drain (in the present the water then won't rise). Send
+   a Bombchu over the dais's south edge: it runs down the side onto a crystal only a blast wakes, and ring 1 turns
+   backwards. Roll the sphere into the ring again: with no water to lift it, the ring throws it onto the scale's
+   right pan up by the statue's shoulder. Longshot up there and step on the switch: the stone weight drops onto
+   the left pan, the right pan lifts the sphere towards the second eye, and stops short. As a child, push the
+   second small block onto the left pan: in the present it is a pillar, heavy enough to tip the scale all the way.
+   The sphere rolls into the second eye, the statue awakes, the rings line up, and the chest falls onto the dais.
+
+**The seed.** In the past the sphere is a seed the child can carry. Take it up the ramp (it stands in the past)
+into the first eye and leave it there; in the present, turn the sunlight onto it with the Mirror Shield: it grows
+into the sphere and the eye opens, phases 1 to 4 solved another way.
+
+How it is made: `tools/remix/make_time.py` generates `assets/scenes/remix/time/` (the hall, the statue and its
+inside) and checks the reaches it relies on; `tools/remix/time_plan.py` is the plan both it and
+`tools/remix/make_time_parts.py` (the pieces, `object_remix_time`) read, and the latter writes it into the object's
+header for the actor. `ovl_En_Remix_Time` does the moving parts: the age switch (the Song of Time as an Obj_Timeblock
+listens for it, then `play->linkAgeOnLoad`, as the Temple of Time does, and an entrance whose spawn is the pad of
+Link's new age), the water (the scene's water box, raised and lowered), the sunlight and the Mirror Shield, the
+sphere's journey (kept in switch flags), the echo blocks (pushed like the game's blocks as a child, a pillar or a
+worn block in the present), the ring, the scale, the bridge and ramp of the past, the inscriptions. The rest are the
+game's own: crystal and floor switches (Obj_Switch), timed torches (Obj_Syokudai), the chest (En_Box).
+`src/code/z_remix_level.c` lends the kit and keeps the age Link came in at; four new texts in
+`assets/text/message_data.h`.
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
@@ -500,6 +562,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/smoke_test.py`, `tools/remix/smoke_capture.mjs`, `web/js/boot.js` | Emulator smoke test in CI (the website's player in headless Chromium); the site's "Jump into the new level" switch |
 | `tools/remix/make_magnet.py`, `make_magnet_parts.py`, `make_slate.py`, `assets/scenes/remix/magnet/`, `src/overlays/actors/ovl_En_Remix_Magnet/`, `assets/objects/object_remix_magnet/`, `assets/objects/object_remix_slate/` | Level 4, the Lodestone Shrine: Magnesis and the moving pieces, and the fal-made rune. `GI_REMIX_MAGNESIS` in `include/item.h`, `z_draw.c`, `z_player.c` (get-item table, text id now 16 bits) and `assets/text/message_data.h` |
 | `tools/remix/make_forge.py`, `assets/scenes/remix/forge/` | Level 5, the Forge Shrine (the fire basket, gates and spans are `ovl_En_Remix_Magnet` too) |
+| `tools/remix/make_time.py`, `make_time_parts.py`, `time_plan.py`, `assets/scenes/remix/time/`, `src/overlays/actors/ovl_En_Remix_Time/`, `assets/objects/object_remix_time/` | Level 6, the Temple of Two Truths: the hall, its pieces and the age switch; the kit in `z_remix_level.c`, texts in `assets/text/message_data.h` |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

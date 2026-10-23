@@ -705,4 +705,8 @@ DECLARE_ROM_SEGMENT(magnet_room_0)
 DECLARE_ROM_SEGMENT(forge_scene)
 DECLARE_ROM_SEGMENT(forge_room_0)
 
+// Web Remix level 6: the Temple of Two Truths (spec/remix_scenes.inc, tools/remix/make_time.py)
+DECLARE_ROM_SEGMENT(time_scene)
+DECLARE_ROM_SEGMENT(time_room_0)
+
 #endif

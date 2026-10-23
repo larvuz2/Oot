@@ -37,6 +37,127 @@ MSG(
 )
 )
 
+/* Web Remix: the Temple of Two Truths (En_Remix_Time) */
+DEFINE_MESSAGE(0x7FA1, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"ふたつの　しんじつの　しんでん\n"
+"まんなかの　とけいで　ときのうたを\n"
+"ふけば　こどもと　おとなを　ゆききできる"
+)
+,
+MSG(
+"The " COLOR(RED) "Temple of Two Truths" COLOR(DEFAULT) ".\n"
+"Play the " COLOR(BLUE) "Song of Time" COLOR(DEFAULT) " on the clock\n"
+"at the heart of the hall to walk"
+BOX_BREAK
+"between the child and the adult.\n"
+"What you move in one age stays\n"
+"moved in the other..."
+BOX_BREAK
+"...but some things grow with the\n"
+"years, and some wear away."
+)
+,
+MSG(
+"The " COLOR(RED) "Temple of Two Truths" COLOR(DEFAULT) ".\n"
+"Play the " COLOR(BLUE) "Song of Time" COLOR(DEFAULT) " on the clock\n"
+"at the heart of the hall to walk"
+BOX_BREAK
+"between the child and the adult.\n"
+"What you move in one age stays\n"
+"moved in the other..."
+BOX_BREAK
+"...but some things grow with the\n"
+"years, and some wear away."
+)
+,
+MSG(
+"The " COLOR(RED) "Temple of Two Truths" COLOR(DEFAULT) ".\n"
+"Play the " COLOR(BLUE) "Song of Time" COLOR(DEFAULT) " on the clock\n"
+"at the heart of the hall to walk"
+BOX_BREAK
+"between the child and the adult.\n"
+"What you move in one age stays\n"
+"moved in the other..."
+BOX_BREAK
+"...but some things grow with the\n"
+"years, and some wear away."
+)
+)
+
+/* Web Remix: the Temple of Two Truths (En_Remix_Time) */
+DEFINE_MESSAGE(0x7FA2, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"きょう　うごかせないものも\n"
+"きのうなら　うごかせるかもしれない"
+)
+,
+MSG(
+"What cannot be moved " COLOR(RED) "today" COLOR(DEFAULT) "\n"
+"may be moved " COLOR(BLUE) "yesterday" COLOR(DEFAULT) "."
+)
+,
+MSG(
+"What cannot be moved " COLOR(RED) "today" COLOR(DEFAULT) "\n"
+"may be moved " COLOR(BLUE) "yesterday" COLOR(DEFAULT) "."
+)
+,
+MSG(
+"What cannot be moved " COLOR(RED) "today" COLOR(DEFAULT) "\n"
+"may be moved " COLOR(BLUE) "yesterday" COLOR(DEFAULT) "."
+)
+)
+
+/* Web Remix: the Temple of Two Truths (En_Remix_Time) */
+DEFINE_MESSAGE(0x7FA3, TEXTBOX_TYPE_BLUE, TEXTBOX_POS_BOTTOM,
+MSG(
+"みちは　ひらかれた。\n"
+"だが　しんじつを　りかいしたか？"
+)
+,
+MSG(
+"You have opened the way.\n"
+"But have you understood the truth?"
+)
+,
+MSG(
+"You have opened the way.\n"
+"But have you understood the truth?"
+)
+,
+MSG(
+"You have opened the way.\n"
+"But have you understood the truth?"
+)
+)
+
+/* Web Remix: the Temple of Two Truths (En_Remix_Time) */
+DEFINE_MESSAGE(0x7FA4, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"おうごんの　たねが　ねむっている。\n"
+"ひかりの　とどく　ところでだけ\n"
+"めを　さます。"
+)
+,
+MSG(
+"A " COLOR(YELLOW) "golden seed" COLOR(DEFAULT) " sleeps here.\n"
+"It wakes only where the sunlight\n"
+"finds it."
+)
+,
+MSG(
+"A " COLOR(YELLOW) "golden seed" COLOR(DEFAULT) " sleeps here.\n"
+"It wakes only where the sunlight\n"
+"finds it."
+)
+,
+MSG(
+"A " COLOR(YELLOW) "golden seed" COLOR(DEFAULT) " sleeps here.\n"
+"It wakes only where the sunlight\n"
+"finds it."
+)
+)
+
 /*
  * The following two messages should be kept last and in this order.
  * Message 0xFFFD must be last to not break the message debugger (see R_MESSAGE_DEBUGGER_TEXTID).

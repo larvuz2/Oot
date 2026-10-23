@@ -120,6 +120,30 @@ beginseg
     include "$(BUILD_DIR)/assets/scenes/remix/forge/forge_title.o"
 endseg
 
+// Level 6: the Temple of Two Truths (tools/remix/make_time.py, committed in assets/scenes/remix/time/)
+beginseg
+    name "time_scene"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/time/time_scene.o"
+    number 2
+endseg
+
+beginseg
+    name "time_room_0"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/time/time_room_0.o"
+    number 3
+endseg
+
+beginseg
+    name "g_pn_remix_time"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/time/time_title.o"
+endseg
+
 // Biomes:
 // tools/remix/make_biome.py copies Hyrule Field into extracted/VERSION/assets/scenes/remix/tundra/ after
 // `make setup`; the Makefile then sets REMIX_HAS_TUNDRA=1. Without that step the ROM is built without biomes.

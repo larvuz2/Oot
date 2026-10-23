@@ -131,3 +131,5 @@ DEFINE_SCENE(seeker_scene, g_pn_remix_seeker, SCENE_REMIX_SEEKER, SDC_REMIX_SEEK
 DEFINE_SCENE(magnet_scene, g_pn_remix_magnet, SCENE_REMIX_MAGNET, SDC_REMIX_MAGNET, 0, 0)
 // Web Remix: level 5, the Forge Shrine (tools/remix/make_forge.py)
 DEFINE_SCENE(forge_scene, g_pn_remix_forge, SCENE_REMIX_FORGE, SDC_REMIX_FORGE, 0, 0)
+// Web Remix: level 6, the Temple of Two Truths (tools/remix/make_time.py)
+DEFINE_SCENE(time_scene, g_pn_remix_time, SCENE_REMIX_TIME, SDC_REMIX_TIME, 0, 0)

@@ -513,6 +513,8 @@ MUSIC = "NA_BGM_ICE_CAVERN"
 EXTRA_ROOM_C = []  # more C after the display lists (lists that call segments, for room entries of their own)
 EXTRA_ENTRIES = []  # more room entries: (center, radius, opa list, xlu list)
 WATERBOXES = []  # (x0, x1, z0, z1, surface y): water (tools/remix/make_forge.py's pool)
+LIGHT_ROW = None  # another light setting (tools/remix/make_time.py: warm, sunlit sandstone)
+EXTRA_SPAWNS = []  # more places Link can come in: (x, y, z, yaw) (tools/remix/make_time.py's pads)
 
 
 def room_defines():
@@ -548,8 +550,8 @@ def title_card(text="Ember Shrine"):
 
 def light_settings():
     """Inside, one dim blue light setting (the glow lines and the torches do the rest), dark blue fog."""
-    row = ("{ { 66, 72, 98 }, { 73, 73, 73 }, { 150, 164, 200 }, { -73, -73, -73 }, { 84, 66, 50 }, "
-           "{ 14, 18, 32 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 3600 },\n")
+    row = LIGHT_ROW or ("{ { 66, 72, 98 }, { 73, 73, 73 }, { 150, 164, 200 }, { -73, -73, -73 }, { 84, 66, 50 }, "
+                        "{ 14, 18, 32 }, BLEND_RATE_AND_FOG_NEAR(4, 990), 3600 },\n")
     return f"EnvLightSettings {SCENE}LightSettings[] = {{\n" + "    " + row * 1 + "    " + row + "    " + row + "    " + row + "};\n\n"
 
 
@@ -619,16 +621,18 @@ def write_sources():
              f"    SCENE_CMD_COL_HEADER(&{SCENE}CollisionHeader),\n"
              f"    SCENE_CMD_SPAWN_LIST({SCENE}SpawnList),\n"
              "    SCENE_CMD_SPECIAL_FILES(NAVI_QUEST_HINTS_NONE, OBJECT_GAMEPLAY_DANGEON_KEEP),\n"
-             f"    SCENE_CMD_PLAYER_ENTRY_LIST(1, {SCENE}PlayerEntryList),\n"
+             f"    SCENE_CMD_PLAYER_ENTRY_LIST({1 + len(EXTRA_SPAWNS)}, {SCENE}PlayerEntryList),\n"
              "    SCENE_CMD_SKYBOX_SETTINGS(SKYBOX_NONE, 0, LIGHT_MODE_SETTINGS),\n"
              f"    SCENE_CMD_EXIT_LIST({SCENE}ExitList),\n"
              f"    SCENE_CMD_ENV_LIGHT_SETTINGS(4, {SCENE}LightSettings),\n"
              "    SCENE_CMD_END(),\n};\n\n")
     s.append(f"RomFile {SCENE}RoomList[] = {{\n    ROM_FILE({ROOM}),\n}};\n\n")
-    s.append(f"Spawn {SCENE}SpawnList[] = {{\n    {{ 0, 0 }},\n}};\n\n")
-    s.append(f"// Link drops in from the shaft, as into a grotto, facing the arch\nActorEntry {SCENE}PlayerEntryList[] = {{\n"
-             f"    {{ ACTOR_PLAYER, {{ {SPAWN[0]}, {SPAWN[1]}, {SPAWN[2]} }}, {{ 0, 0x8000, 0 }}, "
-             "PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT) },\n};\n\n")
+    spawns = [(SPAWN[0], SPAWN[1], SPAWN[2], 0x8000)] + EXTRA_SPAWNS
+    s.append(f"Spawn {SCENE}SpawnList[] = {{\n" + "".join(f"    {{ {k}, 0 }},\n" for k in range(len(spawns))) + "};\n\n")
+    s.append(f"// Link drops in from the shaft, as into a grotto, facing the arch\nActorEntry {SCENE}PlayerEntryList[] = {{\n" +
+             "".join(f"    {{ ACTOR_PLAYER, {{ {x}, {y}, {z} }}, {{ 0, 0x{yaw:04X}, 0 }}, "
+                     "PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT) },\n" for x, y, z, yaw in spawns) +
+             "};\n\n")
     s.append(f"s16 {SCENE}ExitList[] = {{\n" + "".join(f"    {x},\n" for x in EXITS) + "};\n\n")
     s.append(light_settings())
     s.append(f"Vec3s {SCENE}CollisionVtx[] = {{\n" + "".join(f"    {{ {v[0]}, {v[1]}, {v[2]} }},\n" for v in verts) + "};\n\n")

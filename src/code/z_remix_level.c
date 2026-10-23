@@ -26,6 +26,11 @@
  *     Magnesis itself and the shrine's moving pieces are En_Remix_Magnet actors.
  *   - The Forge Shrine's draw config (level 5): each stage's circuit lines (0x09, 0x0A, 0x0B, 0x0E: dim until the
  *     stage's torch is lit, then burning orange) and the rune ring over the exit (0x0F).
+ *   - The Temple of Two Truths' draw config (level 6): the floor's circuit in the era's colour (0x0B: blue in the
+ *     past, orange in the present), the waterfall's flow (0x0E: up, down once the torches have burned in the present),
+ *     the lines of the first eye (0x09) and of the awakened statue (0x0A). The shrine's pieces are En_Remix_Time.
+ *   - The Temple of Two Truths' kit: both ages' tools while Link is inside (and the Song of Time), his own items and
+ *     age back when he leaves.
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -54,6 +59,7 @@
 #include "assets/scenes/remix/seeker/seeker_room_0.h"
 #include "assets/scenes/remix/magnet/magnet_room_0.h"
 #include "assets/scenes/remix/forge/forge_room_0.h"
+#include "assets/scenes/remix/time/time_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -494,6 +500,191 @@ void RemixLevel_DrawConfigForge(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToTime(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_TIME_HOLE_X, ANCIENT_TIME_HOLE_Y, ANCIENT_TIME_HOLE_Z, ANCIENT_TIME_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_TIME_0);
+}
+
+void RemixLevel_DrawConfigTime(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    s32 child = !LINK_IS_ADULT;
+    // the waterfall flows up, until the torches have burned (in the present): then it falls and fills the pit
+    s32 falls = !child && Flags_GetSwitch(play, TIME_SHRINE_FLAG_TORCHES);
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* era = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+    Gfx* eye1 = RemixLevel_LineColor(play, Flags_GetSwitch(play, TIME_SHRINE_FLAG_EYE1), 110, 230, 255, wave);
+    Gfx* alive = RemixLevel_LineColor(play, Flags_GetSwitch(play, TIME_SHRINE_FLAG_ALIVE), 255, 210, 80, wave);
+    Gfx* water = Gfx_TexScroll(gfxCtx, 0, falls ? ((frames * 6) % 128) : (128 - ((frames * 6) % 128)) % 128, 32, 32);
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 70, 215 + (s32)(wave * 25.0f), 255, 190 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 40, 230 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+    gDPPipeSync(era);
+    if (child) {
+        gDPSetPrimColor(era + 1, 0, 0, 80, 170, 255, 210 + (s32)(wave * 40.0f));
+    } else {
+        gDPSetPrimColor(era + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 50, 210 + (s32)(wave * 40.0f));
+    }
+    gSPEndDisplayList(era + 2);
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x09, eye1);
+    gSPSegment(POLY_OPA_DISP++, 0x0A, alive);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, era);
+    gSPSegment(POLY_OPA_DISP++, 0x0E, water);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x09, eye1);
+    gSPSegment(POLY_XLU_DISP++, 0x0A, alive);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, era);
+    gSPSegment(POLY_XLU_DISP++, 0x0E, water);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
+// ---- the Temple of Two Truths' kit: both ages' tools inside, Link's own things back outside ----
+
+typedef struct RemixTimeKit {
+    s32 active;
+    u8 entryAge;
+    Inventory inventory;
+    ItemEquips equips;
+    ItemEquips childEquips;
+    ItemEquips adultEquips;
+    u8 isMagicAcquired;
+    u8 isDoubleMagicAcquired;
+    s8 magic;
+} RemixTimeKit;
+
+static RemixTimeKit sTimeKit;
+
+#define OWN_EQUIP(type, inv) ((1 << (inv)) << ((type)*4))
+#define EQUIP_VALUES(sword, shield)                                                \
+    (((sword) << (EQUIP_TYPE_SWORD * 4)) | ((shield) << (EQUIP_TYPE_SHIELD * 4)) | \
+     (EQUIP_VALUE_TUNIC_KOKIRI << (EQUIP_TYPE_TUNIC * 4)) | (EQUIP_VALUE_BOOTS_KOKIRI << (EQUIP_TYPE_BOOTS * 4)))
+
+static void RemixTimeKit_Begin(void) {
+    SavePlayerData* pd = &gSaveContext.save.info.playerData;
+
+    sTimeKit.inventory = gSaveContext.save.info.inventory;
+    sTimeKit.equips = gSaveContext.save.info.equips;
+    sTimeKit.childEquips = pd->childEquips;
+    sTimeKit.adultEquips = pd->adultEquips;
+    sTimeKit.isMagicAcquired = pd->isMagicAcquired;
+    sTimeKit.isDoubleMagicAcquired = pd->isDoubleMagicAcquired;
+    sTimeKit.magic = pd->magic;
+    sTimeKit.entryAge = gSaveContext.save.linkAge;
+    sTimeKit.active = true;
+}
+
+/** Each time the shrine starts (coming in, and after every Song of Time): the tools for the age Link is now. */
+static void RemixTimeKit_Equip(void) {
+    Inventory* inv = &gSaveContext.save.info.inventory;
+    ItemEquips* eq = &gSaveContext.save.info.equips;
+    SavePlayerData* pd = &gSaveContext.save.info.playerData;
+    s32 child = !LINK_IS_ADULT;
+
+    inv->items[SLOT_DEKU_STICK] = ITEM_DEKU_STICK;
+    inv->items[SLOT_DEKU_NUT] = ITEM_DEKU_NUT;
+    inv->items[SLOT_BOMB] = ITEM_BOMB;
+    inv->items[SLOT_BOW] = ITEM_BOW;
+    inv->items[SLOT_ARROW_FIRE] = ITEM_ARROW_FIRE;
+    inv->items[SLOT_DINS_FIRE] = ITEM_DINS_FIRE;
+    inv->items[SLOT_SLINGSHOT] = ITEM_SLINGSHOT;
+    inv->items[SLOT_OCARINA] = ITEM_OCARINA_OF_TIME;
+    inv->items[SLOT_BOMBCHU] = ITEM_BOMBCHU;
+    inv->items[SLOT_HOOKSHOT] = ITEM_LONGSHOT;
+    inv->items[SLOT_BOOMERANG] = ITEM_BOOMERANG;
+    inv->items[SLOT_HAMMER] = ITEM_HAMMER;
+    if (CUR_UPG_VALUE(UPG_QUIVER) == 0) {
+        Inventory_ChangeUpgrade(UPG_QUIVER, 1);
+    }
+    if (CUR_UPG_VALUE(UPG_BOMB_BAG) == 0) {
+        Inventory_ChangeUpgrade(UPG_BOMB_BAG, 1);
+    }
+    if (CUR_UPG_VALUE(UPG_BULLET_BAG) == 0) {
+        Inventory_ChangeUpgrade(UPG_BULLET_BAG, 1);
+    }
+    if (CUR_UPG_VALUE(UPG_DEKU_STICKS) == 0) {
+        Inventory_ChangeUpgrade(UPG_DEKU_STICKS, 1);
+    }
+    if (CUR_UPG_VALUE(UPG_DEKU_NUTS) == 0) {
+        Inventory_ChangeUpgrade(UPG_DEKU_NUTS, 1);
+    }
+    AMMO(ITEM_DEKU_STICK) = 10;
+    AMMO(ITEM_DEKU_NUT) = 20;
+    AMMO(ITEM_BOMB) = 20;
+    AMMO(ITEM_BOW) = 30;
+    AMMO(ITEM_SLINGSHOT) = 30;
+    AMMO(ITEM_BOMBCHU) = 20;
+    inv->questItems |= 1 << QUEST_SONG_TIME;
+    inv->equipment |=
+        OWN_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) | OWN_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER) |
+        OWN_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_DEKU) | OWN_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_HYLIAN) |
+        OWN_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_MIRROR) | OWN_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_KOKIRI) |
+        OWN_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_IRON) | OWN_EQUIP(EQUIP_TYPE_BOOTS, EQUIP_INV_BOOTS_HOVER) |
+        OWN_EQUIP(EQUIP_TYPE_TUNIC, EQUIP_INV_TUNIC_KOKIRI);
+
+    // C-Left the boomerang or the longshot, C-Down the Ocarina, C-Right Bombchus or Din's Fire
+    eq->buttonItems[0] = child ? ITEM_SWORD_KOKIRI : ITEM_SWORD_MASTER;
+    eq->buttonItems[1] = child ? ITEM_BOOMERANG : ITEM_LONGSHOT;
+    eq->cButtonSlots[0] = child ? SLOT_BOOMERANG : SLOT_HOOKSHOT;
+    eq->buttonItems[2] = ITEM_OCARINA_OF_TIME;
+    eq->cButtonSlots[1] = SLOT_OCARINA;
+    eq->buttonItems[3] = child ? ITEM_BOMBCHU : ITEM_DINS_FIRE;
+    eq->cButtonSlots[2] = child ? SLOT_BOMBCHU : SLOT_DINS_FIRE;
+    eq->equipment = child ? EQUIP_VALUES(EQUIP_VALUE_SWORD_KOKIRI, EQUIP_VALUE_SHIELD_DEKU)
+                          : EQUIP_VALUES(EQUIP_VALUE_SWORD_MASTER, EQUIP_VALUE_SHIELD_MIRROR);
+
+    // Magic for Din's Fire: a full meter
+    pd->isMagicAcquired = true;
+    pd->magicLevel = 0;
+    gSaveContext.magicFillTarget = (pd->isDoubleMagicAcquired + 1) * MAGIC_NORMAL_METER;
+}
+
+static void RemixTimeKit_End(void) {
+    SavePlayerData* pd = &gSaveContext.save.info.playerData;
+
+    gSaveContext.save.info.inventory = sTimeKit.inventory;
+    gSaveContext.save.info.equips = sTimeKit.equips;
+    pd->childEquips = sTimeKit.childEquips;
+    pd->adultEquips = sTimeKit.adultEquips;
+    pd->isMagicAcquired = sTimeKit.isMagicAcquired;
+    pd->isDoubleMagicAcquired = sTimeKit.isDoubleMagicAcquired;
+    if (pd->isMagicAcquired) {
+        pd->magic = CLAMP_MAX(sTimeKit.magic, (pd->isDoubleMagicAcquired + 1) * MAGIC_NORMAL_METER);
+        pd->magicLevel = 0;
+        gSaveContext.magicFillTarget = pd->magic;
+    } else {
+        pd->magicLevel = 0;
+        pd->magic = 0;
+        gSaveContext.magicCapacity = 0;
+        gSaveContext.magicState = MAGIC_STATE_IDLE;
+    }
+    sTimeKit.active = false;
+}
+
+s32 RemixLevel_TimeEntryAge(void) {
+    return sTimeKit.active ? sTimeKit.entryAge : gSaveContext.save.linkAge;
+}
+
 // ---- the Seeker's Shrine's trial: nothing but the sword going in ----
 
 typedef struct RemixTrial {
@@ -566,6 +757,14 @@ static void RemixTrial_End(void) {
 }
 
 void RemixLevel_OnSceneStart(PlayState* play) {
+    if (play->sceneId == SCENE_REMIX_TIME) {
+        if (!sTimeKit.active) {
+            RemixTimeKit_Begin();
+        }
+        RemixTimeKit_Equip();
+    } else if (sTimeKit.active) {
+        RemixTimeKit_End();
+    }
     if (play->sceneId == SCENE_REMIX_SEEKER) {
         if (!sTrial.active) {
             RemixTrial_Begin();
@@ -576,6 +775,27 @@ void RemixLevel_OnSceneStart(PlayState* play) {
 }
 
 void RemixLevel_TrialSaveSwap(void) {
+    if (sTimeKit.active) {
+        Inventory inv = gSaveContext.save.info.inventory;
+        ItemEquips eq = gSaveContext.save.info.equips;
+        ItemEquips childEq = gSaveContext.save.info.playerData.childEquips;
+        ItemEquips adultEq = gSaveContext.save.info.playerData.adultEquips;
+        u8 acquired = gSaveContext.save.info.playerData.isMagicAcquired;
+        u8 age = gSaveContext.save.linkAge;
+
+        gSaveContext.save.info.inventory = sTimeKit.inventory;
+        gSaveContext.save.info.equips = sTimeKit.equips;
+        gSaveContext.save.info.playerData.childEquips = sTimeKit.childEquips;
+        gSaveContext.save.info.playerData.adultEquips = sTimeKit.adultEquips;
+        gSaveContext.save.info.playerData.isMagicAcquired = sTimeKit.isMagicAcquired;
+        gSaveContext.save.linkAge = sTimeKit.entryAge;
+        sTimeKit.inventory = inv;
+        sTimeKit.equips = eq;
+        sTimeKit.childEquips = childEq;
+        sTimeKit.adultEquips = adultEq;
+        sTimeKit.isMagicAcquired = acquired;
+        sTimeKit.entryAge = age;
+    }
     if (sTrial.active) {
         Inventory inv = gSaveContext.save.info.inventory;
         ItemEquips eq = gSaveContext.save.info.equips;
@@ -591,6 +811,7 @@ void RemixLevel_TrialSaveSwap(void) {
 }
 
 void RemixLevel_TrialForget(void) {
+    sTimeKit.active = false;
     sTrial.active = false;
 }
 
@@ -634,13 +855,15 @@ void RemixBoot_Start(GameState* gameState) {
         gSaveContext.hudVisibilityModeTimer = 0;
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0);
     // Mode 2 (Hyrule Field) is for tests: the same quick boot into a level of the original game.
-    gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0
-                                      : (mode == REMIX_BOOT_SHRINE)     ? ENTR_REMIX_SHRINE_0
-                                      : (mode == REMIX_BOOT_SEEKER)     ? ENTR_REMIX_SEEKER_0
-                                      : ((mode >= REMIX_BOOT_MAGNET) && (mode <= REMIX_BOOT_MAGNET_CHEST))
-                                          ? ENTR_REMIX_MAGNET_0
-                                      : (mode >= REMIX_BOOT_FORGE) ? ENTR_REMIX_FORGE_0
-                                                                   : ENTR_REMIX_ANCIENT_0;
+    gSaveContext.save.entranceIndex =
+        (mode == REMIX_BOOT_HYRULE_FIELD)                                    ? ENTR_HYRULE_FIELD_0
+        : (mode == REMIX_BOOT_SHRINE)                                        ? ENTR_REMIX_SHRINE_0
+        : (mode == REMIX_BOOT_SEEKER)                                        ? ENTR_REMIX_SEEKER_0
+        : ((mode >= REMIX_BOOT_MAGNET) && (mode <= REMIX_BOOT_MAGNET_CHEST)) ? ENTR_REMIX_MAGNET_0
+        : ((mode >= REMIX_BOOT_FORGE) && (mode <= REMIX_BOOT_FORGE_TEST))    ? ENTR_REMIX_FORGE_0
+        : (mode == REMIX_BOOT_TIME_CHILD)                                    ? ENTR_REMIX_TIME_1
+        : (mode >= REMIX_BOOT_TIME)                                          ? ENTR_REMIX_TIME_0
+                                                                             : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
     if (mode == REMIX_BOOT_MAGNET_TEST || mode == REMIX_BOOT_MAGNET_CHEST) {
@@ -680,6 +903,30 @@ void RemixBoot_Start(GameState* gameState) {
         r->tempSwchFlags = r->tempCollectFlags = 0;
         gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
     }
+    if (mode == REMIX_BOOT_TIME_TEST || mode == REMIX_BOOT_TIME_SUN) {
+        // Tests: the Temple of Two Truths, adult Link on the clock-plate (for the Song of Time), or on the sunlight's
+        // spot facing the sun symbol, the mirror block grown in the sunbeam and the water up
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+        s32 sun = (mode == REMIX_BOOT_TIME_SUN);
+
+        if (sun) {
+            gSaveContext.save.info.sceneFlags[SCENE_REMIX_TIME].swch |=
+                (1 << TIME_SHRINE_FLAG_MIRROR_CELL) | (1 << TIME_SHRINE_FLAG_TORCHES);
+        }
+        r->pos.x = sun ? TIME_TEST_SUN_X : 0.0f;
+        r->pos.y = 0.0f;
+        r->pos.z = sun ? TIME_TEST_SUN_Z : 30.0f;
+        r->yaw = sun ? TIME_TEST_SUN_YAW : 0;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_TIME_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
+    if (mode == REMIX_BOOT_TIME_CHILD) {
+        gSaveContext.save.linkAge = LINK_AGE_CHILD; // (onto his pad on the dais: ENTR_REMIX_TIME_1, spawn 1)
+    }
     if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
         // Tests: start somewhere else in the level, the way Link comes back after a void out (z_player.c).
         RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
@@ -704,6 +951,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if ((mode == REMIX_BOOT_TIME) || (mode == REMIX_BOOT_TIME_CHILD)) {
+        RemixLevel_SetShrineReturn(ANCIENT_TIME_HOLE_X, ANCIENT_TIME_HOLE_Y, ANCIENT_TIME_HOLE_Z,
+                                   ANCIENT_TIME_HOLE_YAW);
     } else if (mode == REMIX_BOOT_FORGE) {
         RemixLevel_SetShrineReturn(ANCIENT_FORGE_HOLE_X, ANCIENT_FORGE_HOLE_Y, ANCIENT_FORGE_HOLE_Z,
                                    ANCIENT_FORGE_HOLE_YAW);

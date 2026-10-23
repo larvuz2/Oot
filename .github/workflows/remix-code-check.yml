@@ -59,6 +59,19 @@ jobs:
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
 
+      - name: Level 6 (Temple of Two Truths), its actor and object compile
+        run: |
+          V=${{ matrix.version }}
+          G=build/$V/assets/scenes/remix/time
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/time/*.png assets/objects/object_remix_time/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $G/time_scene.o $G/time_room_0.o $G/time_title.o \
+            build/$V/src/overlays/actors/ovl_En_Remix_Time/z_en_remix_time.o \
+            build/$V/assets/objects/object_remix_time/object_remix_time.o
+          for f in scene:time_sceneCommands room_0:time_room_0Commands; do
+            mips-linux-gnu-nm $G/time_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of time_${f%%:*}"; exit 1; }
+          done
+
       - name: Level 5 (Forge Shrine) compiles
         run: |
           V=${{ matrix.version }}
@@ -153,6 +166,8 @@ jobs:
           grep -q '"seeker_room_0"' build/${{ matrix.version }}/spec
           grep -q '"magnet_room_0"' build/${{ matrix.version }}/spec
           grep -q '"forge_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"time_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"ovl_En_Remix_Time"' build/${{ matrix.version }}/spec
           grep -q '"ovl_En_Remix_Magnet"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.

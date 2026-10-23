@@ -31,8 +31,19 @@ SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE, BOOT_SEEKER = 1, 2, 3, 4, 5, 6  # include/remix_level.h
 BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST, BOOT_FORGE, BOOT_FORGE_TEST = 7, 8, 9, 10, 11
+BOOT_TIME, BOOT_TIME_TEST, BOOT_TIME_SUN, BOOT_TIME_CHILD = 12, 13, 14, 15
 # EmulatorJS input indices (web/js/app.js KEYS)
-IN_A, IN_L, IN_STICK_DOWN, IN_STICK_UP, IN_C_UP = 0, 10, 18, 19, 23
+IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
+
+
+def song_of_time(start, gap=40, hold=16):
+    """Inputs that take out the Ocarina (C-Down) and play the Song of Time: C-Right, A, C-Down, twice."""
+    out = [(start, IN_C_DOWN, 0x7FFF), (start + 30, IN_C_DOWN, 0)]  # (held long: a missed press would cast Din's Fire)
+    t = start + 130
+    for k, (button, value) in enumerate([(IN_C_RIGHT, 0x7FFF), (IN_A, 1), (IN_C_DOWN, 0x7FFF)] * 2):
+        out += [(t, button, value), (t + hold, button, 0)]
+        t += gap
+    return out
 
 
 def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
@@ -273,7 +284,7 @@ def main():
         # hall (pictures, crash and memory checks)
         # (and level 3, the Seeker's Shrine, the same way)
         for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET),
-                           ("forge", BOOT_FORGE)):
+                           ("forge", BOOT_FORGE), ("time", BOOT_TIME)):
             print(f"smoke: {name}")
             srom = bytearray(args.rom.read_bytes())
             set_boot_flag(srom, mode)
@@ -300,7 +311,15 @@ def main():
                 # Level 5: the burning basket (lit by its eternal torch), carried by Magnesis to the first gate's
                 # torch: the torch lights and the gate rises
                 ("forge-flame", BOOT_FORGE_TEST, [420, 520, 640, 760],
-                 [(440, IN_L, 1), (470, IN_STICK_UP, 0x7FFF), (580, IN_STICK_UP, 0), (640, IN_L, 0)]))
+                 [(440, IN_L, 1), (470, IN_STICK_UP, 0x7FFF), (580, IN_STICK_UP, 0), (640, IN_L, 0)]),
+                # Level 6: adult Link plays the Song of Time on the clock-plate and comes back as a child (the room in
+                # the past: the bridge to the dais, the ramp up the statue, the seed, the hourglass upside down)
+                ("time-song", BOOT_TIME_TEST, [440, 680, 1000, 1300, 1600], song_of_time(460)),
+                # the mirror block grown in the sunbeam: Link on the light's spot raises the Mirror Shield (R) towards
+                # the sun symbol, the statue's mouth opens
+                ("time-sun", BOOT_TIME_SUN, [420, 560, 760, 1000], [(440, IN_R, 1), (990, IN_R, 0)]),
+                # child Link on his pad on the dais (the kit for his age, the past's pieces)
+                ("time-child", BOOT_TIME_CHILD, [400, 700], []))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
             mrom = bytearray(args.rom.read_bytes())
