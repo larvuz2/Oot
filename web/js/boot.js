@@ -1,11 +1,12 @@
-// "Boot straight into the new level": the remix ROM carries a small struct starting with the magic
+// "Boot straight into a new level": the remix ROM carries a small struct starting with the magic
 // "RMXBOOT1" (gRemixBootConfig in src/code/z_remix_level.c). Setting the byte after it makes the game skip the
-// title screen and start a test save in the Ancient Plateau.
+// title screen and start a test save in that level (include/remix_level.h: REMIX_BOOT_*).
 
 const MAGIC = [0x52, 0x4d, 0x58, 0x42, 0x4f, 0x4f, 0x54, 0x31]; // "RMXBOOT1"
 
 export const BOOT_NORMAL = 0;
-export const BOOT_ANCIENT_PLATEAU = 1;
+export const BOOT_ANCIENT_PLATEAU = 1; // level 1
+export const BOOT_EMBER_SHRINE = 5; // level 2: dropping into the Ember Shrine from its hole
 
 /** Find the boot struct in a big-endian (.z64) ROM. Returns its offset, or -1. */
 export function findBootConfig(rom) {

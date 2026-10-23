@@ -178,6 +178,12 @@ def main():
     terrain = [(o, x) for o, x in entries if "terrain" in o]
     rows.append(("  of which: terrain", cost_of(lists, terrain)))
 
+    ember = REPO / "assets/scenes/remix/ember/ember_room_0.c"
+    if ember.is_file():  # level 2
+        lists = Lists(roots)
+        lists.add_c(ember)
+        rows.append(("Ember Shrine (whole room)", cost_of(lists, own_entries(ember, None))))
+
     for name, rel in AREAS.items():
         if not (ext / rel).is_dir():
             continue

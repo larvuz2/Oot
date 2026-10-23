@@ -1196,6 +1196,54 @@ def build_entrance():
     prism_col(tuple(center), R * 0.85, gy - 40, gy + R * 1.3, 10, SURF_TECH)
 
 
+_HOLE = []
+HOLE_R = 150  # the shrine marker's platform
+
+
+def shrine_hole():
+    """(x, y, z, yaw) of the hole down to the Ember Shrine (level 2): west of the south road, across from the eye
+    rock, where Link arrives; on a platform clear of the field's trees and rocks. yaw faces the road."""
+    if not _HOLE:
+        for r in (3200, 3120, 3300, 3040):
+            for off in (-560, -620, -500, -680):
+                ang = float(path_angle(0, r))
+                x = math.sin(ang) * r + math.cos(ang) * off
+                z = math.cos(ang) * r - math.sin(ang) * off
+                if any(math.hypot(x - fx, z - fz) < HOLE_R + 120 for fx, fz in field_spots()):
+                    continue
+                if float(path_dist(x, z)) < HOLE_R + 100:
+                    continue
+                top = max(float(mesh_height(x + math.sin(a) * HOLE_R, z + math.cos(a) * HOLE_R))
+                          for a in np.linspace(0, 2 * math.pi, 12, endpoint=False))
+                top = max(top, float(mesh_height(x, z))) + 8
+                rx, rz = math.sin(ang) * r, math.cos(ang) * r
+                _HOLE.append((x, top, z, int(math.atan2(rx - x, rz - z) / (2 * math.pi) * 0x10000) & 0xFFFF))
+                break
+            if _HOLE:
+                break
+        assert _HOLE, "no clear spot for the shrine's hole"
+    return _HOLE[0]
+
+
+def build_shrine_marker():
+    """The way down to the Ember Shrine: a round platform of Sheikah stone with rings of orange light, four glowing
+    posts, and in the middle the game's grotto hole (Door_Ana: actors())."""
+    e = new_entry("shrine_marker")
+    x, top, z, _ = shrine_hole()
+    gy = float(mesh_height(x, z))
+    prism(e, TECH, HOLE_R + 10, HOLE_R, gy - 40, top, 16, col=SURF_STONE, cap=True, cap_mat=PLAZA, center=(x, z))
+    for rr, w in ((HOLE_R - 18, 12), (78, 10)):
+        ring = [(x + rr * math.sin(t), top, z + rr * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 25)[:-1]]
+        strip(e, GLOW_ORANGE, ring, [(0, 1, 0)] * len(ring), w, lift=1.2, closed=True)
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        cx, cz = x + math.sin(a) * (HOLE_R - 30), z + math.cos(a) * (HOLE_R - 30)
+        bot, tp = prism(e, TECH, 16, 12, top, top + 120, 4, phase=a, col=SURF_TECH, cap=True, center=(cx, cz))
+        out = unit(np.array([cx - x, 0, cz - z]))
+        line = [np.array([cx, top + h, cz]) + out * 14 for h in (18, 70, 112)]
+        strip(e, GLOW_ORANGE, line, [tuple(out)] * 3, 8, lift=1.0)
+
+
 def build_boundary():
     """Invisible wall that keeps Link out of the mountains (ignored by the camera)."""
     n, r = 48, 4300
@@ -1254,6 +1302,9 @@ def actors():
             z = math.cos(ang) * r - math.sin(ang) * sgn * 150
             add("ACTOR_OBJ_SYOKUDAI", x, mesh_height(x, z), z, 0, "0x043F")
     island_actors(add, yaw_to)
+    # the hole down to the Ember Shrine (Door_Ana: home.rot.z 14 picks the shrine in its list of grottos)
+    hx, hy, hz, _ = shrine_hole()
+    add("ACTOR_DOOR_ANA", hx, hy, hz, 0, "0x0000", rz=14)
     # a Heart Piece on the islet beyond the floating island (collectible flag 0x14)
     add("ACTOR_EN_ITEM00", ISLET["x"], ISLET["top"] + 20, ISLET["z"], 0, "((0x14 << 8) | ITEM00_HEART_PIECE)")
     town_people(add, yaw_to)
@@ -1309,7 +1360,10 @@ def view_defines():
             f"#define ANCIENT_VIEW_ISLAND_X {vx:.1f}f\n#define ANCIENT_VIEW_ISLAND_Y {top + 2:.1f}f\n"
             f"#define ANCIENT_VIEW_ISLAND_Z {vz:.1f}f\n#define ANCIENT_VIEW_ISLAND_YAW 0x{vyaw:04X}\n"
             f"#define ANCIENT_VIEW_POOL_X {qx:.1f}f\n#define ANCIENT_VIEW_POOL_Y {float(mesh_height(qx, qz)) + 2:.1f}f\n"
-            f"#define ANCIENT_VIEW_POOL_Z {qz:.1f}f\n#define ANCIENT_VIEW_POOL_YAW 0x{qyaw:04X}\n")
+            f"#define ANCIENT_VIEW_POOL_Z {qz:.1f}f\n#define ANCIENT_VIEW_POOL_YAW 0x{qyaw:04X}\n"
+            "// The hole down to the Ember Shrine: coming back up, Link is launched out of it (z_remix_level.c)\n"
+            f"#define ANCIENT_SHRINE_HOLE_X {shrine_hole()[0]:.1f}f\n#define ANCIENT_SHRINE_HOLE_Y {shrine_hole()[1]:.1f}f\n"
+            f"#define ANCIENT_SHRINE_HOLE_Z {shrine_hole()[2]:.1f}f\n#define ANCIENT_SHRINE_HOLE_YAW 0x{shrine_hole()[3]:04X}\n")
 
 
 TAKI_HEIGHT = 835.1  # Zora's River's waterfall (object_spot03_object, drawn at scale 0.1)
@@ -1405,6 +1459,8 @@ def build_decor():
         if math.hypot(x - px, z - pz) < POOL_R + rad or math.hypot(x - eye_c[0], z - eye_c[1]) < 300 + rad:
             return False
         if math.hypot(x - SPAWN[0], z - SPAWN[1]) < 160 or math.hypot(x, z) < 980:
+            return False
+        if math.hypot(x - shrine_hole()[0], z - shrine_hole()[2]) < HOLE_R + 60 + rad:
             return False
         return all(math.hypot(x - d[1], z - d[3]) >= rad + PATTERN_R[d[0]] * 0.8 for d in DECOR)
 
@@ -2245,6 +2301,7 @@ def main():
     build_pillars()
     build_sky()
     build_entrance()
+    build_shrine_marker()
     build_boundary()
     build_decor()
     npolys, nverts, entries, acts = write_sources()

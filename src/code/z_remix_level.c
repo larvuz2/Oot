@@ -14,7 +14,10 @@
  *             entry per group of scenery (bushes, stones): the group's display list near the camera, nothing
  *             further away (the fog hides the little models there anyway, and a slow device has less to draw)
  *       0x0F  matrix of the rocks circling the floating island
- *   - Travel to the level from the Remix menu, and the website's "boot straight into the new level" option.
+ *   - The Ember Shrine's draw config (level 2): the same glow, the circuit lines of each stage of its trial
+ *     (segments 0x09-0x0B: dim blue until the stage's switch flag is set, then burning orange) and the rune ring
+ *     turning over the altar (0x0F), faster once the trial is done.
+ *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
 #include "remix_level.h"
@@ -34,6 +37,7 @@
 #include "z_lib.h"
 
 #include "assets/scenes/remix/ancient/ancient_room_0.h"
+#include "assets/scenes/remix/ember/ember_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -151,6 +155,94 @@ void RemixLevel_DrawConfigAncient(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+/**
+ * Color of a stage's circuit lines: dim blue until its switch flag is set, then pulsing orange.
+ */
+static Gfx* RemixLevel_ShrineStageColor(PlayState* play, s32 flag, f32 wave) {
+    Gfx* dl = GRAPH_ALLOC(play->state.gfxCtx, 3 * sizeof(Gfx));
+
+    gDPPipeSync(dl);
+    if (Flags_GetSwitch(play, flag)) {
+        gDPSetPrimColor(dl + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 40, 235 - (s32)(wave * 20.0f));
+    } else {
+        gDPSetPrimColor(dl + 1, 0, 0, 40, 90, 150, 110);
+    }
+    gSPEndDisplayList(dl + 2);
+    return dl;
+}
+
+void RemixLevel_DrawConfigShrine(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    s32 done = Flags_GetSwitch(play, SHRINE_FLAG_KINDLE);
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+    Gfx* stage1 = RemixLevel_ShrineStageColor(play, SHRINE_FLAG_EYE, wave);
+    Gfx* stage2 = RemixLevel_ShrineStageColor(play, SHRINE_FLAG_BLOCK, wave);
+    Gfx* stage3 = RemixLevel_ShrineStageColor(play, SHRINE_FLAG_KINDLE, wave);
+    Mtx* ringMtx;
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 70, 215 + (s32)(wave * 25.0f), 255, 190 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 40, 230 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+
+    Matrix_Push();
+    Matrix_Translate(SHRINE_RING_X, SHRINE_RING_Y + Math_SinS((s16)(frames * 0x200)) * 10.0f, SHRINE_RING_Z,
+                     MTXMODE_NEW);
+    Matrix_RotateY(frames * (done ? 0.05f : 0.01f), MTXMODE_APPLY);
+    ringMtx = MATRIX_FINALIZE(gfxCtx, "../z_remix_level.c", __LINE__);
+    Matrix_Pop();
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x09, stage1);
+    gSPSegment(POLY_OPA_DISP++, 0x0A, stage2);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, stage3);
+    gSPSegment(POLY_OPA_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x09, stage1);
+    gSPSegment(POLY_XLU_DISP++, 0x0A, stage2);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, stage3);
+    gSPSegment(POLY_XLU_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
+void RemixLevel_GoToShrine(PlayState* play) {
+    // Back out through the hole in the Ancient Plateau, as if Link had come down it (grotto exits return there)
+    RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+
+    r->pos.x = ANCIENT_SHRINE_HOLE_X;
+    r->pos.y = ANCIENT_SHRINE_HOLE_Y;
+    r->pos.z = ANCIENT_SHRINE_HOLE_Z;
+    r->yaw = ANCIENT_SHRINE_HOLE_YAW;
+    r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_GROTTO, PLAYER_START_BG_CAM_DEFAULT);
+    r->entranceIndex = ENTR_REMIX_ANCIENT_0;
+    r->roomIndex = 0;
+    r->data = 0;
+    r->tempSwchFlags = r->tempCollectFlags = 0;
+
+    play->nextEntranceIndex = ENTR_REMIX_SHRINE_0;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    play->transitionType = TRANS_TYPE_FADE_BLACK;
+    gSaveContext.showTitleCard = true;
+}
+
 void RemixLevel_GoToAncient(PlayState* play) {
     play->nextEntranceIndex = ENTR_REMIX_ANCIENT_0;
     play->transitionTrigger = TRANS_TRIGGER_START;
@@ -191,7 +283,9 @@ void RemixBoot_Start(GameState* gameState) {
         gSaveContext.hudVisibilityModeTimer = 0;
     SEQCMD_STOP_SEQUENCE(SEQ_PLAYER_BGM_MAIN, 0);
     // Mode 2 (Hyrule Field) is for tests: the same quick boot into a level of the original game.
-    gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0 : ENTR_REMIX_ANCIENT_0;
+    gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0
+                                      : (mode == REMIX_BOOT_SHRINE)     ? ENTR_REMIX_SHRINE_0
+                                                                        : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
     if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
@@ -209,6 +303,21 @@ void RemixBoot_Start(GameState* gameState) {
         r->data = 0;
         r->tempSwchFlags = r->tempCollectFlags = 0;
         gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
+    if (mode == REMIX_BOOT_SHRINE) {
+        // Level 2 drops Link into the Ember Shrine; its pedestal takes him up through the hole in the Ancient
+        // Plateau, as a grotto's exit would (Door_Ana sets this when Link goes down the hole himself).
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+
+        r->pos.x = ANCIENT_SHRINE_HOLE_X;
+        r->pos.y = ANCIENT_SHRINE_HOLE_Y;
+        r->pos.z = ANCIENT_SHRINE_HOLE_Z;
+        r->yaw = ANCIENT_SHRINE_HOLE_YAW;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_GROTTO, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_ANCIENT_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
     }
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;

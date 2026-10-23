@@ -378,7 +378,8 @@ typedef enum SceneDrawConfig {
     /* 51 */ SDC_GANONS_TOWER_COLLAPSE_INTERIOR,
     /* 52 */ SDC_INSIDE_GANONS_CASTLE_COLLAPSE,
     /* 53 */ SDC_REMIX_ANCIENT, // Web Remix: the Ancient Plateau (z_remix_level.c)
-    /* 54 */ SDC_MAX
+    /* 54 */ SDC_REMIX_SHRINE,  // Web Remix: the Ember Shrine (z_remix_level.c)
+    /* 55 */ SDC_MAX
 } SceneDrawConfig;
 
 typedef void (*SceneDrawConfigFunc)(struct PlayState*);
