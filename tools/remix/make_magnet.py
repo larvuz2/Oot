@@ -286,7 +286,8 @@ def actors():
                   f"OBJSWITCH_PARAMS(OBJSWITCH_TYPE_CRYSTAL, OBJSWITCH_SUBTYPE_TOGGLE, {flag})"))
     a.append(("ACTOR_OBJ_SWITCH", *SWITCH_E, 0, 0, 0,
               f"OBJSWITCH_PARAMS(OBJSWITCH_TYPE_FLOOR, OBJSWITCH_SUBTYPE_ONCE, {FLAG_DROP})"))
-    a.append(("ACTOR_EN_BOX", *CHEST_W, 0, 0x4000, FLAG_DROP,
+    # (a chest opens from the side its yaw points away from: 0xC000 faces east, towards the bridge)
+    a.append(("ACTOR_EN_BOX", *CHEST_W, 0, 0xC000, FLAG_DROP,
               f"(ENBOX_TYPE_SWITCH_FLAG_FALL_BIG << 12) | (GI_REMIX_MAGNESIS << 5) | {T_RUNE}"))
     for k, (x, z) in enumerate([(-600, 1000), (-660, 880), (600, 1000), (660, 880)]):
         a.append(("ACTOR_OBJ_TSUBO", x, 0, z, 0, 0, 0, "ITEM00_RECOVERY_HEART" if k % 2 == 0 else "0x3F"))
@@ -302,10 +303,10 @@ def actors():
     a.append(("ACTOR_EN_REMIX_MAGNET", *LIFT, 0, 0, BALCONY["top"] - LIFT[1], magnet(MAGNET_LIFT, FLAG_LIFT)))
     a.append(("ACTOR_EN_REMIX_MAGNET", *GIRDER, 0, 0x4000, 0, magnet(MAGNET_GIRDER)))
     c = COLUMN
-    a.append(("ACTOR_EN_BOX", (c["x0"] + c["x1"]) // 2, c["top"], (c["z0"] + c["z1"]) // 2, 0, 0, 0,
+    a.append(("ACTOR_EN_BOX", (c["x0"] + c["x1"]) // 2, c["top"], (c["z0"] + c["z1"]) // 2, 0, 0x8000, 0,
               f"(ENBOX_TYPE_SMALL << 12) | (GI_RUPEE_GOLD << 5) | {T_IRON}"))
     al = ALTAR
-    a.append(("ACTOR_EN_BOX", RING["x"], al["top"], -1280, 0, 0, 0,
+    a.append(("ACTOR_EN_BOX", RING["x"], al["top"], -1280, 0, 0x8000, 0,
               f"(ENBOX_TYPE_BIG_DEFAULT << 12) | (GI_HEART_CONTAINER << 5) | {T_HEART}"))
     for x in (-500, 300):
         a.append(("ACTOR_OBJ_SYOKUDAI", x, 0, WALL_N["z0"] - 60, 0, 0, 0, "0x0400"))
