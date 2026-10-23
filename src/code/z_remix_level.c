@@ -624,7 +624,7 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
-    } else if (mode >= REMIX_BOOT_MAGNET) {
+    } else if (mode == REMIX_BOOT_MAGNET) { // (not the tests: they use the same respawn data to place Link)
         RemixLevel_SetShrineReturn(ANCIENT_MAGNET_HOLE_X, ANCIENT_MAGNET_HOLE_Y, ANCIENT_MAGNET_HOLE_Z,
                                    ANCIENT_MAGNET_HOLE_YAW);
     }
