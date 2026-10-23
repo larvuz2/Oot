@@ -254,6 +254,48 @@ frame from `lensActive`: the bridge's collision is always there, the fake wall h
 given back by `RemixLevel_OnSceneStart` (called from `Play_Init`), with hooks in `z_sram.c`. About 750 triangles in
 nine room chunks (`frame_cost.py`: 747 triangles, 55 texture loads, 108 render-mode changes).
 
+## Level 4: the Lodestone Shrine (and a new item: Magnesis)
+
+A third shrine under the Plateau, by the east road. On the website, **4 · Lodestone Shrine** (or the key
+<kbd>4</kbd>); from your own save, Remix menu &rarr; *Go to: Lodestone Shrine*.
+
+The shrine gives Link a rune from Breath of the Wild, **Magnesis**, then a trial that needs it (*The Iron Will*):
+
+1. **The compass bridge.** A chasm fills the middle of the hall. On its pivot turns an L-shaped bridge that always
+   links two neighbouring sides. A crystal switch at the edge of the south ledge and one at the north ledge turn it
+   a quarter each time they are struck (south &rarr; east &rarr; north &rarr; west), carrying whoever stands on it.
+   Stand on the bridge's tip and strike the crystal to ride it round. A floor switch on the east dock drops a chest
+   onto the west dock: inside is the **Magnesis Rune**. Falling into the chasm voids you out.
+2. **Magnesis.** Hold **L** (keyboard <kbd>E</kbd>) facing something made of iron: it glows pink and hangs in
+   the air while you hold L. The stick swings it around Link and pushes it away or pulls it in, **C-Up / C-Down**
+   lift and lower it, **C-Left / C-Right** turn it. Let go of L to drop it, or press **B** to fling it. A hint at
+   the bottom of the screen shows the controls. (Magnesis works inside this shrine only.)
+3. **Iron.** The north doorway is shut by an iron slab: pull it out. Beyond it, an iron crate goes onto the floor
+   switch on top of a pillar Link can't climb; while it holds the switch down, a lift rides up to the balcony. The
+   altar is across a gap: lift the iron girder off the floor, turn it and lay it across. An iron chest stands on top
+   of a column, out of reach: bring it down too. At the altar: the Heart Container and a ring of light home.
+
+The new item. The rune Link holds up is a model made with fal (the same endpoints as the Character Studio):
+gpt-image made the picture of a slate with a magnet on it, Meshy turned it into a 3D model, and
+`tools/remix/make_slate.py` bakes its face into a 32x48 texture and simplifies it to 178 triangles, into
+`assets/objects/object_remix_slate/` (6.8 KB: get-item objects must fit the player's 8 KB buffer). It is a real
+get-item: `GI_REMIX_MAGNESIS` (0x7E) in `include/item.h`, its draw entry `GID_REMIX_MAGNESIS` in `z_draw.c`, its row in
+the player's get-item table (whose text id is now 16 bits) and its text box, id 0x7FA0, in
+`assets/text/message_data.h` (the build would fail if the game used that id: message symbols are named after it).
+
+How it is made: `tools/remix/make_magnet.py` generates `assets/scenes/remix/magnet/` with the Ember Shrine's tools and
+checks the layout (the bridge clears the ledges and crystals as it turns, the crystals are in sword reach of its
+tips, no gap can be jumped, nothing Magnesis must carry things onto can be climbed, the girder's ends land on both
+sides of the gap). The moving pieces and Magnesis are a new actor, `ovl_En_Remix_Magnet`, drawing
+`object_remix_magnet` (`tools/remix/make_magnet_parts.py`: textured iron with baked light, and collision for each
+piece). Magnesis updates before the player (actor category BG) and takes the buttons it uses off the input, so Link
+stands still while he holds something. Iron pieces fall and rest on the highest floor under any of their sample
+points, press the floor switches they rest on (`DynaPolyActor_SetSwitchPressed`), ride the lift, and come back
+to their start if they fall into the chasm. The game's own pieces: crystal switches that toggle and floor switches
+(Obj_Switch), the chests (En_Box: GI_REMIX_MAGNESIS dropping on a switch flag, GI_RUPEE_GOLD on the column,
+GI_HEART_CONTAINER), torches and the arrival chamber's cow. The draw config (`RemixLevel_DrawConfigMagnet`) lights
+Magnesis's lines once the rune is found and the lift's while it runs. About 1030 triangles in seven room chunks.
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
@@ -424,6 +466,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/link_level_assets.py`, `tools/remix/test_link_level_assets.py` | Lets the Ancient Plateau use Hyrule Field's textures and lights from your ROM at build time, and its test |
 | `tools/remix/make_town.py`, `restyle.py`, `town_plan.py`, `survey_scenes.py`, `extracted_scene.py`, `test_make_town.py` | The Ancient Plateau's town: buildings borrowed from the game's towns at build time and restyled, the survey used to pick them, and the shared reader for extracted scenes. 4 lines in `src/code/z_scene.c` (the Plateau's object space) |
 | `tools/remix/smoke_test.py`, `tools/remix/smoke_capture.mjs`, `web/js/boot.js` | Emulator smoke test in CI (the website's player in headless Chromium); the site's "Jump into the new level" switch |
+| `tools/remix/make_magnet.py`, `make_magnet_parts.py`, `make_slate.py`, `assets/scenes/remix/magnet/`, `src/overlays/actors/ovl_En_Remix_Magnet/`, `assets/objects/object_remix_magnet/`, `assets/objects/object_remix_slate/` | Level 4, the Lodestone Shrine: Magnesis and the moving pieces, and the fal-made rune. `GI_REMIX_MAGNESIS` in `include/item.h`, `z_draw.c`, `z_player.c` (get-item table, text id now 16 bits) and `assets/text/message_data.h` |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

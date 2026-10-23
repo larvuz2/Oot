@@ -21,6 +21,9 @@
  *     takes away (0x0A: the fake wall), each tool's circuit lines once its chest is opened (0x0E's table).
  *   - The Seeker's Shrine's trial: Link goes in with nothing but his sword and shield (his items wait outside, and
  *     come back when he leaves; what he finds inside stays inside).
+ *   - The Lodestone Shrine's draw config (level 4): Magnesis's circuit lines (0x09: dim until the rune's chest is
+ *     open, then magenta), the lift's (0x0A: orange while its switch is held), the rune ring over the altar (0x0F).
+ *     Magnesis itself and the shrine's moving pieces are En_Remix_Magnet actors.
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -47,6 +50,7 @@
 #include "assets/scenes/remix/ancient/ancient_room_0.h"
 #include "assets/scenes/remix/ember/ember_room_0.h"
 #include "assets/scenes/remix/seeker/seeker_room_0.h"
+#include "assets/scenes/remix/magnet/magnet_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -356,6 +360,77 @@ void RemixLevel_DrawConfigSeeker(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToMagnet(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_MAGNET_HOLE_X, ANCIENT_MAGNET_HOLE_Y, ANCIENT_MAGNET_HOLE_Z,
+                               ANCIENT_MAGNET_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_MAGNET_0);
+}
+
+/**
+ * A one-color list: pulsing `on` when `lit`, else a dim blue.
+ */
+static Gfx* RemixLevel_LineColor(PlayState* play, s32 lit, u8 r, u8 g, u8 b, f32 wave) {
+    Gfx* dl = GRAPH_ALLOC(play->state.gfxCtx, 3 * sizeof(Gfx));
+
+    gDPPipeSync(dl);
+    if (lit) {
+        gDPSetPrimColor(dl + 1, 0, 0, r, g - (s32)(wave * 30.0f), b, 230 - (s32)(wave * 25.0f));
+    } else {
+        gDPSetPrimColor(dl + 1, 0, 0, 40, 90, 150, 110);
+    }
+    gSPEndDisplayList(dl + 2);
+    return dl;
+}
+
+void RemixLevel_DrawConfigMagnet(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    s32 rune = Flags_GetTreasure(play, MAGNET_TREASURE_RUNE);
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+    Gfx* magnesis = RemixLevel_LineColor(play, rune, 255, 90, 225, wave);
+    Gfx* lift = RemixLevel_LineColor(play, Flags_GetSwitch(play, MAGNET_FLAG_LIFT), 255, 150, 40, wave);
+    Mtx* ringMtx;
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 70, 215 + (s32)(wave * 25.0f), 255, 190 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 40, 230 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+
+    Matrix_Push();
+    Matrix_Translate(MAGNET_RING_X, MAGNET_RING_Y + Math_SinS((s16)(frames * 0x200)) * 10.0f, MAGNET_RING_Z,
+                     MTXMODE_NEW);
+    Matrix_RotateY(frames * (rune ? 0.03f : 0.008f), MTXMODE_APPLY);
+    ringMtx = MATRIX_FINALIZE(gfxCtx, "../z_remix_level.c", __LINE__);
+    Matrix_Pop();
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x09, magnesis);
+    gSPSegment(POLY_OPA_DISP++, 0x0A, lift);
+    gSPSegment(POLY_OPA_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x09, magnesis);
+    gSPSegment(POLY_XLU_DISP++, 0x0A, lift);
+    gSPSegment(POLY_XLU_DISP++, 0x0F, ringMtx);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
 // ---- the Seeker's Shrine's trial: nothing but the sword going in ----
 
 typedef struct RemixTrial {
@@ -499,9 +574,32 @@ void RemixBoot_Start(GameState* gameState) {
     gSaveContext.save.entranceIndex = (mode == REMIX_BOOT_HYRULE_FIELD) ? ENTR_HYRULE_FIELD_0
                                       : (mode == REMIX_BOOT_SHRINE)     ? ENTR_REMIX_SHRINE_0
                                       : (mode == REMIX_BOOT_SEEKER)     ? ENTR_REMIX_SEEKER_0
+                                      : (mode >= REMIX_BOOT_MAGNET)     ? ENTR_REMIX_MAGNET_0
                                                                         : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
+    if (mode == REMIX_BOOT_MAGNET_TEST || mode == REMIX_BOOT_MAGNET_CHEST) {
+        // Tests: the Lodestone Shrine part-way through, Link standing where Magnesis is first used (the rune
+        // found, facing the iron slab) or in front of the rune's chest (dropped, not opened).
+        SavedSceneFlags* flags = &gSaveContext.save.info.sceneFlags[SCENE_REMIX_MAGNET];
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+        s32 slab = (mode == REMIX_BOOT_MAGNET_TEST);
+
+        if (slab) {
+            flags->chest |= 1 << MAGNET_TREASURE_RUNE;
+        }
+        flags->swch |= 1 << MAGNET_FLAG_DROP;
+        r->pos.x = slab ? MAGNET_TEST_SLAB_X : MAGNET_TEST_CHEST_X;
+        r->pos.y = 0.0f;
+        r->pos.z = slab ? MAGNET_TEST_SLAB_Z : MAGNET_TEST_CHEST_Z;
+        r->yaw = slab ? 0x8000 : 0xC000;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_MAGNET_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
     if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
         // Tests: start somewhere else in the level, the way Link comes back after a void out (z_player.c).
         RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
@@ -526,6 +624,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if (mode == REMIX_BOOT_MAGNET) { // (not the tests: they use the same respawn data to place Link)
+        RemixLevel_SetShrineReturn(ANCIENT_MAGNET_HOLE_X, ANCIENT_MAGNET_HOLE_Y, ANCIENT_MAGNET_HOLE_Z,
+                                   ANCIENT_MAGNET_HOLE_YAW);
     }
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;

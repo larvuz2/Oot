@@ -697,4 +697,8 @@ DECLARE_ROM_SEGMENT(ember_room_0)
 DECLARE_ROM_SEGMENT(seeker_scene)
 DECLARE_ROM_SEGMENT(seeker_room_0)
 
+// Web Remix level 4: the Lodestone Shrine (spec/remix_scenes.inc, tools/remix/make_magnet.py)
+DECLARE_ROM_SEGMENT(magnet_scene)
+DECLARE_ROM_SEGMENT(magnet_room_0)
+
 #endif

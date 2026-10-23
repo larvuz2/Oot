@@ -8,6 +8,7 @@ export const BOOT_NORMAL = 0;
 export const BOOT_ANCIENT_PLATEAU = 1; // level 1
 export const BOOT_EMBER_SHRINE = 5; // level 2: dropping into the Ember Shrine from its hole
 export const BOOT_SEEKER_SHRINE = 6; // level 3: the Seeker's Shrine (with nothing but the sword)
+export const BOOT_LODESTONE_SHRINE = 7; // level 4: the Lodestone Shrine (Magnesis)
 
 /** Find the boot struct in a big-endian (.z64) ROM. Returns its offset, or -1. */
 export function findBootConfig(rom) {

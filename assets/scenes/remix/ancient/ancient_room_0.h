@@ -36,8 +36,12 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_SEEKER_HOLE_Y 163.1f
 #define ANCIENT_SEEKER_HOLE_Z -622.9f
 #define ANCIENT_SEEKER_HOLE_YAW 0xFD5D
+#define ANCIENT_MAGNET_HOLE_X 3162.4f
+#define ANCIENT_MAGNET_HOLE_Y 149.2f
+#define ANCIENT_MAGNET_HOLE_Z 313.3f
+#define ANCIENT_MAGNET_HOLE_YAW 0x8161
 // Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
-#define ANCIENT_DECOR_SECTORS 51
+#define ANCIENT_DECOR_SECTORS 50
 #define ANCIENT_DECOR_DRAW_DIST 1500
 #define ANCIENT_DECOR_SECTOR_LIST                                                                                 \
     {                                                                                                             \
@@ -53,7 +57,7 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
             { 1486, -2640, 524, 0 }, { 1133, -3246, 120, 0 }, { 1531, 332, 661, 0 }, { 1388, 2624, 502, 0 },      \
             { 1678, 3157, 120, 0 }, { 2623, -434, 535, 0 }, { 2627, -1593, 574, 0 }, { 2304, -2207, 339, 0 },     \
             { 2414, 454, 602, 0 }, { 2556, 1362, 536, 0 }, { 2337, 2473, 556, 0 }, { 3319, -355, 429, 0 },        \
-            { 3174, -1264, 266, 0 }, { 3094, 134, 120, 0 }, {                                                     \
+            { 3174, -1264, 266, 0 }, {                                                                            \
             3170, 1087, 120, 0                                                                                    \
         }                                                                                                         \
     }
@@ -75,7 +79,7 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
             ancient_room_0DL_decor_s40, ancient_room_0DL_decor_s41, ancient_room_0DL_decor_s42,                     \
             ancient_room_0DL_decor_s43, ancient_room_0DL_decor_s44, ancient_room_0DL_decor_s45,                     \
             ancient_room_0DL_decor_s46, ancient_room_0DL_decor_s47, ancient_room_0DL_decor_s48,                     \
-            ancient_room_0DL_decor_s49, ancient_room_0DL_decor_s50                                                  \
+            ancient_room_0DL_decor_s49                                                                              \
     }
 
 extern u64 ancient_room_0Tex_grass[];
@@ -139,8 +143,10 @@ extern Vtx ancient_room_0Vtx_terrain_2_3_opa[431];
 extern Gfx ancient_room_0DL_terrain_2_3_opa[];
 extern Vtx ancient_room_0Vtx_terrain_3_3_opa[454];
 extern Gfx ancient_room_0DL_terrain_3_3_opa[];
-extern Vtx ancient_room_0Vtx_terrain_4_3_opa[112];
+extern Vtx ancient_room_0Vtx_terrain_4_3_opa[163];
 extern Gfx ancient_room_0DL_terrain_4_3_opa[];
+extern Vtx ancient_room_0Vtx_terrain_4_3_xlu[26];
+extern Gfx ancient_room_0DL_terrain_4_3_xlu[];
 extern Vtx ancient_room_0Vtx_terrain_5_3_opa[79];
 extern Gfx ancient_room_0DL_terrain_5_3_opa[];
 extern Vtx ancient_room_0Vtx_terrain_0_4_opa[76];
@@ -276,7 +282,6 @@ extern Gfx ancient_room_0DL_decor_s46[];
 extern Gfx ancient_room_0DL_decor_s47[];
 extern Gfx ancient_room_0DL_decor_s48[];
 extern Gfx ancient_room_0DL_decor_s49[];
-extern Gfx ancient_room_0DL_decor_s50[];
 extern Gfx ancient_room_0DL_decor_0[];
 extern Gfx ancient_room_0DL_decor_1[];
 extern Gfx ancient_room_0DL_decor_2[];

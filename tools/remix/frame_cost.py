@@ -178,9 +178,10 @@ def main():
     terrain = [(o, x) for o, x in entries if "terrain" in o]
     rows.append(("  of which: terrain", cost_of(lists, terrain)))
 
-    for title, room in (("Ember Shrine", "ember/ember_room_0.c"), ("Seeker's Shrine", "seeker/seeker_room_0.c")):
+    for title, room in (("Ember Shrine", "ember/ember_room_0.c"), ("Seeker's Shrine", "seeker/seeker_room_0.c"),
+                        ("Lodestone Shrine", "magnet/magnet_room_0.c")):
         room = REPO / "assets/scenes/remix" / room
-        if room.is_file():  # levels 2 and 3 (the Seeker's Lens-only lists count as drawn)
+        if room.is_file():  # levels 2 to 4 (the Seeker's Lens-only lists count as drawn)
             lists = Lists(roots)
             lists.add_c(room)
             lists.segment = {"0x09000000": "seeker_room_0DL_reveal_xlu", "0x0A000000": "seeker_room_0DL_fake_opa"}
