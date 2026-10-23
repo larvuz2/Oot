@@ -294,7 +294,7 @@ def main():
         runs = (("magnesis", BOOT_MAGNET_TEST, [420, 520, 640, 760],
                  [(440, IN_L, 1), (460, IN_C_UP, 0x7FFF), (510, IN_C_UP, 0), (530, IN_STICK_DOWN, 0x7FFF),
                   (620, IN_STICK_DOWN, 0), (700, IN_L, 0)]),
-                ("rune-chest", BOOT_MAGNET_CHEST, [420, 760, 900],
+                ("rune-chest", BOOT_MAGNET_CHEST, [420, 760, 900, 1020, 1150],
                  [(440, IN_A, 1), (480, IN_A, 0), (520, IN_A, 1), (550, IN_A, 0)]))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
