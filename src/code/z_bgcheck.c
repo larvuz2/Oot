@@ -1,5 +1,6 @@
 #include "assets/scenes/remix/ancient/ancient_scene.h"
 #include "assets/scenes/remix/ember/ember_scene.h"
+#include "assets/scenes/remix/seeker/seeker_scene.h"
 #include "libu64/debug.h"
 #include "array_count.h"
 #include "attributes.h"
@@ -1528,6 +1529,10 @@ s32 BgCheck_TryGetCustomMemsize(s32 sceneId, u32* memSize) {
     // and the Ember Shrine's (tools/remix/make_shrine.py)
     if (sceneId == SCENE_REMIX_SHRINE) {
         *memSize = EMBER_SCENE_BGCHECK_MEMSIZE;
+        return true;
+    }
+    if (sceneId == SCENE_REMIX_SEEKER) { // tools/remix/make_seeker.py
+        *memSize = SEEKER_SCENE_BGCHECK_MEMSIZE;
         return true;
     }
 

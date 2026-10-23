@@ -16,7 +16,7 @@ extern ActorEntry ancient_scenePlayerEntryList[];
 extern Path ancient_scenePathList[];
 extern EnvLightSettings ancient_sceneLightSettings[];
 
-// Collision memory for BgCheck_Allocate (2468 polys, 6782 lookup nodes)
+// Collision memory for BgCheck_Allocate (2432 polys, 6756 lookup nodes)
 #include "assets/scenes/remix/ancient/ancient_town.h"
 #ifdef ANCIENT_TOWN_BGCHECK_MEMSIZE // the town's collision needs more
 #define ANCIENT_SCENE_BGCHECK_MEMSIZE ANCIENT_TOWN_BGCHECK_MEMSIZE

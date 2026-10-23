@@ -29,7 +29,7 @@ MAGIC = b"RMXBOOT1"
 SHOTS = [400, 900, 1500]  # emulator frames (60 per second)
 
 
-BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE = 1, 2, 3, 4, 5  # include/remix_level.h
+BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE, BOOT_SEEKER = 1, 2, 3, 4, 5, 6  # include/remix_level.h
 
 
 def set_boot_flag(rom: bytearray, mode: int = BOOT_ANCIENT) -> int:
@@ -267,20 +267,22 @@ def main():
     if not args.no_boot_flag and ok:
         # Level 2: dropping into the Ember Shrine through its hole, then walking from the arrival chamber into the
         # hall (pictures, crash and memory checks)
-        print("smoke: shrine")
-        srom = bytearray(args.rom.read_bytes())
-        set_boot_flag(srom, BOOT_SHRINE)
-        scap = capture(bytes(srom), out / "shrine", [300, 600, 1000], "mupen64plus_next", args.timeout, walk_after=420)
-        describe("shrine", scap)
-        if scap.get("crash") or len(scap.get("shots", [])) < 3:
-            ok = False
-        last = [s for s in scap.get("shots", []) if s.get("state")]
-        if args.elf and args.elf.exists() and last:
-            print(f"smoke: shrine at frame {last[-1]['frame']}:")
-            try:
-                report_threads(Path(last[-1]["state"]), bytes(srom), args.elf)
-            except Exception as e:  # diagnostics only
-                print(f"smoke:   could not read them ({e})")
+        # (and level 3, the Seeker's Shrine, the same way)
+        for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER)):
+            print(f"smoke: {name}")
+            srom = bytearray(args.rom.read_bytes())
+            set_boot_flag(srom, mode)
+            scap = capture(bytes(srom), out / name, [300, 600, 1000], "mupen64plus_next", args.timeout, walk_after=420)
+            describe(name, scap)
+            if scap.get("crash") or len(scap.get("shots", [])) < 3:
+                ok = False
+            last = [s for s in scap.get("shots", []) if s.get("state")]
+            if args.elf and args.elf.exists() and last:
+                print(f"smoke: {name} at frame {last[-1]['frame']}:")
+                try:
+                    report_threads(Path(last[-1]["state"]), bytes(srom), args.elf)
+                except Exception as e:  # diagnostics only
+                    print(f"smoke:   could not read them ({e})")
     if not args.no_boot_flag and ok:
         # The website's performance mode (tablets and phones): the level boots and draws in it too.
         print("smoke: perf-mode")

@@ -32,6 +32,10 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_SHRINE_HOLE_Y 177.2f
 #define ANCIENT_SHRINE_HOLE_Z 3103.2f
 #define ANCIENT_SHRINE_HOLE_YAW 0x3AD2
+#define ANCIENT_SEEKER_HOLE_X -3116.2f
+#define ANCIENT_SEEKER_HOLE_Y 163.1f
+#define ANCIENT_SEEKER_HOLE_Z -622.9f
+#define ANCIENT_SEEKER_HOLE_YAW 0xFD5D
 // Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
 #define ANCIENT_DECOR_SECTORS 51
 #define ANCIENT_DECOR_DRAW_DIST 1500
@@ -42,7 +46,7 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
             { -835, 835, 276, 0 }, { -375, 1531, 635, 0 }, { -425, 2431, 615, 0 }, { -1531, -407, 619, 0 },       \
             { -1172, -1302, 120, 0 }, { -1506, -2564, 484, 0 }, { -1531, 339, 656, 0 }, { -1369, 1507, 462, 0 },  \
             { -1465, 2595, 496, 0 }, { -2474, -446, 575, 0 }, { -2606, -1477, 499, 0 }, { -2189, -2189, 234, 0 }, \
-            { -2446, 438, 604, 0 }, { -2575, 1481, 459, 0 }, { -2189, 2189, 234, 0 }, { -3312, -579, 553, 0 },    \
+            { -2446, 438, 604, 0 }, { -2575, 1481, 459, 0 }, { -2189, 2189, 234, 0 }, { -3470, -579, 491, 0 },    \
             { -3145, 451, 540, 0 }, { -3108, 1646, 120, 0 }, { 835, -835, 276, 0 }, { 458, -1531, 595, 0 },       \
             { 263, -2443, 444, 0 }, { 468, -3534, 120, 0 }, { 835, 835, 276, 0 }, { 484, 1531, 585, 0 },          \
             { 494, 2437, 556, 0 }, { 717, 3490, 120, 0 }, { 1531, -407, 619, 0 }, { 1669, -1324, 461, 0 },        \
@@ -214,10 +218,14 @@ extern Vtx ancient_room_0Vtx_entrance_opa[324];
 extern Gfx ancient_room_0DL_entrance_opa[];
 extern Vtx ancient_room_0Vtx_entrance_xlu[106];
 extern Gfx ancient_room_0DL_entrance_xlu[];
-extern Vtx ancient_room_0Vtx_shrine_marker_opa[165];
+extern Vtx ancient_room_0Vtx_shrine_marker_opa[51];
 extern Gfx ancient_room_0DL_shrine_marker_opa[];
-extern Vtx ancient_room_0Vtx_shrine_marker_xlu[132];
+extern Vtx ancient_room_0Vtx_shrine_marker_xlu[26];
 extern Gfx ancient_room_0DL_shrine_marker_xlu[];
+extern Vtx ancient_room_0Vtx_shrine_marker1_opa[51];
+extern Gfx ancient_room_0DL_shrine_marker1_opa[];
+extern Vtx ancient_room_0Vtx_shrine_marker1_xlu[26];
+extern Gfx ancient_room_0DL_shrine_marker1_xlu[];
 extern Gfx ancient_room_0DL_decor_s0[];
 extern Gfx ancient_room_0DL_decor_s1[];
 extern Gfx ancient_room_0DL_decor_s2[];

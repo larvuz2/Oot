@@ -18,6 +18,19 @@ void RemixLevel_DrawConfigAncient(struct PlayState* play);
 // lines of each stage of its trial lit by the stage's switch flag, the rune ring over the altar.
 void RemixLevel_DrawConfigShrine(struct PlayState* play);
 
+// Scene draw config of the Seeker's Shrine (SDC_REMIX_SEEKER, level 3, tools/remix/make_seeker.py): what the Lens of
+// Truth shows and takes away, each tool's circuit lines once found, the rune ring over the altar.
+void RemixLevel_DrawConfigSeeker(struct PlayState* play);
+
+// Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
+// way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
+// soon as he is anywhere else.
+void RemixLevel_OnSceneStart(struct PlayState* play);
+// Sram_WriteSave writes Link's own items, not the trial's (called before and after writing).
+void RemixLevel_TrialSaveSwap(void);
+// A save was loaded or made: there is no trial in progress.
+void RemixLevel_TrialForget(void);
+
 // Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
 // objects and adult Link, so it reserves less than the usual 1000 KB and the rest goes to actor memory (the
 // town's people). The remix build checks that the objects fit (.github/workflows/remix.yml).
@@ -27,6 +40,8 @@ void RemixLevel_DrawConfigShrine(struct PlayState* play);
 void RemixLevel_GoToAncient(struct PlayState* play);
 // Sends Link down into the Ember Shrine (its exit then takes him up the hole in the Ancient Plateau).
 void RemixLevel_GoToShrine(struct PlayState* play);
+// And into the Seeker's Shrine.
+void RemixLevel_GoToSeeker(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -43,6 +58,7 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_ISLAND_VIEW 3   // the Ancient Plateau, standing on the floating island (tests)
 #define REMIX_BOOT_POOL_VIEW 4     // the Ancient Plateau, at the pool facing the waterfall (tests)
 #define REMIX_BOOT_SHRINE 5        // level 2: the Ember Shrine, as adult Link, dropping in from its hole
+#define REMIX_BOOT_SEEKER 6        // level 3: the Seeker's Shrine, the same way (with nothing but the sword)
 
 extern RemixBootConfig gRemixBootConfig;
 

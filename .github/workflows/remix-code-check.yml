@@ -89,6 +89,17 @@ jobs:
               || { echo "${f#*:} is not at the start of ember_${f%%:*}"; exit 1; }
           done
 
+      - name: Level 3 (Seeker's Shrine) compiles
+        run: |
+          V=${{ matrix.version }}
+          K=build/$V/assets/scenes/remix/seeker
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/seeker/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $K/seeker_scene.o $K/seeker_room_0.o $K/seeker_title.o build/$V/src/code/z_sram.o
+          for f in scene:seeker_sceneCommands room_0:seeker_room_0Commands; do
+            mips-linux-gnu-nm $K/seeker_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of seeker_${f%%:*}"; exit 1; }
+          done
+
       - name: Biome copy (stand-in scene, no ROM) compiles
         run: |
           python3 -m pip install --user --break-system-packages -q "numpy>=1.26" "pillow>=10"
@@ -106,6 +117,7 @@ jobs:
           grep -q '"tundra_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ancient_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ember_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"seeker_room_0"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.
           B=build/${{ matrix.version }}/assets/scenes

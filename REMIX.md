@@ -218,6 +218,42 @@ room is 1,639 / 241 / 336). The draw config (`RemixLevel_DrawConfigShrine` in `s
 reads the trial's switch flags for the circuit lines and turns the rune ring over the altar. The smoke test boots
 into the shrine too (pictures, crash and memory checks).
 
+## Level 3: the Seeker's Shrine
+
+A second shrine under the Plateau, by the west road (its hole sits on the same kind of orange-ringed platform).
+On the website, **3 · Seeker's Shrine** (or the key <kbd>3</kbd>); from your own save, Remix menu &rarr;
+*Go to: Seeker's Shrine*.
+
+**You go in with nothing but your sword and shield.** Like Eventide Island in Breath of the Wild, the shrine keeps
+your items while you are inside (swords, shields and tunics stay; you get a full magic meter) and gives them all
+back as soon as you leave; what you find inside stays inside, but the Heart Container at the end is yours to keep.
+Saving inside writes your own items to the save, not the trial's. The trial, *The Lost Tools* (the game's own
+pieces only):
+
+1. **Empty-handed.** A crystal switch stands on a pedestal out in the chasm, out of reach. Pick up a pot, lock on to
+   the crystal and throw: the fire in a doorway in the west wall dies down for 20 seconds. Inside the alcove: the
+   **Hover Boots** (and a crystal to strike to get back out). Equip them from the pause menu.
+2. **The gap.** A low stone lintel hangs over the gap: a running jump hits it and drops into the pit
+   (stairs lead back up). With them he floats across to the island: the **Lens of Truth** (pots of magic nearby).
+3. **The unseen.** Through the Lens a zigzag bridge appears over the chasm (it is there all along, only invisible);
+   and one stretch of the far wall is not a wall at all (a glowing line runs into it). Behind it: the **Hookshot**.
+4. **The ascent.** A crystal by the shelf raises hookshot posts out of the shelf and the balcony: pull up to the
+   shelf, then to the balcony, then float across to the altar on the hover boots. The Heart Container, and the
+   pedestal home.
+
+Each tool's circuit lines glow orange once its chest is opened.
+
+How it is made: `tools/remix/make_seeker.py` generates `assets/scenes/remix/seeker/` with the Ember Shrine's tools
+(`make_shrine.py`) and checks the hookshot reaches (the hookshot is 260 long) and the hover gaps. The pieces: the
+targetable crystal switch and the plain one (Obj_Switch), a pot as the projectile (Obj_Tsubo), the fire in the
+doorway (Bg_Hidan_Curtain), the chests (En_Box with GI_BOOTS_HOVER, GI_LENS_OF_TRUTH, GI_HOOKSHOT,
+GI_HEART_CONTAINER), the rising hookshot posts (Obj_Hsblock), and floors with the game's "no jumping" property
+(FLOOR_PROPERTY_9: Link steps off without jumping; the hover boots still carry him). The invisible bridge and the
+fake wall are ordinary room geometry that the draw config (`RemixLevel_DrawConfigSeeker`) draws or hides each
+frame from `lensActive`: the bridge's collision is always there, the fake wall has none. The items are taken and
+given back by `RemixLevel_OnSceneStart` (called from `Play_Init`), with hooks in `z_sram.c`. About 750 triangles in
+nine room chunks (`frame_cost.py`: 747 triangles, 55 texture loads, 108 render-mode changes).
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify

@@ -1,7 +1,7 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
-import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE } from "./boot.js";
+import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE } from "./boot.js";
 import { cloudInfo, uploadRom, downloadRom } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
@@ -80,6 +80,7 @@ function renderReady() {
     const patch = manifest.patches.find((p) => p.sourceMd5 === version.decompressedMd5);
     $("play-level").hidden = !patch;
     $("play-shrine").hidden = !patch;
+    $("play-seeker").hidden = !patch;
     $("play-level-note").hidden = !patch;
     const modes = $("modes");
     const options = [];
@@ -574,11 +575,12 @@ $("speed").addEventListener("click", () => {
 $("play").addEventListener("click", () => play());
 $("play-level").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_ANCIENT_PLATEAU }));
 $("play-shrine").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_EMBER_SHRINE }));
-// Shortcuts on the start screen: 1 and 2 jump into level 1 and level 2.
+$("play-seeker").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_SEEKER_SHRINE }));
+// Shortcuts on the start screen: 1, 2 and 3 jump into levels 1, 2 and 3.
 window.addEventListener("keydown", (e) => {
     if (document.body.dataset.state !== "ready" || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-    const button = { 1: "play-level", 2: "play-shrine" }[e.key];
+    const button = { 1: "play-level", 2: "play-shrine", 3: "play-seeker" }[e.key];
     if (button && !$(button).hidden) {
         e.preventDefault();
         $(button).click();
