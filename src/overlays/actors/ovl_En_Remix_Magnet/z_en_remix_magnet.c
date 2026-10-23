@@ -599,12 +599,12 @@ static void EnRemixMagnet_DrawHint(EnRemixMagnet* this, PlayState* play) {
     GfxPrint_Open(&printer, gfx);
     GfxPrint_SetColor(&printer, 255, 120, 230, 255);
     if (this->target != NULL) {
-        GfxPrint_SetPos(&printer, 3, 25);
+        GfxPrint_SetPos(&printer, 3, 22);
         GfxPrint_Printf(&printer, "MAGNESIS  Stick:Move  C-Up/Down:Lift");
-        GfxPrint_SetPos(&printer, 3, 26);
+        GfxPrint_SetPos(&printer, 3, 23);
         GfxPrint_Printf(&printer, "C-Left/Right:Turn  B:Fling  L:Drop");
     } else {
-        GfxPrint_SetPos(&printer, 3, 26);
+        GfxPrint_SetPos(&printer, 3, 23);
         GfxPrint_Printf(&printer, "Hold L: Magnesis");
     }
     gfx = GfxPrint_Close(&printer);
@@ -671,9 +671,9 @@ void EnRemixMagnet_Draw(Actor* thisx, PlayState* play) {
     }
 
     if (this->held) {
-        glow = 150 + (s32)(70.0f * Math_SinS(this->timer * 0x1400));
+        glow = 95 + (s32)(35.0f * Math_SinS(this->timer * 0x1400));
     } else if (this->aimed) {
-        glow = 60 + (s32)(40.0f * Math_SinS(this->timer * 0xC00));
+        glow = 45 + (s32)(25.0f * Math_SinS(this->timer * 0xC00));
     } else if ((this->type == MAGNET_LIFT) && Flags_GetSwitch(play, MAGNET_FLAG(thisx->params))) {
         glow = 40 + (s32)(25.0f * Math_SinS(this->timer * 0x800));
         r = 255, g = 140, b = 30;
