@@ -29,7 +29,7 @@ typedef struct AbyssPlatInfo {
 #define ABYSS_FALL_Y -400.0f
 #define ABYSS_RESPAWN_X 0.0f
 #define ABYSS_RESPAWN_Y 0.0f
-#define ABYSS_RESPAWN_Z 100.0f
+#define ABYSS_RESPAWN_Z -20.0f
 #define ABYSS_CUBE_SIZE 60.0f
 #define ABYSS_CUBE_CELLS \
     {                    \
