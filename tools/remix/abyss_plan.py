@@ -36,7 +36,7 @@ ROCKS = [(-180, 265), (-230, 330), (-130, 330), (-260, 260)]
 
 ABYSS = dict(x0=-950, x1=950, z0=-3800, z1=200, floor=-1100, ceil=1500)
 START = dict(x0=-160, x1=160, z0=-60, z1=200, top=0)  # the ledge through the door
-RESPAWN = (0, 0, 100)  # where a fall brings Link back (facing north)
+RESPAWN = (0, 0, -20)  # where a fall brings Link back (facing north): near the edge, the pendulum in reach
 
 # platform kinds
 PENDULUM, ORBIT, LIFT, SHUTTLE = range(4)

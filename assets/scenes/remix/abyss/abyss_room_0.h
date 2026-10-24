@@ -21,7 +21,7 @@ extern RoomShapeCullableEntry abyss_room_0RoomShapeEntries[];
 #define ABYSS_TEST_PUZZLE_Z 300.0f
 #define ABYSS_TEST_START_X 0.0f
 #define ABYSS_TEST_START_Y 0.0f
-#define ABYSS_TEST_START_Z 100.0f
+#define ABYSS_TEST_START_Z -20.0f
 #define ABYSS_TEST_RIDE_X -794.9f
 #define ABYSS_TEST_RIDE_Y 320.0f
 #define ABYSS_TEST_RIDE_Z -707.6f
