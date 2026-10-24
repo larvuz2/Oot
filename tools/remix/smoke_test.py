@@ -37,7 +37,7 @@ BOOT_WIND, BOOT_WIND_TEST, BOOT_WIND_RIDE = 20, 21, 22
 BOOT_ABYSS, BOOT_ABYSS_PUZZLE, BOOT_ABYSS_HOOK, BOOT_ABYSS_RIDE, BOOT_ABYSS_FINAL = 23, 24, 25, 26, 27
 # EmulatorJS input indices (web/js/app.js KEYS)
 IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
-IN_Z, IN_C_LEFT = 12, 21
+IN_B, IN_Z, IN_C_LEFT = 1, 12, 21
 
 
 def song_of_time(start, gap=40, hold=16):
@@ -47,6 +47,17 @@ def song_of_time(start, gap=40, hold=16):
     for k, (button, value) in enumerate([(IN_C_RIGHT, 0x7FFF), (IN_A, 1), (IN_C_DOWN, 0x7FFF)] * 2):
         out += [(t, button, value), (t + hold, button, 0)]
         t += gap
+    return out
+
+
+def hook_tries(start, end, every=50):
+    """Grapple attempts, one every `every` frames: tap Z (it locks on if a target is in reach, the Z-target option being
+    Switch), hold C-Left (the Hookshot readied) and let go (it fires at what Z locked on to), tap B (back out of the
+    first-person view the Hookshot opens when nothing was locked on)."""
+    out = []
+    for t in range(start, end, every):
+        out += [(t, IN_Z, 1), (t + 4, IN_Z, 0), (t + 8, IN_C_LEFT, 0x7FFF), (t + 30, IN_C_LEFT, 0), (t + 40, IN_B, 1),
+                (t + 44, IN_B, 0)]
     return out
 
 
@@ -346,12 +357,9 @@ def main():
                 # bars before the Hookshot's chest open
                 ("abyss-puzzle", BOOT_ABYSS_PUZZLE, [430, 560, 700, 900, 1150],
                  [(440, IN_A, 1), (470, IN_A, 0), (560, IN_A, 1), (590, IN_A, 0)]),
-                # the start of the gauntlet with the Hookshot: Z locks on to the pendulum's target as it comes into
-                # reach (it glows; the clock is the same every run), C-Left held readies the Hookshot and fires as it
-                # is let go; two tries
-                ("abyss-hook", BOOT_ABYSS_HOOK, [430, 760, 790, 820, 860, 1120, 1180, 1400],
-                 [(755, IN_Z, 1), (768, IN_C_LEFT, 0x7FFF), (805, IN_C_LEFT, 0), (900, IN_Z, 0),
-                  (1115, IN_Z, 1), (1128, IN_C_LEFT, 0x7FFF), (1165, IN_C_LEFT, 0), (1260, IN_Z, 0)]),
+                # the start of the gauntlet with the Hookshot: grapple attempts every 50 frames (hook_tries); the one
+                # made while the pendulum's target is in reach (it glows) locks on and pulls Link onto the pendulum
+                ("abyss-hook", BOOT_ABYSS_HOOK, [430, 600, 700, 800, 900, 1000, 1100, 1200, 1300], hook_tries(560, 1300)),
                 # dropped onto the carousel: carried round the column; dropped onto the clockwork storm's elevator
                 ("abyss-ride", BOOT_ABYSS_RIDE, [430, 700, 1000], []),
                 ("abyss-final", BOOT_ABYSS_FINAL, [430, 700, 1000], []))
