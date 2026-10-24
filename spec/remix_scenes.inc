@@ -192,6 +192,30 @@ beginseg
     include "$(BUILD_DIR)/assets/scenes/remix/wind/wind_title.o"
 endseg
 
+// Level 9: the Shrine of the Swinging Abyss (tools/remix/make_abyss.py, committed in assets/scenes/remix/abyss/)
+beginseg
+    name "abyss_scene"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/abyss/abyss_scene.o"
+    number 2
+endseg
+
+beginseg
+    name "abyss_room_0"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/abyss/abyss_room_0.o"
+    number 3
+endseg
+
+beginseg
+    name "g_pn_remix_abyss"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/scenes/remix/abyss/abyss_title.o"
+endseg
+
 // Biomes:
 // tools/remix/make_biome.py copies Hyrule Field into extracted/VERSION/assets/scenes/remix/tundra/ after
 // `make setup`; the Makefile then sets REMIX_HAS_TUNDRA=1. Without that step the ROM is built without biomes.

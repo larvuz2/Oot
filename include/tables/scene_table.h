@@ -137,3 +137,5 @@ DEFINE_SCENE(time_scene, g_pn_remix_time, SCENE_REMIX_TIME, SDC_REMIX_TIME, 0, 0
 DEFINE_SCENE(years_scene, g_pn_remix_years, SCENE_REMIX_YEARS, SDC_REMIX_YEARS, 0, 0)
 // Web Remix: level 8, the Shrine of the Upside-Down Wind (tools/remix/make_wind.py)
 DEFINE_SCENE(wind_scene, g_pn_remix_wind, SCENE_REMIX_WIND, SDC_REMIX_WIND, 0, 0)
+// Web Remix: level 9, the Shrine of the Swinging Abyss (tools/remix/make_abyss.py)
+DEFINE_SCENE(abyss_scene, g_pn_remix_abyss, SCENE_REMIX_ABYSS, SDC_REMIX_ABYSS, 0, 0)

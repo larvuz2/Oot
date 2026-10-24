@@ -43,9 +43,13 @@ void RemixLevel_DrawConfigYears(struct PlayState* play);
 // wind's lines blue while it blows up, orange once the crystal has turned it.
 void RemixLevel_DrawConfigWind(struct PlayState* play);
 
+// Scene draw config of the Shrine of the Swinging Abyss (SDC_REMIX_ABYSS, level 9, tools/remix/make_abyss.py).
+void RemixLevel_DrawConfigAbyss(struct PlayState* play);
+
 // Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
 // way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
-// soon as he is anywhere else.
+// soon as he is anywhere else. The Shrine of the Swinging Abyss does the same, and the Hookshot from its chest is his
+// to keep.
 void RemixLevel_OnSceneStart(struct PlayState* play);
 // Sram_WriteSave writes Link's own items, not the trial's (called before and after writing).
 void RemixLevel_TrialSaveSwap(void);
@@ -78,6 +82,8 @@ void RemixLevel_GoToTime(struct PlayState* play);
 void RemixLevel_GoToYears(struct PlayState* play);
 // And into the Shrine of the Upside-Down Wind.
 void RemixLevel_GoToWind(struct PlayState* play);
+// And into the Shrine of the Swinging Abyss.
+void RemixLevel_GoToAbyss(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -111,6 +117,11 @@ typedef struct RemixBootConfig {
 #define REMIX_BOOT_WIND 20         // level 8: the Shrine of the Upside-Down Wind, the same way as the others
 #define REMIX_BOOT_WIND_TEST 21    // the Upside-Down Wind, adult Link onto the timed switch (tests)
 #define REMIX_BOOT_WIND_RIDE 22    // ...child Link onto the dancing cube, the final ladder down (tests)
+#define REMIX_BOOT_ABYSS 23        // level 9: the Shrine of the Swinging Abyss, the same way as the others
+#define REMIX_BOOT_ABYSS_PUZZLE 24 // the stone room, before the crystal with a stone, the cube on the ramp (tests)
+#define REMIX_BOOT_ABYSS_HOOK 25   // the start of the gauntlet with the Hookshot (tests)
+#define REMIX_BOOT_ABYSS_RIDE 26   // ...dropped onto the carousel (tests)
+#define REMIX_BOOT_ABYSS_FINAL 27  // ...dropped onto the clockwork storm's elevator (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

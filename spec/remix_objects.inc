@@ -53,3 +53,12 @@ beginseg
     include "$(BUILD_DIR)/assets/objects/object_remix_wind/object_remix_wind.o"
     number 6
 endseg
+
+// The Shrine of the Swinging Abyss's pieces (tools/remix/make_abyss_parts.py), for ovl_En_Remix_Abyss
+beginseg
+    name "object_remix_abyss"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/objects/object_remix_abyss/object_remix_abyss.o"
+    number 6
+endseg

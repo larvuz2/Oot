@@ -1,7 +1,7 @@
 import { VERSIONS } from "./versions.js";
 import { loadRom, saveRom, forgetRom } from "./storage.js";
 import { archiveType, extractRom } from "./archive.js";
-import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE, BOOT_FORGE_SHRINE, BOOT_TIME_TEMPLE, BOOT_SEVEN_YEARS, BOOT_UPSIDE_DOWN_WIND } from "./boot.js";
+import { setBootMode, BOOT_ANCIENT_PLATEAU, BOOT_EMBER_SHRINE, BOOT_SEEKER_SHRINE, BOOT_LODESTONE_SHRINE, BOOT_FORGE_SHRINE, BOOT_TIME_TEMPLE, BOOT_SEVEN_YEARS, BOOT_UPSIDE_DOWN_WIND, BOOT_SWINGING_ABYSS } from "./boot.js";
 import { cloudInfo, uploadRom, downloadRom } from "./cloud.js";
 
 const $ = (id) => document.getElementById(id);
@@ -86,6 +86,7 @@ function renderReady() {
     $("play-time").hidden = !patch;
     $("play-years").hidden = !patch;
     $("play-wind").hidden = !patch;
+    $("play-abyss").hidden = !patch;
     $("play-level-note").hidden = !patch;
     const modes = $("modes");
     const options = [];
@@ -586,11 +587,12 @@ $("play-forge").addEventListener("click", () => play("remix", { newLevel: true, 
 $("play-time").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_TIME_TEMPLE }));
 $("play-years").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_SEVEN_YEARS }));
 $("play-wind").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_UPSIDE_DOWN_WIND }));
-// Shortcuts on the start screen: 1 to 8 jump into levels 1 to 8.
+$("play-abyss").addEventListener("click", () => play("remix", { newLevel: true, level: BOOT_SWINGING_ABYSS }));
+// Shortcuts on the start screen: 1 to 9 jump into levels 1 to 9.
 window.addEventListener("keydown", (e) => {
     if (document.body.dataset.state !== "ready" || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-    const button = { 1: "play-level", 2: "play-shrine", 3: "play-seeker", 4: "play-magnet", 5: "play-forge", 6: "play-time", 7: "play-years", 8: "play-wind" }[e.key];
+    const button = { 1: "play-level", 2: "play-shrine", 3: "play-seeker", 4: "play-magnet", 5: "play-forge", 6: "play-time", 7: "play-years", 8: "play-wind", 9: "play-abyss" }[e.key];
     if (button && !$(button).hidden) {
         e.preventDefault();
         $(button).click();

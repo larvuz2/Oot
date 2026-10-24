@@ -296,6 +296,7 @@ static MapSelectEntry sMapSelectEntries[] = {
     { "NEW:TEMPLE OF TWO TRUTHS", MapSelect_LoadGame, ENTR_REMIX_TIME_0 },
     { "NEW:SHRINE OF SEVEN YEARS", MapSelect_LoadGame, ENTR_REMIX_YEARS_0 },
     { "NEW:UPSIDE-DOWN WIND", MapSelect_LoadGame, ENTR_REMIX_WIND_0 },
+    { "NEW:SWINGING ABYSS", MapSelect_LoadGame, ENTR_REMIX_ABYSS_0 },
 };
 
 void MapSelect_UpdateMenu(MapSelectState* this) {

@@ -415,3 +415,4 @@
 /* 0x0195 */ DEFINE_OBJECT(object_remix_time, OBJECT_REMIX_TIME) // Web Remix
 /* 0x0196 */ DEFINE_OBJECT(object_remix_years, OBJECT_REMIX_YEARS) // Web Remix
 /* 0x0197 */ DEFINE_OBJECT(object_remix_wind, OBJECT_REMIX_WIND) // Web Remix
+/* 0x0198 */ DEFINE_OBJECT(object_remix_abyss, OBJECT_REMIX_ABYSS) // Web Remix

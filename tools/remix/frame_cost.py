@@ -182,9 +182,10 @@ def main():
                         ("Lodestone Shrine", "magnet/magnet_room_0.c"), ("Forge Shrine", "forge/forge_room_0.c"),
                         ("Temple of Two Truths", "time/time_room_0.c"),
                         ("Shrine of Seven Years", "years/years_room_0.c"),
-                        ("Shrine of the Upside-Down Wind", "wind/wind_room_0.c")):
+                        ("Shrine of the Upside-Down Wind", "wind/wind_room_0.c"),
+                        ("Shrine of the Swinging Abyss", "abyss/abyss_room_0.c")):
         room = REPO / "assets/scenes/remix" / room
-        if room.is_file():  # levels 2 to 8 (the Seeker's Lens-only lists count as drawn)
+        if room.is_file():  # levels 2 to 9 (the Seeker's Lens-only lists count as drawn)
             lists = Lists(roots)
             lists.add_c(room)
             lists.segment = {"0x09000000": "seeker_room_0DL_reveal_xlu", "0x0A000000": "seeker_room_0DL_fake_opa"}

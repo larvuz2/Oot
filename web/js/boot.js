@@ -13,6 +13,7 @@ export const BOOT_FORGE_SHRINE = 10; // level 5: the Forge Shrine (Magnesis and 
 export const BOOT_TIME_TEMPLE = 12; // level 6: the Temple of Two Truths (the Song of Time, child and adult)
 export const BOOT_SEVEN_YEARS = 16; // level 7: the Shrine of Seven Years (the Master Sword's pedestal)
 export const BOOT_UPSIDE_DOWN_WIND = 20; // level 8: the Shrine of the Upside-Down Wind (fans, cubes, gravity)
+export const BOOT_SWINGING_ABYSS = 23; // level 9: the Shrine of the Swinging Abyss (the Hookshot, moving platforms)
 
 /** Find the boot struct in a big-endian (.z64) ROM. Returns its offset, or -1. */
 export function findBootConfig(rom) {

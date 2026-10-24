@@ -59,6 +59,19 @@ jobs:
             build/${{ matrix.version }}/src/overlays/actors/ovl_En_Remix_Model/z_en_remix_model.o \
             build/${{ matrix.version }}/assets/objects/object_remix_model/object_remix_model.o
 
+      - name: Level 9 (Shrine of the Swinging Abyss), its actor and object compile
+        run: |
+          V=${{ matrix.version }}
+          G=build/$V/assets/scenes/remix/abyss
+          make -j"$(nproc)" VERSION=$V $(for f in assets/scenes/remix/abyss/*.png assets/objects/object_remix_abyss/*.png; do echo build/$V/${f%.png}.inc.c; done)
+          make -j"$(nproc)" VERSION=$V $G/abyss_scene.o $G/abyss_room_0.o $G/abyss_title.o \
+            build/$V/src/overlays/actors/ovl_En_Remix_Abyss/z_en_remix_abyss.o \
+            build/$V/assets/objects/object_remix_abyss/object_remix_abyss.o
+          for f in scene:abyss_sceneCommands room_0:abyss_room_0Commands; do
+            mips-linux-gnu-nm $G/abyss_${f%%:*}.o | grep -q "^00000000 D ${f#*:}$" \
+              || { echo "${f#*:} is not at the start of abyss_${f%%:*}"; exit 1; }
+          done
+
       - name: Level 8 (Shrine of the Upside-Down Wind), its actor and object compile
         run: |
           V=${{ matrix.version }}
@@ -198,6 +211,8 @@ jobs:
           grep -q '"ovl_En_Remix_Years"' build/${{ matrix.version }}/spec
           grep -q '"wind_room_0"' build/${{ matrix.version }}/spec
           grep -q '"ovl_En_Remix_Wind"' build/${{ matrix.version }}/spec
+          grep -q '"abyss_room_0"' build/${{ matrix.version }}/spec
+          grep -q '"ovl_En_Remix_Abyss"' build/${{ matrix.version }}/spec
           grep -q '"ovl_En_Remix_Magnet"' build/${{ matrix.version }}/spec
           grep -q 'z_remix_level.o' build/${{ matrix.version }}/spec
           # The copy is linked next to the original: no symbol may be defined in both.
