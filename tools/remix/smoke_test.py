@@ -350,8 +350,8 @@ def main():
                 # the middle of its swing: about 120 game frames apart), C-Left held readies the Hookshot and fires as
                 # it is let go; two tries
                 ("abyss-hook", BOOT_ABYSS_HOOK, [430, 700, 760, 820, 1060, 1120, 1180, 1400],
-                 [(630, IN_Z, 1), (650, IN_C_LEFT, 1), (720, IN_C_LEFT, 0), (840, IN_Z, 0),
-                  (990, IN_Z, 1), (1010, IN_C_LEFT, 1), (1080, IN_C_LEFT, 0), (1200, IN_Z, 0)]),
+                 [(630, IN_Z, 1), (650, IN_C_LEFT, 0x7FFF), (720, IN_C_LEFT, 0), (840, IN_Z, 0),
+                  (990, IN_Z, 1), (1010, IN_C_LEFT, 0x7FFF), (1080, IN_C_LEFT, 0), (1200, IN_Z, 0)]),
                 # dropped onto the carousel: carried round the column; dropped onto the clockwork storm's elevator
                 ("abyss-ride", BOOT_ABYSS_RIDE, [430, 700, 1000], []),
                 ("abyss-final", BOOT_ABYSS_FINAL, [430, 700, 1000], []))
