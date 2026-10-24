@@ -116,7 +116,13 @@ static ColliderCylinderInit sFireInit = {
     { 85, 100, -10, { 0, 0, 0 } },
 };
 
+// the Shrine of the Upside-Down Wind's iron cubes (En_Remix_Wind) begin with an EnRemixMagnet: Magnesis holds them too
+#define IS_PIECE(actor) (((actor)->id == ACTOR_EN_REMIX_MAGNET) || ((actor)->id == ACTOR_EN_REMIX_WIND))
+
 static s32 EnRemixMagnet_IsMagnetic(Actor* actor) {
+    if (actor->id == ACTOR_EN_REMIX_WIND) {
+        return ((EnRemixMagnet*)actor)->type == MAGNET_CRATE; // a loose cube
+    }
     if (actor->id == ACTOR_EN_REMIX_MAGNET) {
         s32 type = ((EnRemixMagnet*)actor)->type;
 
@@ -462,6 +468,9 @@ static s32 EnRemixMagnet_IsLiftableChest(EnRemixMagnet* this, Actor* actor) {
 }
 
 static f32 EnRemixMagnet_TargetHeight(Actor* actor) {
+    if (actor->id == ACTOR_EN_REMIX_WIND) {
+        return ((EnRemixMagnet*)actor)->lift; // (a wind cube keeps its size there)
+    }
     return (actor->id == ACTOR_EN_REMIX_MAGNET) ? sHeights[((EnRemixMagnet*)actor)->type] : 40.0f;
 }
 
@@ -512,7 +521,7 @@ static void EnRemixMagnet_Release(EnRemixMagnet* this, s32 fling) {
         vel.y = 8.0f;
         Actor_PlaySfx(target, NA_SE_EV_HEAVY_THROW);
     }
-    if (target->id == ACTOR_EN_REMIX_MAGNET) {
+    if (IS_PIECE(target)) {
         EnRemixMagnet* piece = (EnRemixMagnet*)target;
 
         piece->held = false;
@@ -639,7 +648,7 @@ static void EnRemixMagnet_UpdateController(EnRemixMagnet* this, PlayState* play)
 
     this->hasMagnesis = (MAGNET_FLAG(this->dyna.actor.params) == MAGNET_ALWAYS) ||
                         Flags_GetTreasure(play, MAGNET_FLAG(this->dyna.actor.params));
-    if (this->aim != NULL && this->aim->id == ACTOR_EN_REMIX_MAGNET) {
+    if (this->aim != NULL && IS_PIECE(this->aim)) {
         ((EnRemixMagnet*)this->aim)->aimed = false;
     }
     this->aim = NULL;
@@ -650,8 +659,7 @@ static void EnRemixMagnet_UpdateController(EnRemixMagnet* this, PlayState* play)
     if (this->target != NULL) {
         if ((this->target->update == NULL) || !EnRemixMagnet_CanUse(play, player) ||
             !CHECK_BTN_ALL(input->cur.button, BTN_L) ||
-            ((this->target->id == ACTOR_EN_REMIX_MAGNET) &&
-             DynaPolyActor_IsPlayerOnTop(&((EnRemixMagnet*)this->target)->dyna))) {
+            (IS_PIECE(this->target) && DynaPolyActor_IsPlayerOnTop(&((EnRemixMagnet*)this->target)->dyna))) {
             EnRemixMagnet_Release(this, false);
         } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
             EnRemixMagnet_Release(this, true);
@@ -662,7 +670,7 @@ static void EnRemixMagnet_UpdateController(EnRemixMagnet* this, PlayState* play)
         actor = EnRemixMagnet_FindTarget(this, play, player);
         this->aim = actor;
         if (actor != NULL) {
-            if (actor->id == ACTOR_EN_REMIX_MAGNET) {
+            if (IS_PIECE(actor)) {
                 ((EnRemixMagnet*)actor)->aimed = true;
             }
             if (CHECK_BTN_ALL(input->press.button, BTN_L) && (actor != this->falling)) {
@@ -672,7 +680,7 @@ static void EnRemixMagnet_UpdateController(EnRemixMagnet* this, PlayState* play)
                                        MAGNESIS_MIN_DIST, MAGNESIS_RANGE);
                 // lift it off the floor a little straight away
                 this->holdHeight = actor->world.pos.y - player->actor.world.pos.y + 25.0f;
-                if (actor->id == ACTOR_EN_REMIX_MAGNET) {
+                if (IS_PIECE(actor)) {
                     ((EnRemixMagnet*)actor)->held = true;
                 }
                 Actor_PlaySfx(actor, NA_SE_EV_TRIFORCE_FLASH);

@@ -5,6 +5,7 @@
 #include "assets/scenes/remix/forge/forge_scene.h"
 #include "assets/scenes/remix/time/time_scene.h"
 #include "assets/scenes/remix/years/years_scene.h"
+#include "assets/scenes/remix/wind/wind_scene.h"
 #include "libu64/debug.h"
 #include "array_count.h"
 #include "attributes.h"
@@ -1553,6 +1554,10 @@ s32 BgCheck_TryGetCustomMemsize(s32 sceneId, u32* memSize) {
     }
     if (sceneId == SCENE_REMIX_YEARS) { // tools/remix/make_years.py
         *memSize = YEARS_SCENE_BGCHECK_MEMSIZE;
+        return true;
+    }
+    if (sceneId == SCENE_REMIX_WIND) { // tools/remix/make_wind.py
+        *memSize = WIND_SCENE_BGCHECK_MEMSIZE;
         return true;
     }
 

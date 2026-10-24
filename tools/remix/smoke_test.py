@@ -33,6 +33,7 @@ BOOT_ANCIENT, BOOT_HYRULE_FIELD, BOOT_ISLAND_VIEW, BOOT_POOL_VIEW, BOOT_SHRINE, 
 BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST, BOOT_FORGE, BOOT_FORGE_TEST = 7, 8, 9, 10, 11
 BOOT_TIME, BOOT_TIME_TEST, BOOT_TIME_SUN, BOOT_TIME_CHILD = 12, 13, 14, 15
 BOOT_YEARS, BOOT_YEARS_TEST, BOOT_YEARS_CHILD, BOOT_YEARS_FUTURE = 16, 17, 18, 19
+BOOT_WIND, BOOT_WIND_TEST, BOOT_WIND_RIDE = 20, 21, 22
 # EmulatorJS input indices (web/js/app.js KEYS)
 IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
 
@@ -285,7 +286,8 @@ def main():
         # hall (pictures, crash and memory checks)
         # (and level 3, the Seeker's Shrine, the same way)
         for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET),
-                           ("forge", BOOT_FORGE), ("time", BOOT_TIME), ("years", BOOT_YEARS)):
+                           ("forge", BOOT_FORGE), ("time", BOOT_TIME), ("years", BOOT_YEARS),
+                           ("wind", BOOT_WIND)):
             print(f"smoke: {name}")
             srom = bytearray(args.rom.read_bytes())
             set_boot_flag(srom, mode)
@@ -329,7 +331,14 @@ def main():
                 # everything prepared in the past: the adult on the upper floor sees the final staircase whole (its
                 # support under it), the door open; the tree grown by the upper floor
                 ("years-future", BOOT_YEARS_FUTURE, [400, 700], []),
-                ("years-child", BOOT_YEARS_CHILD, [400, 700], []))
+                ("years-child", BOOT_YEARS_CHILD, [400, 700], []),
+                # Level 8: adult Link on the timed switch: every loose cube falls up (the heavy one against its
+                # ceiling switch, the gate before the first ladder sinks), and eight seconds later back down
+                ("wind-timer", BOOT_WIND_TEST, [430, 560, 760, 1000, 1250], []),
+                # both ceiling switches done (the final ladder down): child Link dropped onto the cube dancing in the
+                # wind rides it up, walks into the final ladder and climbs to the exit platform
+                ("wind-ride", BOOT_WIND_RIDE, [430, 620, 820, 1060, 1300],
+                 [(700, IN_STICK_UP, 0x7FFF), (1250, IN_STICK_UP, 0)]))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
             mrom = bytearray(args.rom.read_bytes())

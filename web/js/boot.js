@@ -12,6 +12,7 @@ export const BOOT_LODESTONE_SHRINE = 7; // level 4: the Lodestone Shrine (Magnes
 export const BOOT_FORGE_SHRINE = 10; // level 5: the Forge Shrine (Magnesis and fire)
 export const BOOT_TIME_TEMPLE = 12; // level 6: the Temple of Two Truths (the Song of Time, child and adult)
 export const BOOT_SEVEN_YEARS = 16; // level 7: the Shrine of Seven Years (the Master Sword's pedestal)
+export const BOOT_UPSIDE_DOWN_WIND = 20; // level 8: the Shrine of the Upside-Down Wind (fans, cubes, gravity)
 
 /** Find the boot struct in a big-endian (.z64) ROM. Returns its offset, or -1. */
 export function findBootConfig(rom) {
