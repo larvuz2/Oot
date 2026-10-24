@@ -76,6 +76,8 @@ ActorProfile En_Remix_Abyss_Profile = {
 
 static AbyssPlatInfo sPlats[ABYSS_PLATS_N] = ABYSS_PLATS;
 static s16 sCubeCells[2][2] = ABYSS_CUBE_CELLS;
+static Gfx* sPlatDLs[ABYSS_PLATS_N] = ABYSS_PLAT_DLS;
+static CollisionHeader* sPlatCols[ABYSS_PLATS_N] = ABYSS_PLAT_COLS;
 
 static s32 sTick;  // the gauntlet's clock (game frames)
 static s16 sReset; // counts the falls: platforms that broke away come back
@@ -181,7 +183,7 @@ void EnRemixAbyss_Init(Actor* thisx, PlayState* play) {
 
         case ABYSS_PLATFORM:
             this->arg %= ABYSS_PLATS_N;
-            col = gAbyssPlatCols[this->arg];
+            col = sPlatCols[this->arg];
             flags = DYNA_TRANSFORM_POS | DYNA_TRANSFORM_ROT_Y;
             Abyss_PlatPos(this->arg, &thisx->world.pos, &thisx->shape.rot.y);
             thisx->world.rot.y = thisx->shape.rot.y;
@@ -665,7 +667,7 @@ void EnRemixAbyss_Draw(Actor* thisx, PlayState* play) {
             if (this->mode == 3) {
                 break; // (broken away)
             }
-            Abyss_DrawOpa(play, gAbyssPlatDLs[this->arg], 0, 0, 0);
+            Abyss_DrawOpa(play, sPlatDLs[this->arg], 0, 0, 0);
             if (this->inReach) {
                 glow = 70 + (s32)(40.0f * Math_SinS((s16)(play->gameplayFrames * 0x1200)));
             }

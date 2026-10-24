@@ -4504,15 +4504,3 @@ CollisionHeader gAbyssDoorCol = {
     0,
     NULL,
 };
-
-Gfx* gAbyssPlatDLs[] = {
-    gAbyssPlat0DL,  gAbyssPlat1DL,  gAbyssPlat2DL,  gAbyssPlat3DL,  gAbyssPlat4DL,  gAbyssPlat5DL,
-    gAbyssPlat6DL,  gAbyssPlat7DL,  gAbyssPlat8DL,  gAbyssPlat9DL,  gAbyssPlat10DL, gAbyssPlat11DL,
-    gAbyssPlat12DL, gAbyssPlat13DL, gAbyssPlat14DL, gAbyssPlat15DL, gAbyssPlat16DL,
-};
-
-CollisionHeader* gAbyssPlatCols[] = {
-    &gAbyssPlat0Col,  &gAbyssPlat1Col,  &gAbyssPlat2Col,  &gAbyssPlat3Col,  &gAbyssPlat4Col,  &gAbyssPlat5Col,
-    &gAbyssPlat6Col,  &gAbyssPlat7Col,  &gAbyssPlat8Col,  &gAbyssPlat9Col,  &gAbyssPlat10Col, &gAbyssPlat11Col,
-    &gAbyssPlat12Col, &gAbyssPlat13Col, &gAbyssPlat14Col, &gAbyssPlat15Col, &gAbyssPlat16Col,
-};

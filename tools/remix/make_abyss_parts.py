@@ -290,8 +290,9 @@ typedef struct AbyssPlatInfo {{
 
 {defines}
 {decls}
-extern Gfx* gAbyssPlatDLs[];
-extern CollisionHeader* gAbyssPlatCols[];
+// (for tables in the actor's own data: the object is only reached through segment 6 by the RSP and the bgcheck)
+#define ABYSS_PLAT_DLS {{ {dls} }}
+#define ABYSS_PLAT_COLS {{ {cols} }}
 
 #endif
 """
@@ -308,13 +309,13 @@ def main():
     text = YP.emit(pieces, textures).replace("make_years_parts.py - the Shrine of Seven Years' pieces",
                                               "make_abyss_parts.py - the Shrine of the Swinging Abyss's pieces")
     text = text.replace('#include "object_remix_years.h"', '#include "object_remix_abyss.h"')
-    n = len(A.P)
-    text += ("Gfx* gAbyssPlatDLs[] = {\n" + "".join(f"    gAbyssPlat{i}DL,\n" for i in range(n)) + "};\n\n"
-             "CollisionHeader* gAbyssPlatCols[] = {\n" + "".join(f"    &gAbyssPlat{i}Col,\n" for i in range(n)) + "};\n")
     (OUT / "object_remix_abyss.c").write_text(text)
     decls = "".join(f"extern Gfx gAbyss{p.name}DL[];\n" + (f"extern CollisionHeader gAbyss{p.name}Col;\n" if p.col else "")
                     for p in pieces)
-    (OUT / "object_remix_abyss.h").write_text(HEADER.format(defines=plan_defines(), decls=decls))
+    n = len(A.P)
+    (OUT / "object_remix_abyss.h").write_text(HEADER.format(
+        defines=plan_defines(), decls=decls, dls=", ".join(f"gAbyssPlat{i}DL" for i in range(n)),
+        cols=", ".join(f"&gAbyssPlat{i}Col" for i in range(n))))
     fmt = shutil.which("clang-format-14") or shutil.which("clang-format")
     if fmt:
         subprocess.run([fmt, "-i", "--style=file", str(OUT / "object_remix_abyss.c"), str(OUT / "object_remix_abyss.h")],

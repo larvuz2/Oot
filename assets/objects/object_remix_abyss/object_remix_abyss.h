@@ -189,7 +189,18 @@ extern CollisionHeader gAbyssBarsCol;
 extern Gfx gAbyssDoorDL[];
 extern CollisionHeader gAbyssDoorCol;
 
-extern Gfx* gAbyssPlatDLs[];
-extern CollisionHeader* gAbyssPlatCols[];
+// (for tables in the actor's own data: the object is only reached through segment 6 by the RSP and the bgcheck)
+#define ABYSS_PLAT_DLS                                                                                           \
+    {                                                                                                            \
+        gAbyssPlat0DL, gAbyssPlat1DL, gAbyssPlat2DL, gAbyssPlat3DL, gAbyssPlat4DL, gAbyssPlat5DL, gAbyssPlat6DL, \
+            gAbyssPlat7DL, gAbyssPlat8DL, gAbyssPlat9DL, gAbyssPlat10DL, gAbyssPlat11DL, gAbyssPlat12DL,         \
+            gAbyssPlat13DL, gAbyssPlat14DL, gAbyssPlat15DL, gAbyssPlat16DL                                       \
+    }
+#define ABYSS_PLAT_COLS                                                                                             \
+    {                                                                                                               \
+        &gAbyssPlat0Col, &gAbyssPlat1Col, &gAbyssPlat2Col, &gAbyssPlat3Col, &gAbyssPlat4Col, &gAbyssPlat5Col,       \
+            &gAbyssPlat6Col, &gAbyssPlat7Col, &gAbyssPlat8Col, &gAbyssPlat9Col, &gAbyssPlat10Col, &gAbyssPlat11Col, \
+            &gAbyssPlat12Col, &gAbyssPlat13Col, &gAbyssPlat14Col, &gAbyssPlat15Col, &gAbyssPlat16Col                \
+    }
 
 #endif
