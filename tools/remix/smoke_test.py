@@ -346,9 +346,12 @@ def main():
                 # bars before the Hookshot's chest open
                 ("abyss-puzzle", BOOT_ABYSS_PUZZLE, [430, 560, 700, 900, 1150],
                  [(440, IN_A, 1), (470, IN_A, 0), (560, IN_A, 1), (590, IN_A, 0)]),
-                # the start of the gauntlet with the Hookshot: Z locks on to the pendulum's target, C-Left fires
-                ("abyss-hook", BOOT_ABYSS_HOOK, [430, 520, 600, 760, 1000],
-                 [(450, IN_Z, 1), (480, IN_C_LEFT, 1), (500, IN_C_LEFT, 0), (560, IN_Z, 0)]),
+                # the start of the gauntlet with the Hookshot: Z locks on to the pendulum's target (only in reach near
+                # the middle of its swing: about 120 game frames apart), C-Left held readies the Hookshot and fires as
+                # it is let go; two tries
+                ("abyss-hook", BOOT_ABYSS_HOOK, [430, 700, 760, 820, 1060, 1120, 1180, 1400],
+                 [(630, IN_Z, 1), (650, IN_C_LEFT, 1), (720, IN_C_LEFT, 0), (840, IN_Z, 0),
+                  (990, IN_Z, 1), (1010, IN_C_LEFT, 1), (1080, IN_C_LEFT, 0), (1200, IN_Z, 0)]),
                 # dropped onto the carousel: carried round the column; dropped onto the clockwork storm's elevator
                 ("abyss-ride", BOOT_ABYSS_RIDE, [430, 700, 1000], []),
                 ("abyss-final", BOOT_ABYSS_FINAL, [430, 700, 1000], []))
