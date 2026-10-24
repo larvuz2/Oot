@@ -44,3 +44,12 @@ beginseg
     include "$(BUILD_DIR)/assets/objects/object_remix_years/object_remix_years.o"
     number 6
 endseg
+
+// The Shrine of the Upside-Down Wind's pieces (tools/remix/make_wind_parts.py), for ovl_En_Remix_Wind
+beginseg
+    name "object_remix_wind"
+    compress
+    romalign 0x1000
+    include "$(BUILD_DIR)/assets/objects/object_remix_wind/object_remix_wind.o"
+    number 6
+endseg

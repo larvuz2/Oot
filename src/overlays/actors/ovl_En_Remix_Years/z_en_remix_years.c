@@ -282,9 +282,18 @@ void EnRemixYears_Destroy(Actor* thisx, PlayState* play) {
 
 // ---------------------------------------------------------------- the pedestal
 
+/**
+ * The scene's first entrance (its eight entrances follow it: entrance_table.h). The pedestal stands in the Shrine of
+ * Seven Years and in the Shrine of the Upside-Down Wind.
+ */
+static s32 EnRemixYears_FirstEntrance(PlayState* play) {
+    return (play->sceneId == SCENE_REMIX_WIND) ? ENTR_REMIX_WIND_0 : ENTR_REMIX_YEARS_0;
+}
+
 static void EnRemixYears_TurnTime(EnRemixYears* this, PlayState* play) {
     play->linkAgeOnLoad = this->isChild ? LINK_AGE_ADULT : LINK_AGE_CHILD;
-    play->nextEntranceIndex = ENTR_REMIX_YEARS_1; // spawn 1 (child) / 2 (adult): before the pedestal
+    // spawn 1 (child) / 2 (adult): before the pedestal
+    play->nextEntranceIndex = (play->sceneId == SCENE_REMIX_WIND) ? ENTR_REMIX_WIND_1 : ENTR_REMIX_YEARS_1;
     play->transitionTrigger = TRANS_TRIGGER_START;
     play->transitionType = TRANS_TYPE_FADE_WHITE;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE_SLOW;
@@ -313,7 +322,8 @@ static void EnRemixYears_UpdatePedestal(EnRemixYears* this, PlayState* play) {
 
     // Leaving the shrine any other way: Link goes out at the age he came in
     if ((play->transitionTrigger != TRANS_TRIGGER_OFF) && (this->timer == 0) &&
-        ((play->nextEntranceIndex < ENTR_REMIX_YEARS_0) || (play->nextEntranceIndex > ENTR_REMIX_YEARS_1_3))) {
+        ((play->nextEntranceIndex < EnRemixYears_FirstEntrance(play)) ||
+         (play->nextEntranceIndex > EnRemixYears_FirstEntrance(play) + (ENTR_REMIX_YEARS_1_3 - ENTR_REMIX_YEARS_0)))) {
         play->linkAgeOnLoad = RemixLevel_TimeEntryAge();
     }
 }

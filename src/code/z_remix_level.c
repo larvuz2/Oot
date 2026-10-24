@@ -33,6 +33,9 @@
  *     age back when he leaves.
  *   - The Shrine of Seven Years' draw config (level 7): the lines in the era's colour (0x0B). Its trial: swords and
  *     shields only (no items), Link's own things and age back when he leaves. The pieces are En_Remix_Years.
+ *   - The Shrine of the Upside-Down Wind's draw config (level 8): the wind's lines blue (blowing up) or orange
+ *     (turned) with the crystal (0x0B). Its trial is the Shrine of Seven Years' (the same pedestal stands in it); its
+ *     Magnesis is lent. The pieces are En_Remix_Wind.
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -63,6 +66,7 @@
 #include "assets/scenes/remix/forge/forge_room_0.h"
 #include "assets/scenes/remix/time/time_room_0.h"
 #include "assets/scenes/remix/years/years_room_0.h"
+#include "assets/scenes/remix/wind/wind_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -610,6 +614,53 @@ void RemixLevel_DrawConfigYears(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToWind(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_WIND_HOLE_X, ANCIENT_WIND_HOLE_Y, ANCIENT_WIND_HOLE_Z, ANCIENT_WIND_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_WIND_0);
+}
+
+void RemixLevel_DrawConfigWind(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* wind = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 120, 215 + (s32)(wave * 25.0f), 255, 170 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 170 - (s32)(wave * 30.0f), 60, 220 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+    gDPPipeSync(wind);
+    if (!Flags_GetSwitch(play, WIND_SHRINE_FLAG_FANS)) {
+        gDPSetPrimColor(wind + 1, 0, 0, 90, 190, 255, 210 + (s32)(wave * 40.0f)); // blowing up
+    } else {
+        gDPSetPrimColor(wind + 1, 0, 0, 255, 150 - (s32)(wave * 30.0f), 50, 210 + (s32)(wave * 40.0f)); // turned
+    }
+    gSPEndDisplayList(wind + 2);
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, wind);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, wind);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
 // ---- the Temple of Two Truths' kit: both ages' tools inside, Link's own things back outside ----
 
 typedef struct RemixTimeKit {
@@ -732,7 +783,7 @@ static void RemixTimeKit_End(void) {
     sTimeKit.active = false;
 }
 
-/** The Shrine of Seven Years: no items at all, the sword and shield of Link's age. */
+/** The Shrine of Seven Years (and the Upside-Down Wind): no items at all, the sword and shield of Link's age. */
 static void RemixTimeKit_EquipYears(void) {
     Inventory* inv = &gSaveContext.save.info.inventory;
     ItemEquips* eq = &gSaveContext.save.info.equips;
@@ -834,7 +885,8 @@ static void RemixTrial_End(void) {
 }
 
 void RemixLevel_OnSceneStart(PlayState* play) {
-    if ((play->sceneId == SCENE_REMIX_TIME) || (play->sceneId == SCENE_REMIX_YEARS)) {
+    if ((play->sceneId == SCENE_REMIX_TIME) || (play->sceneId == SCENE_REMIX_YEARS) ||
+        (play->sceneId == SCENE_REMIX_WIND)) {
         if (!sTimeKit.active) {
             RemixTimeKit_Begin();
         }
@@ -945,6 +997,7 @@ void RemixBoot_Start(GameState* gameState) {
         : (mode == REMIX_BOOT_TIME_CHILD)                                       ? ENTR_REMIX_TIME_1
         : ((mode >= REMIX_BOOT_TIME) && (mode <= REMIX_BOOT_TIME_SUN))          ? ENTR_REMIX_TIME_0
         : ((mode == REMIX_BOOT_YEARS_TEST) || (mode == REMIX_BOOT_YEARS_CHILD)) ? ENTR_REMIX_YEARS_1
+        : (mode >= REMIX_BOOT_WIND)                                             ? ENTR_REMIX_WIND_0
         : (mode >= REMIX_BOOT_YEARS)                                            ? ENTR_REMIX_YEARS_0
                                                                                 : ENTR_REMIX_ANCIENT_0;
     gSaveContext.respawnFlag = 0;
@@ -1030,6 +1083,31 @@ void RemixBoot_Start(GameState* gameState) {
         r->tempSwchFlags = r->tempCollectFlags = 0;
         gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
     }
+    if ((mode == REMIX_BOOT_WIND_TEST) || (mode == REMIX_BOOT_WIND_RIDE)) {
+        // Tests. WIND_TEST: adult Link onto the timed switch (the gravity turns: the heavy cube falls up against its
+        // ceiling switch, the gate opens). WIND_RIDE: both ceiling switches done (the final ladder down, the heavy
+        // cube wedged by the medium one in its bracket); child Link dropped onto the cube dancing in the wind, facing
+        // the final ladder
+        SavedSceneFlags* flags = &gSaveContext.save.info.sceneFlags[SCENE_REMIX_WIND];
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+        s32 ride = (mode == REMIX_BOOT_WIND_RIDE);
+
+        if (ride) {
+            flags->swch |=
+                (1 << WIND_SHRINE_FLAG_LADDER) | (1 << WIND_SHRINE_FLAG_WEDGED) | (1 << WIND_SHRINE_FLAG_BRACKET);
+            gSaveContext.save.linkAge = LINK_AGE_CHILD;
+        }
+        r->pos.x = ride ? WIND_TEST_RIDE_X : WIND_TEST_TIMER_X;
+        r->pos.y = ride ? WIND_TEST_RIDE_Y : WIND_TEST_TIMER_Y;
+        r->pos.z = ride ? WIND_TEST_RIDE_Z : WIND_TEST_TIMER_Z;
+        r->yaw = ride ? 0 : 0x8000;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_WIND_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
     if (mode == REMIX_BOOT_ISLAND_VIEW || mode == REMIX_BOOT_POOL_VIEW) {
         // Tests: start somewhere else in the level, the way Link comes back after a void out (z_player.c).
         RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
@@ -1054,6 +1132,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if (mode == REMIX_BOOT_WIND) {
+        RemixLevel_SetShrineReturn(ANCIENT_WIND_HOLE_X, ANCIENT_WIND_HOLE_Y, ANCIENT_WIND_HOLE_Z,
+                                   ANCIENT_WIND_HOLE_YAW);
     } else if ((mode == REMIX_BOOT_YEARS) || (mode == REMIX_BOOT_YEARS_TEST) || (mode == REMIX_BOOT_YEARS_CHILD)) {
         RemixLevel_SetShrineReturn(ANCIENT_YEARS_HOLE_X, ANCIENT_YEARS_HOLE_Y, ANCIENT_YEARS_HOLE_Z,
                                    ANCIENT_YEARS_HOLE_YAW);

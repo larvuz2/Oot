@@ -429,6 +429,45 @@ both ages, the planter and the support only in the past; each place is kept in s
 change, the blocks that keep the adult out of the small openings, the medallion and the loose stone, the future's
 chest. The door's switch, the chests and the torches are the game's own.
 
+## Level 8: the Shrine of the Upside-Down Wind (a machine that works in reverse)
+
+A seventh shrine under the Plateau, by the east road nearer the town. On the website, **8 · Upside-Down Wind** (or
+the key <kbd>8</kbd>); from your own save, Remix menu &rarr; *Go to: Upside-Down Wind*. As in the Shrine of Seven
+Years Link keeps only the sword and shield of his age (and gets them back with his own things when he leaves), and
+the Master Sword's pedestal stands here too: place the sword to be a child, draw it to be an adult. Magnesis is lent.
+
+One chamber with two floors, the ground and the ceiling: the exit is on the ceiling right above the entrance, and no
+stairs lead up. Two fans, the floor's blowing up and the ceiling's down, make one column of wind beside the middle
+balcony; three iron cubes (light, medium, heavy); a ceiling switch for the heavy cube and one under the ceiling fan; a
+crystal that turns the wind (blue: it blows up, orange: down); a timed switch that turns gravity upside down for
+eight seconds for every loose object, but not for Link.
+
+1. **The wind.** The light cube dances in the column of wind and falls back when Magnesis pulls it out. The heavy
+   cube is too heavy for the wind.
+2. **Falling up.** Step on the timed switch: the heavy cube falls up against its ceiling switch and the gate before
+   the first ladder sinks; eight seconds later the cube falls and the gate closes.
+3. **The bracket.** Put the medium cube under the bracket beside the ceiling switch and turn gravity again: it falls
+   up into the bracket and locks, the heavy cube is wedged against the switch and stays, and the gate stays open.
+   Climb to the middle balcony.
+4. **The wind turned.** The balcony's crystal turns the wind: a cube high in the column (catch it at the top of its
+   dance, or lift it there with Magnesis) is pulled up against the ceiling fan, the second ceiling switch.
+5. **The ride.** Both switches at once and the final ladder comes down from the exit platform, but stops short.
+   Turn the wind back, drop from the balcony onto the dancing cube and ride it up: only the child is light enough to
+   be carried to the ladder (the pedestal). Climb to the exit, and the chest beside it.
+6. **The hidden treasure.** North of the balcony a glass chamber, halfway up the wall, has a narrow hole in its
+   floor: *"Only the smallest falls through the narrowest way, and only if it falls upward."* The light cube under
+   the hole, gravity upside down: it falls up through the hole against the iron shelf inside, the crystal on the
+   shelf lights and the glass sinks.
+
+How it is made: `tools/remix/make_wind.py` generates `assets/scenes/remix/wind/` and checks the layout (the balcony
+too high to climb, the dancing cube within a hop of it, the ride reaching the final ladder for the child only, the
+bracket beside the switch, the hole wide enough for the light cube only); `tools/remix/wind_plan.py` is the plan it
+and `make_wind_parts.py` (the pieces, `object_remix_wind`) share. `ovl_En_Remix_Wind` is the machine: the cubes'
+physics (falling, falling up to whatever is above them, the wind's dance and pull, Link carried as high as the wind
+can lift him), the fans, the switches, the gate, the ladders and the glass. Its cubes begin with an `EnRemixMagnet`,
+so `ovl_En_Remix_Magnet`'s Magnesis holds them like the Lodestone Shrine's crates. The pedestal is
+`ovl_En_Remix_Years`'; the crystals and the chests are the game's own; two new texts in `assets/text/message_data.h`.
+
 ## Play on any device: your ROM in the cloud
 
 Once a ROM is loaded, **Save to cloud** (under the Play buttons) keeps a copy in the site's own storage (Netlify
@@ -603,6 +642,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/make_forge.py`, `assets/scenes/remix/forge/` | Level 5, the Forge Shrine (the fire basket, gates and spans are `ovl_En_Remix_Magnet` too) |
 | `tools/remix/make_time.py`, `make_time_parts.py`, `time_plan.py`, `assets/scenes/remix/time/`, `src/overlays/actors/ovl_En_Remix_Time/`, `assets/objects/object_remix_time/` | Level 6, the Temple of Two Truths: the hall, its pieces and the age switch; the kit in `z_remix_level.c`, texts in `assets/text/message_data.h` |
 | `tools/remix/make_years.py`, `make_years_parts.py`, `years_plan.py`, `assets/scenes/remix/years/`, `src/overlays/actors/ovl_En_Remix_Years/`, `assets/objects/object_remix_years/` | Level 7, the Shrine of Seven Years: the hall, its pieces and the Master Sword's pedestal; the swords-only kit in `z_remix_level.c` |
+| `tools/remix/make_wind.py`, `make_wind_parts.py`, `wind_plan.py`, `assets/scenes/remix/wind/`, `src/overlays/actors/ovl_En_Remix_Wind/`, `assets/objects/object_remix_wind/` | Level 8, the Shrine of the Upside-Down Wind: the chamber, the fans, cubes, switches and ladders (Magnesis holds the cubes) |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

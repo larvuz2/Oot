@@ -713,4 +713,8 @@ DECLARE_ROM_SEGMENT(time_room_0)
 DECLARE_ROM_SEGMENT(years_scene)
 DECLARE_ROM_SEGMENT(years_room_0)
 
+// Web Remix level 8: the Shrine of the Upside-Down Wind (spec/remix_scenes.inc, tools/remix/make_wind.py)
+DECLARE_ROM_SEGMENT(wind_scene)
+DECLARE_ROM_SEGMENT(wind_room_0)
+
 #endif

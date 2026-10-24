@@ -39,6 +39,10 @@ void RemixLevel_DrawConfigTime(struct PlayState* play);
 // in the era's colour (blue in the past, orange in the present).
 void RemixLevel_DrawConfigYears(struct PlayState* play);
 
+// Scene draw config of the Shrine of the Upside-Down Wind (SDC_REMIX_WIND, level 8, tools/remix/make_wind.py): the
+// wind's lines blue while it blows up, orange once the crystal has turned it.
+void RemixLevel_DrawConfigWind(struct PlayState* play);
+
 // Called by Play_Init once the scene is chosen (src/code/z_play.c): the Seeker's Shrine takes Link's items on the
 // way in (all but swords, shields and tunics; a full magic meter for the Lens found inside) and gives them back as
 // soon as he is anywhere else.
@@ -49,7 +53,8 @@ void RemixLevel_TrialSaveSwap(void);
 void RemixLevel_TrialForget(void);
 // The Temple of Two Truths lends Link a kit for both his ages and switches his age with the Song of Time, the Shrine
 // of Seven Years takes his items (swords and shields only) and switches it at the Master Sword's pedestal: the age he
-// came in at (he leaves at that age, En_Remix_Time and En_Remix_Years see to it).
+// came in at (he leaves at that age, En_Remix_Time and En_Remix_Years see to it). The Shrine of the Upside-Down Wind
+// does as the Shrine of Seven Years.
 s32 RemixLevel_TimeEntryAge(void);
 
 // Object space of the Ancient Plateau (src/code/z_scene.c): its room's objects take about 893 KB with the keep
@@ -71,6 +76,8 @@ void RemixLevel_GoToForge(struct PlayState* play);
 void RemixLevel_GoToTime(struct PlayState* play);
 // And into the Shrine of Seven Years.
 void RemixLevel_GoToYears(struct PlayState* play);
+// And into the Shrine of the Upside-Down Wind.
+void RemixLevel_GoToWind(struct PlayState* play);
 
 // "Boot straight into the new level": the website sets `mode` in the ROM it hands to the emulator (it finds
 // the struct by its magic). The console logo screen then starts a test save in the Ancient Plateau instead of
@@ -81,26 +88,29 @@ typedef struct RemixBootConfig {
     /* 0x09 */ u8 pad[7];
 } RemixBootConfig;
 
-#define REMIX_BOOT_NORMAL 0       // title screen as usual
-#define REMIX_BOOT_ANCIENT 1      // the Ancient Plateau, as adult Link
-#define REMIX_BOOT_HYRULE_FIELD 2 // Hyrule Field the same way (tests: tools/remix/smoke_test.py)
-#define REMIX_BOOT_ISLAND_VIEW 3  // the Ancient Plateau, standing on the floating island (tests)
-#define REMIX_BOOT_POOL_VIEW 4    // the Ancient Plateau, at the pool facing the waterfall (tests)
-#define REMIX_BOOT_SHRINE 5       // level 2: the Ember Shrine, as adult Link, dropping in from its hole
-#define REMIX_BOOT_SEEKER 6       // level 3: the Seeker's Shrine, the same way (with nothing but the sword)
-#define REMIX_BOOT_MAGNET 7       // level 4: the Lodestone Shrine, the same way
-#define REMIX_BOOT_MAGNET_TEST 8  // the Lodestone Shrine with Magnesis, facing the iron slab (tests)
-#define REMIX_BOOT_MAGNET_CHEST 9 // the Lodestone Shrine, in front of the rune's chest (tests)
-#define REMIX_BOOT_FORGE 10       // level 5: the Forge Shrine, the same way as the others
-#define REMIX_BOOT_FORGE_TEST 11  // the Forge Shrine, behind the burning basket, facing the first gate (tests)
-#define REMIX_BOOT_TIME 12        // level 6: the Temple of Two Truths, the same way as the others
-#define REMIX_BOOT_TIME_TEST 13   // the Temple of Two Truths, adult Link on the clock-plate (tests: the Song of Time)
-#define REMIX_BOOT_TIME_SUN 14    // ...on the sunlight's spot, the mirror block grown in the sunbeam (tests)
-#define REMIX_BOOT_TIME_CHILD 15  // ...as child Link, on his pad on the dais (tests)
-#define REMIX_BOOT_YEARS 16       // level 7: the Shrine of Seven Years, the same way as the others
-#define REMIX_BOOT_YEARS_TEST 17  // the Shrine of Seven Years, adult Link before the Master Sword's pedestal (tests)
-#define REMIX_BOOT_YEARS_CHILD 18 // ...child Link before it (tests)
+#define REMIX_BOOT_NORMAL 0        // title screen as usual
+#define REMIX_BOOT_ANCIENT 1       // the Ancient Plateau, as adult Link
+#define REMIX_BOOT_HYRULE_FIELD 2  // Hyrule Field the same way (tests: tools/remix/smoke_test.py)
+#define REMIX_BOOT_ISLAND_VIEW 3   // the Ancient Plateau, standing on the floating island (tests)
+#define REMIX_BOOT_POOL_VIEW 4     // the Ancient Plateau, at the pool facing the waterfall (tests)
+#define REMIX_BOOT_SHRINE 5        // level 2: the Ember Shrine, as adult Link, dropping in from its hole
+#define REMIX_BOOT_SEEKER 6        // level 3: the Seeker's Shrine, the same way (with nothing but the sword)
+#define REMIX_BOOT_MAGNET 7        // level 4: the Lodestone Shrine, the same way
+#define REMIX_BOOT_MAGNET_TEST 8   // the Lodestone Shrine with Magnesis, facing the iron slab (tests)
+#define REMIX_BOOT_MAGNET_CHEST 9  // the Lodestone Shrine, in front of the rune's chest (tests)
+#define REMIX_BOOT_FORGE 10        // level 5: the Forge Shrine, the same way as the others
+#define REMIX_BOOT_FORGE_TEST 11   // the Forge Shrine, behind the burning basket, facing the first gate (tests)
+#define REMIX_BOOT_TIME 12         // level 6: the Temple of Two Truths, the same way as the others
+#define REMIX_BOOT_TIME_TEST 13    // the Temple of Two Truths, adult Link on the clock-plate (tests: the Song of Time)
+#define REMIX_BOOT_TIME_SUN 14     // ...on the sunlight's spot, the mirror block grown in the sunbeam (tests)
+#define REMIX_BOOT_TIME_CHILD 15   // ...as child Link, on his pad on the dais (tests)
+#define REMIX_BOOT_YEARS 16        // level 7: the Shrine of Seven Years, the same way as the others
+#define REMIX_BOOT_YEARS_TEST 17   // the Shrine of Seven Years, adult Link before the Master Sword's pedestal (tests)
+#define REMIX_BOOT_YEARS_CHILD 18  // ...child Link before it (tests)
 #define REMIX_BOOT_YEARS_FUTURE 19 // ...adult Link on the upper floor, everything prepared in the past (tests)
+#define REMIX_BOOT_WIND 20         // level 8: the Shrine of the Upside-Down Wind, the same way as the others
+#define REMIX_BOOT_WIND_TEST 21    // the Upside-Down Wind, adult Link onto the timed switch (tests)
+#define REMIX_BOOT_WIND_RIDE 22    // ...child Link onto the dancing cube, the final ladder down (tests)
 
 extern RemixBootConfig gRemixBootConfig;
 

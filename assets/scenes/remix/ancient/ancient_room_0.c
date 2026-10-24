@@ -27,7 +27,7 @@ SceneCmd ancient_room_0Commands[] = {
     SCENE_CMD_TIME_SETTINGS(0xFF, 0xFF, 10),
     SCENE_CMD_ROOM_SHAPE(&ancient_room_0RoomShape),
     SCENE_CMD_OBJECT_LIST(11, ancient_room_0ObjectList),
-    SCENE_CMD_ACTOR_LIST(80 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
+    SCENE_CMD_ACTOR_LIST(81 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
     SCENE_CMD_END(),
 };
 
@@ -94,6 +94,7 @@ ActorEntry ancient_room_0ActorList[] = {
     { ACTOR_DOOR_ANA, { 39, 127, -3178 }, { 0, 0x0000, 17 }, 0x0000 },
     { ACTOR_DOOR_ANA, { 594, 25, 2163 }, { 0, 0x0000, 18 }, 0x0000 },
     { ACTOR_DOOR_ANA, { -2621, 74, -452 }, { 0, 0x0000, 19 }, 0x0000 },
+    { ACTOR_DOOR_ANA, { -740, 42, -2248 }, { 0, 0x0000, 20 }, 0x0000 },
     { ACTOR_EN_ITEM00, { 529, 1020, -4108 }, { 0, 0x0000, 0 }, ((0x14 << 8) | ITEM00_HEART_PIECE) },
     { ACTOR_EN_HY, { 246, 30, 677 }, { 0, 0x51C7, 0 }, (ENHY_TYPE_MAN_1_BOWL_CUT_GREEN_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { 360, 30, 624 }, { 0, 0xD1C8, 0 }, (ENHY_TYPE_MAN_2_BALD | (15 << 7)) },
@@ -2409,7 +2410,7 @@ RoomShapeCullableEntry ancient_room_0RoomShapeEntries[] = {
     { { 6000, 2526, -3600 }, 1906, ancient_room_0DL_terrain_5_1_opa, NULL },
     { { -6000, 2099, -1200 }, 2133, ancient_room_0DL_terrain_0_2_opa, NULL },
     { { -3600, 896, -1200 }, 1911, ancient_room_0DL_terrain_1_2_opa, ancient_room_0DL_terrain_1_2_xlu },
-    { { -1200, 80, -1200 }, 1708, ancient_room_0DL_terrain_2_2_opa, NULL },
+    { { -1200, 80, -1200 }, 1708, ancient_room_0DL_terrain_2_2_opa, ancient_room_0DL_terrain_2_2_xlu },
     { { 1200, 64, -1200 }, 1707, ancient_room_0DL_terrain_3_2_opa, NULL },
     { { 3600, 859, -1200 }, 1892, ancient_room_0DL_terrain_4_2_opa, NULL },
     { { 6000, 2063, -1200 }, 2030, ancient_room_0DL_terrain_5_2_opa, NULL },
@@ -4287,6 +4288,20 @@ Vtx ancient_room_0Vtx_terrain_2_2_opa[366] = {
     VTX(-884, 0, 0, 1135, 4096, 0x00, 0x7F, 0x00, 0xFF),
     VTX(-903, 0, -35, 1004, 3855, 0x00, 0x7F, 0x00, 0xFF),
     VTX(-916, 0, -44, 912, 3798, 0x00, 0x7F, 0x00, 0xFF),
+};
+
+Vtx ancient_room_0Vtx_terrain_2_2_xlu[22] = {
+    VTX(-740, 35, -2155, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(-740, 35, -2141, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-677, 35, -2162, 422, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(-686, 35, -2173, 422, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-638, 38, -2215, 844, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(-652, 38, -2220, 844, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-638, 44, -2282, 1268, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-652, 44, -2277, 1268, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-677, 51, -2335, 1693, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-686, 51, -2324, 1693, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-740, 56, -2355, 2116, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-740, 56, -2341, 2116, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-803, 56, -2335, 2538, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-795, 56, -2324, 2538, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-842, 53, -2282, 2960, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-829, 53, -2277, 2960, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-842, 46, -2215, 3384, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-829, 46, -2220, 3384, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-803, 40, -2162, 3809, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-795, 40, -2173, 3809, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(-740, 35, -2141, 4232, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-740, 35, -2155, 4232, 0, 0xFF, 0xFF, 0xFF, 0xFF),
 };
 
 Vtx ancient_room_0Vtx_terrain_3_2_opa[394] = {
@@ -12416,6 +12431,32 @@ Gfx ancient_room_0DL_terrain_2_2_opa[] = {
     gsSP2Triangles(17, 18, 2, 0, 2, 19, 17, 0),
     gsSP2Triangles(8, 20, 21, 0, 21, 9, 8, 0),
     gsSP2Triangles(8, 22, 23, 0, 23, 24, 8, 0),
+    gsSPEndDisplayList(),
+};
+
+Gfx ancient_room_0DL_terrain_2_2_xlu[] = {
+    gsDPPipeSync(),
+    gsDPSetOtherMode(G_AD_NOISE | G_CD_MAGICSQ | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_NONE | G_TL_TILE |
+                         G_TD_CLAMP | G_TP_PERSP | G_CYC_2CYCLE | G_PM_NPRIMITIVE,
+                     G_AC_NONE | G_ZS_PIXEL | G_RM_FOG_SHADE_A | G_RM_AA_ZB_XLU_SURF2),
+    gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_FOG | G_SHADING_SMOOTH),
+    gsDPSetCombineLERP(0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, COMBINED, 0, 0, 0, COMBINED),
+    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+    gsDPLoadTextureBlock(ancient_room_0Tex_glow, G_IM_FMT_I, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                         G_TX_NOMIRROR | G_TX_CLAMP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),
+    gsSPDisplayList(0x0D000000),
+    gsSPDisplayList(0x0C000000),
+    gsSPVertex(&ancient_room_0Vtx_terrain_2_2_xlu[0], 22, 0),
+    gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(3, 2, 4, 0, 3, 4, 5, 0),
+    gsSP2Triangles(5, 4, 6, 0, 5, 6, 7, 0),
+    gsSP2Triangles(7, 6, 8, 0, 7, 8, 9, 0),
+    gsSP2Triangles(9, 8, 10, 0, 9, 10, 11, 0),
+    gsSP2Triangles(11, 10, 12, 0, 11, 12, 13, 0),
+    gsSP2Triangles(13, 12, 14, 0, 13, 14, 15, 0),
+    gsSP2Triangles(15, 14, 16, 0, 15, 16, 17, 0),
+    gsSP2Triangles(17, 16, 18, 0, 17, 18, 19, 0),
+    gsSP2Triangles(19, 18, 20, 0, 19, 20, 21, 0),
     gsSPEndDisplayList(),
 };
 

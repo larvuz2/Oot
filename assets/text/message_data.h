@@ -37,6 +37,70 @@ MSG(
 )
 )
 
+/* Web Remix: the Shrine of the Upside-Down Wind (En_Remix_Years' tablets 3 and 4) */
+DEFINE_MESSAGE(0x7FAA, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"さかさまの　かぜの　ほこら\n"
+"きかいは　うしろから　くみたてよ"
+)
+,
+MSG(
+"The " COLOR(RED) "Upside-Down Wind" COLOR(DEFAULT) ".\n"
+"Build the machine backwards:\n"
+"the way out is above the way in."
+BOX_BREAK
+"Blue: the wind rises. Orange:\n"
+"it falls. For eight seconds,\n"
+"all that is loose falls up."
+)
+,
+MSG(
+"The " COLOR(RED) "Upside-Down Wind" COLOR(DEFAULT) ".\n"
+"Build the machine backwards:\n"
+"the way out is above the way in."
+BOX_BREAK
+"Blue: the wind rises. Orange:\n"
+"it falls. For eight seconds,\n"
+"all that is loose falls up."
+)
+,
+MSG(
+"The " COLOR(RED) "Upside-Down Wind" COLOR(DEFAULT) ".\n"
+"Build the machine backwards:\n"
+"the way out is above the way in."
+BOX_BREAK
+"Blue: the wind rises. Orange:\n"
+"it falls. For eight seconds,\n"
+"all that is loose falls up."
+)
+)
+
+/* Web Remix: the Shrine of the Upside-Down Wind */
+DEFINE_MESSAGE(0x7FAB, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
+MSG(
+"いちばん　ちいさな　ものだけが\n"
+"さかさまに　おちて　せまい　あなを　とおる"
+)
+,
+MSG(
+"Only the smallest falls\n"
+"through the narrowest way,\n"
+"and only if it falls upward."
+)
+,
+MSG(
+"Only the smallest falls\n"
+"through the narrowest way,\n"
+"and only if it falls upward."
+)
+,
+MSG(
+"Only the smallest falls\n"
+"through the narrowest way,\n"
+"and only if it falls upward."
+)
+)
+
 /* Web Remix: the Temple of Two Truths (En_Remix_Time) */
 DEFINE_MESSAGE(0x7FA1, TEXTBOX_TYPE_BLACK, TEXTBOX_POS_BOTTOM,
 MSG(
