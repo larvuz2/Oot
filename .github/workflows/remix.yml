@@ -269,7 +269,7 @@ jobs:
       - name: Smoke test the new level in the website's emulator
         if: steps.gate.outputs.enabled == 'true'
         continue-on-error: true
-        timeout-minutes: 32
+        timeout-minutes: 45
         env:
           V: ${{ steps.rom.outputs.version }}
         run: |

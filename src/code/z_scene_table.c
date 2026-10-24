@@ -214,6 +214,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     RemixLevel_DrawConfigTime,                   // SDC_REMIX_TIME
     RemixLevel_DrawConfigYears,                  // SDC_REMIX_YEARS
     RemixLevel_DrawConfigWind,                   // SDC_REMIX_WIND
+    RemixLevel_DrawConfigAbyss,                  // SDC_REMIX_ABYSS
 };
 
 void Scene_Draw(PlayState* play) {
@@ -1788,6 +1789,7 @@ SceneDrawConfigFunc sSceneDrawConfigs[SDC_MAX] = {
     RemixLevel_DrawConfigTime,                   // SDC_REMIX_TIME
     RemixLevel_DrawConfigYears,                  // SDC_REMIX_YEARS
     RemixLevel_DrawConfigWind,                   // SDC_REMIX_WIND
+    RemixLevel_DrawConfigAbyss,                  // SDC_REMIX_ABYSS
 };
 
 void Scene_Draw(PlayState* play) {

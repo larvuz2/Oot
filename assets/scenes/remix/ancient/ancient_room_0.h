@@ -56,6 +56,10 @@ extern RoomShapeCullableEntry ancient_room_0RoomShapeEntries[];
 #define ANCIENT_WIND_HOLE_Y 42.2f
 #define ANCIENT_WIND_HOLE_Z -2248.5f
 #define ANCIENT_WIND_HOLE_YAW 0x433A
+#define ANCIENT_ABYSS_HOLE_X 2222.7f
+#define ANCIENT_ABYSS_HOLE_Y 42.1f
+#define ANCIENT_ABYSS_HOLE_Z 814.5f
+#define ANCIENT_ABYSS_HOLE_YAW 0x7B6B
 // Scenery groups (x, z, radius, on the floating island): drawn only near the camera (z_remix_level.c)
 #define ANCIENT_DECOR_SECTORS 51
 #define ANCIENT_DECOR_DRAW_DIST 1500
@@ -165,7 +169,7 @@ extern Vtx ancient_room_0Vtx_terrain_2_3_opa[431];
 extern Gfx ancient_room_0DL_terrain_2_3_opa[];
 extern Vtx ancient_room_0Vtx_terrain_3_3_opa[454];
 extern Gfx ancient_room_0DL_terrain_3_3_opa[];
-extern Vtx ancient_room_0Vtx_terrain_3_3_xlu[22];
+extern Vtx ancient_room_0Vtx_terrain_3_3_xlu[46];
 extern Gfx ancient_room_0DL_terrain_3_3_xlu[];
 extern Vtx ancient_room_0Vtx_terrain_4_3_opa[112];
 extern Gfx ancient_room_0DL_terrain_4_3_opa[];

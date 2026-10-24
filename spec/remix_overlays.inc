@@ -35,3 +35,10 @@ beginseg
     flags OVERLAY
     include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Wind/z_en_remix_wind.o"
 endseg
+
+beginseg
+    name "ovl_En_Remix_Abyss"
+    compress
+    flags OVERLAY
+    include "$(BUILD_DIR)/src/overlays/actors/ovl_En_Remix_Abyss/z_en_remix_abyss.o"
+endseg

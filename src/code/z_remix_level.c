@@ -36,6 +36,8 @@
  *   - The Shrine of the Upside-Down Wind's draw config (level 8): the wind's lines blue (blowing up) or orange
  *     (turned) with the crystal (0x0B). Its trial is the Shrine of Seven Years' (the same pedestal stands in it); its
  *     Magnesis is lent. The pieces are En_Remix_Wind.
+ *   - The Shrine of the Swinging Abyss (level 9): its draw config, and the Seeker's trial (no items) with one
+ *     difference: the Hookshot from its chest is Link's to keep, inside and out. The pieces are En_Remix_Abyss.
  *   - Travel to the levels from the Remix menu, and the website's "boot straight into a level" options.
  */
 
@@ -67,6 +69,7 @@
 #include "assets/scenes/remix/time/time_room_0.h"
 #include "assets/scenes/remix/years/years_room_0.h"
 #include "assets/scenes/remix/wind/wind_room_0.h"
+#include "assets/scenes/remix/abyss/abyss_room_0.h"
 
 #define ANCIENT_SPIRE_TOP_Y ((f32)ANCIENT_RING_Y)
 
@@ -661,6 +664,50 @@ void RemixLevel_DrawConfigWind(PlayState* play) {
     CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
 }
 
+void RemixLevel_GoToAbyss(PlayState* play) {
+    RemixLevel_SetShrineReturn(ANCIENT_ABYSS_HOLE_X, ANCIENT_ABYSS_HOLE_Y, ANCIENT_ABYSS_HOLE_Z,
+                               ANCIENT_ABYSS_HOLE_YAW);
+    RemixLevel_GoDown(play, ENTR_REMIX_ABYSS_0);
+}
+
+void RemixLevel_DrawConfigAbyss(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    u32 frames = play->gameplayFrames;
+    f32 wave = Math_SinS((s16)(frames * 0x2C0));
+    Gfx* cyan = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* orange = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* gold = GRAPH_ALLOC(gfxCtx, 3 * sizeof(Gfx));
+    Gfx* scroll = Gfx_TexScroll(gfxCtx, (128 - ((frames * 3) % 128)) % 128, 0, 32, 32);
+
+    gDPPipeSync(cyan);
+    gDPSetPrimColor(cyan + 1, 0, 0, 120, 215 + (s32)(wave * 25.0f), 255, 150 + (s32)(wave * 40.0f));
+    gSPEndDisplayList(cyan + 2);
+    gDPPipeSync(orange);
+    gDPSetPrimColor(orange + 1, 0, 0, 255, 120 - (s32)(wave * 30.0f), 40, 220 - (s32)(wave * 40.0f));
+    gSPEndDisplayList(orange + 2);
+    gDPPipeSync(gold);
+    gDPSetPrimColor(gold + 1, 0, 0, 255, 200 + (s32)(wave * 30.0f), 110, 190 + (s32)(wave * 50.0f));
+    gSPEndDisplayList(gold + 2);
+
+    OPEN_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+
+    gSPSegment(POLY_OPA_DISP++, 0x08, cyan);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, orange);
+    gSPSegment(POLY_OPA_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_OPA_DISP++, 0x0B, gold);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetEnvColor(POLY_OPA_DISP++, 128, 128, 128, 128);
+
+    gSPSegment(POLY_XLU_DISP++, 0x08, cyan);
+    gSPSegment(POLY_XLU_DISP++, 0x0C, orange);
+    gSPSegment(POLY_XLU_DISP++, 0x0D, scroll);
+    gSPSegment(POLY_XLU_DISP++, 0x0B, gold);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gDPSetEnvColor(POLY_XLU_DISP++, 128, 128, 128, 128);
+
+    CLOSE_DISPS(gfxCtx, "../z_remix_level.c", __LINE__);
+}
+
 // ---- the Temple of Two Truths' kit: both ages' tools inside, Link's own things back outside ----
 
 typedef struct RemixTimeKit {
@@ -864,9 +911,18 @@ static void RemixTrial_Begin(void) {
     gSaveContext.magicFillTarget = (pd->isDoubleMagicAcquired + 1) * MAGIC_NORMAL_METER;
 }
 
+/** The Shrine of the Swinging Abyss: once its chest is open, the Hookshot is Link's (in whatever inventory). */
+static void RemixTrial_KeepHookshot(Inventory* inv) {
+    if ((gSaveContext.save.info.sceneFlags[SCENE_REMIX_ABYSS].chest & (1 << ABYSS_SHRINE_T_HOOK)) &&
+        (inv->items[SLOT_HOOKSHOT] == ITEM_NONE)) {
+        inv->items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
+    }
+}
+
 static void RemixTrial_End(void) {
     SavePlayerData* pd = &gSaveContext.save.info.playerData;
 
+    RemixTrial_KeepHookshot(&sTrial.inventory);
     gSaveContext.save.info.inventory = sTrial.inventory;
     gSaveContext.save.info.equips = sTrial.equips;
     pd->isMagicAcquired = sTrial.isMagicAcquired;
@@ -898,9 +954,13 @@ void RemixLevel_OnSceneStart(PlayState* play) {
     } else if (sTimeKit.active) {
         RemixTimeKit_End();
     }
-    if (play->sceneId == SCENE_REMIX_SEEKER) {
+    if ((play->sceneId == SCENE_REMIX_SEEKER) || (play->sceneId == SCENE_REMIX_ABYSS)) {
         if (!sTrial.active) {
             RemixTrial_Begin();
+        }
+        if (play->sceneId == SCENE_REMIX_ABYSS) {
+            // the Hookshot, once earned (En_Remix_Abyss puts it on C-Left)
+            RemixTrial_KeepHookshot(&gSaveContext.save.info.inventory);
         }
     } else if (sTrial.active) {
         RemixTrial_End();
@@ -934,6 +994,7 @@ void RemixLevel_TrialSaveSwap(void) {
         ItemEquips eq = gSaveContext.save.info.equips;
         u8 acquired = gSaveContext.save.info.playerData.isMagicAcquired;
 
+        RemixTrial_KeepHookshot(&sTrial.inventory);
         gSaveContext.save.info.inventory = sTrial.inventory;
         gSaveContext.save.info.equips = sTrial.equips;
         gSaveContext.save.info.playerData.isMagicAcquired = sTrial.isMagicAcquired;
@@ -997,6 +1058,7 @@ void RemixBoot_Start(GameState* gameState) {
         : (mode == REMIX_BOOT_TIME_CHILD)                                       ? ENTR_REMIX_TIME_1
         : ((mode >= REMIX_BOOT_TIME) && (mode <= REMIX_BOOT_TIME_SUN))          ? ENTR_REMIX_TIME_0
         : ((mode == REMIX_BOOT_YEARS_TEST) || (mode == REMIX_BOOT_YEARS_CHILD)) ? ENTR_REMIX_YEARS_1
+        : (mode >= REMIX_BOOT_ABYSS)                                            ? ENTR_REMIX_ABYSS_0
         : (mode >= REMIX_BOOT_WIND)                                             ? ENTR_REMIX_WIND_0
         : (mode >= REMIX_BOOT_YEARS)                                            ? ENTR_REMIX_YEARS_0
                                                                                 : ENTR_REMIX_ANCIENT_0;
@@ -1083,6 +1145,38 @@ void RemixBoot_Start(GameState* gameState) {
         r->tempSwchFlags = r->tempCollectFlags = 0;
         gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
     }
+    if ((mode > REMIX_BOOT_ABYSS) && (mode <= REMIX_BOOT_ABYSS_FINAL)) {
+        // Tests. PUZZLE: at the throwing spot facing the crystal, a stone before him, the cube already on the ramp.
+        // HOOK: on the start ledge, the Hookshot earned (the door open), facing the pendulum. RIDE / FINAL: dropped
+        // onto a carousel platform / the clockwork storm's elevator, the Hookshot earned
+        SavedSceneFlags* flags = &gSaveContext.save.info.sceneFlags[SCENE_REMIX_ABYSS];
+        RespawnData* r = &gSaveContext.respawn[RESPAWN_MODE_RETURN];
+
+        if (mode == REMIX_BOOT_ABYSS_PUZZLE) {
+            flags->swch |= 1 << ABYSS_SHRINE_FLAG_CUBE_RAMP;
+            r->pos.x = ABYSS_TEST_PUZZLE_X;
+            r->pos.y = 0.0f;
+            r->pos.z = ABYSS_TEST_PUZZLE_Z;
+        } else {
+            flags->chest |= 1 << ABYSS_SHRINE_T_HOOK;
+            r->pos.x = (mode == REMIX_BOOT_ABYSS_HOOK)   ? ABYSS_TEST_START_X
+                       : (mode == REMIX_BOOT_ABYSS_RIDE) ? ABYSS_TEST_RIDE_X
+                                                         : ABYSS_TEST_FINAL_X;
+            r->pos.y = (mode == REMIX_BOOT_ABYSS_HOOK)   ? ABYSS_TEST_START_Y
+                       : (mode == REMIX_BOOT_ABYSS_RIDE) ? ABYSS_TEST_RIDE_Y
+                                                         : ABYSS_TEST_FINAL_Y;
+            r->pos.z = (mode == REMIX_BOOT_ABYSS_HOOK)   ? ABYSS_TEST_START_Z
+                       : (mode == REMIX_BOOT_ABYSS_RIDE) ? ABYSS_TEST_RIDE_Z
+                                                         : ABYSS_TEST_FINAL_Z;
+        }
+        r->yaw = 0x8000;
+        r->playerParams = PLAYER_PARAMS(PLAYER_START_MODE_IDLE, PLAYER_START_BG_CAM_DEFAULT);
+        r->entranceIndex = ENTR_REMIX_ABYSS_0;
+        r->roomIndex = 0;
+        r->data = 0;
+        r->tempSwchFlags = r->tempCollectFlags = 0;
+        gSaveContext.respawnFlag = RESPAWN_MODE_RETURN + 1;
+    }
     if ((mode == REMIX_BOOT_WIND_TEST) || (mode == REMIX_BOOT_WIND_RIDE)) {
         // Tests. WIND_TEST: adult Link onto the timed switch (the gravity turns: the heavy cube falls up against its
         // ceiling switch, the gate opens). WIND_RIDE: both ceiling switches done (the final ladder down, the heavy
@@ -1132,6 +1226,9 @@ void RemixBoot_Start(GameState* gameState) {
     } else if (mode == REMIX_BOOT_SEEKER) {
         RemixLevel_SetShrineReturn(ANCIENT_SEEKER_HOLE_X, ANCIENT_SEEKER_HOLE_Y, ANCIENT_SEEKER_HOLE_Z,
                                    ANCIENT_SEEKER_HOLE_YAW);
+    } else if (mode == REMIX_BOOT_ABYSS) {
+        RemixLevel_SetShrineReturn(ANCIENT_ABYSS_HOLE_X, ANCIENT_ABYSS_HOLE_Y, ANCIENT_ABYSS_HOLE_Z,
+                                   ANCIENT_ABYSS_HOLE_YAW);
     } else if (mode == REMIX_BOOT_WIND) {
         RemixLevel_SetShrineReturn(ANCIENT_WIND_HOLE_X, ANCIENT_WIND_HOLE_Y, ANCIENT_WIND_HOLE_Z,
                                    ANCIENT_WIND_HOLE_YAW);

@@ -431,7 +431,7 @@ chest. The door's switch, the chests and the torches are the game's own.
 
 ## Level 8: the Shrine of the Upside-Down Wind (a machine that works in reverse)
 
-A seventh shrine under the Plateau, by the east road nearer the town. On the website, **8 · Upside-Down Wind** (or
+A seventh shrine under the Plateau, by the north road nearer the town. On the website, **8 · Upside-Down Wind** (or
 the key <kbd>8</kbd>); from your own save, Remix menu &rarr; *Go to: Upside-Down Wind*. As in the Shrine of Seven
 Years Link keeps only the sword and shield of his age (and gets them back with his own things when he leaves), and
 the Master Sword's pedestal stands here too: place the sword to be a child, draw it to be an adult. Magnesis is lent.
@@ -467,6 +467,45 @@ physics (falling, falling up to whatever is above them, the wind's dance and pul
 can lift him), the fans, the switches, the gate, the ladders and the glass. Its cubes begin with an `EnRemixMagnet`,
 so `ovl_En_Remix_Magnet`'s Magnesis holds them like the Lodestone Shrine's crates. The pedestal is
 `ovl_En_Remix_Years`'; the crystals and the chests are the game's own; two new texts in `assets/text/message_data.h`.
+
+## Level 9: the Shrine of the Swinging Abyss (the Hookshot, moving platforms)
+
+An eighth shrine under the Plateau, by the east road nearer the town. On the website, **9 · Swinging Abyss** (or the
+key <kbd>9</kbd>); from your own save, Remix menu &rarr; *Go to: Swinging Abyss*. As in the Seeker's Shrine Link goes
+in with nothing but his sword and shield (his things come back when he leaves), but the Hookshot he earns inside is
+his to keep. Adult Link only (the child can't use the Hookshot).
+
+**Earn the Hookshot (the stone room).** The chest stands behind bars. The floor switch in the trench opens them only
+while it is held; the stone cube can't be pushed across the trench (a curb). Push the cube onto the ramp, lift a
+stone and throw it at the crystal high on the north wall: the ramp rises, the cube slides over the curb into the
+trench onto the switch, and the bars stay open. With the Hookshot (it goes on C-Left), the north door opens onto the
+abyss.
+
+**The gauntlet.** One enormous bottomless chamber; every moving platform has a Hookshot target. A target glows
+while it is within the Hookshot's reach, and only then does <kbd>Z</kbd> lock on to it (fire with the Hookshot while
+locked on). Not every target is safe: a cracked one breaks away a moment after Link lands on it.
+
+1. **The pendulum** swings slowly in front of the start ledge: wait until it is close enough.
+2. **The carousel:** four platforms round a stone column, their targets facing outwards (one is cracked).
+3. **The rising towers:** three narrow platforms moving up and down at their own speeds.
+4. **The vanishing target:** a long platform's target shows for a few seconds before it runs into a stone tunnel.
+5. **The crossing paths:** platform A carries Link under platform B's target at one point of their cycles (miss it
+   and A carries him into a wall).
+6. **The clockwork storm:** a swing, an elevator, a platform orbiting the central mechanism (cracked decoys orbit
+   too), and the last shot through the opening of the stone ring turning round the exit balcony, at the top.
+
+A fall into the abyss: half a second of black, and Link stands at the start of the gauntlet again, every platform
+back at the beginning of its cycle (each attempt is the same; no loading). **The hidden treasure:** a ledge hangs
+under the carousel, its target facing down: invisible from above, it can be hit from the first tower when it is low.
+
+How it is made: `tools/remix/abyss_plan.py` is the plan and simulates it: every platform's motion, and for each
+intended grapple the windows when it can be made (in range, in front of the target, the chain clear of the platform's
+own edge), at least a second each; the final shot through the ring; nothing else reaching the final target.
+`make_abyss_parts.py` writes the pieces (`object_remix_abyss`: every platform with its plaque, whose face is a Hookshot
+surface) and the motions into the header; `make_abyss.py` the rooms (`assets/scenes/remix/abyss/`). `ovl_En_Remix_Abyss`
+moves the platforms from one clock, the ring, the stone room's cube, ramp, bars and door, watches the crystal for a
+thrown stone, and brings Link back after a fall. The Hookshot, the crystal, the floor switch, the stones and the
+chests are the game's own.
 
 ## Play on any device: your ROM in the cloud
 
@@ -643,6 +682,7 @@ Upstream notes: building with `COMPARE=0` is required once the ROM no longer mat
 | `tools/remix/make_time.py`, `make_time_parts.py`, `time_plan.py`, `assets/scenes/remix/time/`, `src/overlays/actors/ovl_En_Remix_Time/`, `assets/objects/object_remix_time/` | Level 6, the Temple of Two Truths: the hall, its pieces and the age switch; the kit in `z_remix_level.c`, texts in `assets/text/message_data.h` |
 | `tools/remix/make_years.py`, `make_years_parts.py`, `years_plan.py`, `assets/scenes/remix/years/`, `src/overlays/actors/ovl_En_Remix_Years/`, `assets/objects/object_remix_years/` | Level 7, the Shrine of Seven Years: the hall, its pieces and the Master Sword's pedestal; the swords-only kit in `z_remix_level.c` |
 | `tools/remix/make_wind.py`, `make_wind_parts.py`, `wind_plan.py`, `assets/scenes/remix/wind/`, `src/overlays/actors/ovl_En_Remix_Wind/`, `assets/objects/object_remix_wind/` | Level 8, the Shrine of the Upside-Down Wind: the chamber, the fans, cubes, switches and ladders (Magnesis holds the cubes) |
+| `tools/remix/make_abyss.py`, `make_abyss_parts.py`, `abyss_plan.py`, `assets/scenes/remix/abyss/`, `src/overlays/actors/ovl_En_Remix_Abyss/`, `assets/objects/object_remix_abyss/` | Level 9, the Shrine of the Swinging Abyss: the stone room, the moving platforms and their simulated timings; the Hookshot kept by the trial in `z_remix_level.c` |
 | `tools/remix/make_biome.py`, `tools/remix/biome_art/`, `spec/remix_scenes.inc` | Biomes: restyled copy of Hyrule Field (Frozen Tundra); 1 line in `Play_SpawnScene`, 2 in `include/segment_symbols.h`, 6 in the `Makefile` |
 
 ## Updating from upstream

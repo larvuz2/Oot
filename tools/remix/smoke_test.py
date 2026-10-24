@@ -34,8 +34,10 @@ BOOT_MAGNET, BOOT_MAGNET_TEST, BOOT_MAGNET_CHEST, BOOT_FORGE, BOOT_FORGE_TEST = 
 BOOT_TIME, BOOT_TIME_TEST, BOOT_TIME_SUN, BOOT_TIME_CHILD = 12, 13, 14, 15
 BOOT_YEARS, BOOT_YEARS_TEST, BOOT_YEARS_CHILD, BOOT_YEARS_FUTURE = 16, 17, 18, 19
 BOOT_WIND, BOOT_WIND_TEST, BOOT_WIND_RIDE = 20, 21, 22
+BOOT_ABYSS, BOOT_ABYSS_PUZZLE, BOOT_ABYSS_HOOK, BOOT_ABYSS_RIDE, BOOT_ABYSS_FINAL = 23, 24, 25, 26, 27
 # EmulatorJS input indices (web/js/app.js KEYS)
 IN_A, IN_L, IN_R, IN_STICK_DOWN, IN_STICK_UP, IN_C_RIGHT, IN_C_DOWN, IN_C_UP = 0, 10, 11, 18, 19, 20, 22, 23
+IN_Z, IN_C_LEFT = 12, 21
 
 
 def song_of_time(start, gap=40, hold=16):
@@ -287,7 +289,7 @@ def main():
         # (and level 3, the Seeker's Shrine, the same way)
         for name, mode in (("shrine", BOOT_SHRINE), ("seeker", BOOT_SEEKER), ("magnet", BOOT_MAGNET),
                            ("forge", BOOT_FORGE), ("time", BOOT_TIME), ("years", BOOT_YEARS),
-                           ("wind", BOOT_WIND)):
+                           ("wind", BOOT_WIND), ("abyss", BOOT_ABYSS)):
             print(f"smoke: {name}")
             srom = bytearray(args.rom.read_bytes())
             set_boot_flag(srom, mode)
@@ -338,7 +340,18 @@ def main():
                 # both ceiling switches done (the final ladder down): child Link dropped onto the cube dancing in the
                 # wind rides it up, walks into the final ladder and climbs to the exit platform
                 ("wind-ride", BOOT_WIND_RIDE, [430, 620, 820, 1060, 1300],
-                 [(700, IN_STICK_UP, 0x7FFF), (1250, IN_STICK_UP, 0)]))
+                 [(700, IN_STICK_UP, 0x7FFF), (1250, IN_STICK_UP, 0)]),
+                # Level 9: before the crystal, a stone at his feet, the cube on the ramp: A lifts the stone, A
+                # throws it at the crystal; the ramp rises, the cube slides into the trench onto the switch, the
+                # bars before the Hookshot's chest open
+                ("abyss-puzzle", BOOT_ABYSS_PUZZLE, [430, 560, 700, 900, 1150],
+                 [(440, IN_A, 1), (470, IN_A, 0), (560, IN_A, 1), (590, IN_A, 0)]),
+                # the start of the gauntlet with the Hookshot: Z locks on to the pendulum's target, C-Left fires
+                ("abyss-hook", BOOT_ABYSS_HOOK, [430, 520, 600, 760, 1000],
+                 [(450, IN_Z, 1), (480, IN_C_LEFT, 1), (500, IN_C_LEFT, 0), (560, IN_Z, 0)]),
+                # dropped onto the carousel: carried round the column; dropped onto the clockwork storm's elevator
+                ("abyss-ride", BOOT_ABYSS_RIDE, [430, 700, 1000], []),
+                ("abyss-final", BOOT_ABYSS_FINAL, [430, 700, 1000], []))
         for name, mode, frames, inputs in runs:
             print(f"smoke: {name}")
             mrom = bytearray(args.rom.read_bytes())

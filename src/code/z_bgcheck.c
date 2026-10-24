@@ -6,6 +6,7 @@
 #include "assets/scenes/remix/time/time_scene.h"
 #include "assets/scenes/remix/years/years_scene.h"
 #include "assets/scenes/remix/wind/wind_scene.h"
+#include "assets/scenes/remix/abyss/abyss_scene.h"
 #include "libu64/debug.h"
 #include "array_count.h"
 #include "attributes.h"
@@ -1558,6 +1559,10 @@ s32 BgCheck_TryGetCustomMemsize(s32 sceneId, u32* memSize) {
     }
     if (sceneId == SCENE_REMIX_WIND) { // tools/remix/make_wind.py
         *memSize = WIND_SCENE_BGCHECK_MEMSIZE;
+        return true;
+    }
+    if (sceneId == SCENE_REMIX_ABYSS) { // tools/remix/make_abyss.py
+        *memSize = ABYSS_SCENE_BGCHECK_MEMSIZE;
         return true;
     }
 

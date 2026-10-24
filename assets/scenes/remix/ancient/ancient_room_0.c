@@ -27,7 +27,7 @@ SceneCmd ancient_room_0Commands[] = {
     SCENE_CMD_TIME_SETTINGS(0xFF, 0xFF, 10),
     SCENE_CMD_ROOM_SHAPE(&ancient_room_0RoomShape),
     SCENE_CMD_OBJECT_LIST(11, ancient_room_0ObjectList),
-    SCENE_CMD_ACTOR_LIST(81 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
+    SCENE_CMD_ACTOR_LIST(82 + ANCIENT_TOWN_ACTOR_COUNT, ancient_room_0ActorList),
     SCENE_CMD_END(),
 };
 
@@ -95,6 +95,7 @@ ActorEntry ancient_room_0ActorList[] = {
     { ACTOR_DOOR_ANA, { 594, 25, 2163 }, { 0, 0x0000, 18 }, 0x0000 },
     { ACTOR_DOOR_ANA, { -2621, 74, -452 }, { 0, 0x0000, 19 }, 0x0000 },
     { ACTOR_DOOR_ANA, { -740, 42, -2248 }, { 0, 0x0000, 20 }, 0x0000 },
+    { ACTOR_DOOR_ANA, { 2223, 42, 814 }, { 0, 0x0000, 21 }, 0x0000 },
     { ACTOR_EN_ITEM00, { 529, 1020, -4108 }, { 0, 0x0000, 0 }, ((0x14 << 8) | ITEM00_HEART_PIECE) },
     { ACTOR_EN_HY, { 246, 30, 677 }, { 0, 0x51C7, 0 }, (ENHY_TYPE_MAN_1_BOWL_CUT_GREEN_SHIRT | (15 << 7)) },
     { ACTOR_EN_HY, { 360, 30, 624 }, { 0, 0xD1C8, 0 }, (ENHY_TYPE_MAN_2_BALD | (15 << 7)) },
@@ -6015,7 +6016,7 @@ Vtx ancient_room_0Vtx_terrain_3_3_opa[454] = {
     VTX(2400, 148, 2400, 2048, 5120, 0xF0, 0x7E, 0x03, 0xFF),
 };
 
-Vtx ancient_room_0Vtx_terrain_3_3_xlu[22] = {
+Vtx ancient_room_0Vtx_terrain_3_3_xlu[46] = {
     VTX(594, 36, 2256, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(594, 36, 2270, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
     VTX(657, 37, 2250, 422, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(648, 37, 2238, 422, 0, 0xFF, 0xFF, 0xFF, 0xFF),
     VTX(695, 33, 2196, 844, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(682, 33, 2192, 844, 0, 0xFF, 0xFF, 0xFF, 0xFF),
@@ -6027,6 +6028,18 @@ Vtx ancient_room_0Vtx_terrain_3_3_xlu[22] = {
     VTX(492, 29, 2196, 3381, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(505, 29, 2192, 3381, 0, 0xFF, 0xFF, 0xFF, 0xFF),
     VTX(531, 33, 2250, 3804, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(539, 33, 2238, 3804, 0, 0xFF, 0xFF, 0xFF, 0xFF),
     VTX(594, 36, 2270, 4227, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(594, 36, 2256, 4227, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2223, 49, 907, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(2223, 49, 921, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2286, 55, 901, 424, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(2277, 55, 890, 424, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2324, 57, 848, 846, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(2311, 57, 843, 846, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2324, 54, 781, 1268, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2311, 54, 786, 1268, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2286, 49, 728, 1692, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2277, 49, 739, 1692, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2277, 49, 739, 668, 0, 0xFF, 0xFF, 0xFF, 0xFF),     VTX(2286, 49, 728, 668, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2223, 42, 707, 1092, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2223, 42, 721, 1092, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2160, 36, 728, 1516, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2168, 36, 739, 1516, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2121, 34, 781, 1938, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2134, 34, 786, 1938, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2121, 36, 848, 2360, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2134, 36, 843, 2360, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2160, 42, 901, 2784, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2168, 42, 890, 2784, 0, 0xFF, 0xFF, 0xFF, 0xFF),
+    VTX(2223, 49, 921, 3209, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(2223, 49, 907, 3209, 0, 0xFF, 0xFF, 0xFF, 0xFF),
 };
 
 Vtx ancient_room_0Vtx_terrain_4_3_opa[112] = {
@@ -13375,7 +13388,7 @@ Gfx ancient_room_0DL_terrain_3_3_xlu[] = {
                          G_TX_NOMIRROR | G_TX_CLAMP, 5, 5, G_TX_NOLOD, G_TX_NOLOD),
     gsSPDisplayList(0x0D000000),
     gsSPDisplayList(0x0C000000),
-    gsSPVertex(&ancient_room_0Vtx_terrain_3_3_xlu[0], 22, 0),
+    gsSPVertex(&ancient_room_0Vtx_terrain_3_3_xlu[0], 32, 0),
     gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
     gsSP2Triangles(3, 2, 4, 0, 3, 4, 5, 0),
     gsSP2Triangles(5, 4, 6, 0, 5, 6, 7, 0),
@@ -13386,6 +13399,17 @@ Gfx ancient_room_0DL_terrain_3_3_xlu[] = {
     gsSP2Triangles(15, 14, 16, 0, 15, 16, 17, 0),
     gsSP2Triangles(17, 16, 18, 0, 17, 18, 19, 0),
     gsSP2Triangles(19, 18, 20, 0, 19, 20, 21, 0),
+    gsSP2Triangles(22, 23, 24, 0, 22, 24, 25, 0),
+    gsSP2Triangles(25, 24, 26, 0, 25, 26, 27, 0),
+    gsSP2Triangles(27, 26, 28, 0, 27, 28, 29, 0),
+    gsSP2Triangles(29, 28, 30, 0, 29, 30, 31, 0),
+    gsSPVertex(&ancient_room_0Vtx_terrain_3_3_xlu[32], 14, 0),
+    gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(3, 2, 4, 0, 3, 4, 5, 0),
+    gsSP2Triangles(5, 4, 6, 0, 5, 6, 7, 0),
+    gsSP2Triangles(7, 6, 8, 0, 7, 8, 9, 0),
+    gsSP2Triangles(9, 8, 10, 0, 9, 10, 11, 0),
+    gsSP2Triangles(11, 10, 12, 0, 11, 12, 13, 0),
     gsSPEndDisplayList(),
 };
 

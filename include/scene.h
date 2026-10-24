@@ -385,7 +385,8 @@ typedef enum SceneDrawConfig {
     /* 58 */ SDC_REMIX_TIME,    // Web Remix: the Temple of Two Truths (z_remix_level.c)
     /* 59 */ SDC_REMIX_YEARS,   // Web Remix: the Shrine of Seven Years (z_remix_level.c)
     /* 60 */ SDC_REMIX_WIND,    // Web Remix: the Shrine of the Upside-Down Wind (z_remix_level.c)
-    /* 61 */ SDC_MAX
+    /* 61 */ SDC_REMIX_ABYSS,   // Web Remix: the Shrine of the Swinging Abyss (z_remix_level.c)
+    /* 62 */ SDC_MAX
 } SceneDrawConfig;
 
 typedef void (*SceneDrawConfigFunc)(struct PlayState*);

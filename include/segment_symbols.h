@@ -717,4 +717,8 @@ DECLARE_ROM_SEGMENT(years_room_0)
 DECLARE_ROM_SEGMENT(wind_scene)
 DECLARE_ROM_SEGMENT(wind_room_0)
 
+// Web Remix level 9: the Shrine of the Swinging Abyss (spec/remix_scenes.inc, tools/remix/make_abyss.py)
+DECLARE_ROM_SEGMENT(abyss_scene)
+DECLARE_ROM_SEGMENT(abyss_room_0)
+
 #endif
